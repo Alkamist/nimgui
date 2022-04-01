@@ -35,7 +35,7 @@ proc resize*(texture: Texture, width, height: int) =
   texture.image.data.setLen(width * height)
 
 proc loadFile*(texture: var Texture, file: string) =
-  texture.image = readImage(file)
+  texture.image = pixie.readImage(file)
 
 proc select*(texture: Texture) =
   glBindTexture(GL_TEXTURE_2D, texture.id)

@@ -2,7 +2,7 @@ import pkg/vmath
 export vmath
 
 import nimengine/gfx
-import nimengine/window
+import nimengine/client
 
 export gfx
-export window
+export client

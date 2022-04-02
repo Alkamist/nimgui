@@ -1,12 +1,7 @@
 import pkg/opengl
+import pkg/pixie
 
 type
-  TextureColor = tuple
-    r: uint8
-    g: uint8
-    b: uint8
-    a: uint8
-
   MinifyFilter* {.pure.} = enum
     Nearest = GL_NEAREST,
     Linear = GL_LINEAR,
@@ -26,15 +21,21 @@ type
     MirroredRepeat = GL_MIRRORED_REPEAT,
     MirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE,
 
-  Texture* = ref object
+  Texture* = object
     id*: GLuint
-    width*, height*: int
-    data*: seq[TextureColor]
+    backgroundColor*: Color
+    image*: Image
+
+proc clear*(texture: Texture) =
+  texture.image.fill(texture.backgroundColor)
 
 proc resize*(texture: Texture, width, height: int) =
-  texture.width = width
-  texture.height = height
-  texture.data.setLen(width * height)
+  texture.image.width = width
+  texture.image.height = height
+  texture.image.data.setLen(width * height)
+
+proc loadFile*(texture: var Texture, file: string) =
+  texture.image = pixie.readImage(file)
 
 proc select*(texture: Texture) =
   glBindTexture(GL_TEXTURE_2D, texture.id)
@@ -65,25 +66,23 @@ proc uploadData*(texture: Texture) =
     GL_TEXTURE_2D,
     0,
     GL_RGBA.GLint,
-    texture.width.GLsizei,
-    texture.height.GLsizei,
+    texture.image.width.GLsizei,
+    texture.image.height.GLsizei,
     0,
     GL_RGBA,
     GL_UNSIGNED_BYTE,
-    texture.data[0].addr,
+    texture.image.data[0].addr,
   )
 
 proc generateMipmap*(texture: Texture) =
   texture.select()
   glGenerateMipmap(GL_TEXTURE_2D)
 
-proc new*(_: type Texture, width, height: int): Texture =
-  result = Texture()
+proc init*(_: type Texture, width, height: int): Texture =
   glGenTextures(1, result.id.addr)
-  result.width = width
-  result.height = height
-  result.data = newSeq[TextureColor](width * height)
-  result.setMinifyFilter(MinifyFilter.Nearest)
-  result.setMagnifyFilter(MagnifyFilter.Nearest)
-  result.setWrapS(WrapMode.Repeat)
-  result.setWrapT(WrapMode.Repeat)
+  result.backgroundColor = color(0.0, 0.0, 0.0, 0.0)
+  result.image = newImage(width, height)
+  result.setMinifyFilter MinifyFilter.Nearest
+  result.setMagnifyFilter MagnifyFilter.Nearest
+  result.setWrapS WrapMode.Repeat
+  result.setWrapT WrapMode.Repeat

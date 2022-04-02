@@ -1,8 +1,14 @@
 type
+  ColorRgbxConcept* = concept c
+    c.r is uint8
+    c.g is uint8
+    c.b is uint8
+    c.a is uint8
+
   ColorRgbaConcept* = concept c
     c.r is float32
     c.g is float32
-    c.g is float32
+    c.b is float32
     c.a is float32
 
   FVec3Concept* = concept v

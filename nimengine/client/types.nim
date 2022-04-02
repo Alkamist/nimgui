@@ -2,6 +2,9 @@ when defined(win32):
   import pkg/winim/lean
   type
     NativeHandle = HWND
+elif defined(emscripten):
+  type
+    NativeHandle = cstring
 
 type
   MouseEventKind* {.pure.} = enum

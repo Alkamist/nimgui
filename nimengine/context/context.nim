@@ -19,8 +19,8 @@ when defined(win32):
   type
     GfxContext* = ref object
       nativeHandle*: HWND
-      hdc: HDC
-      hglrc: HGLRC
+      hdc*: HDC
+      hglrc*: HGLRC
 
   proc makeCurrent*(ctx: GfxContext) =
     var pfd = PIXELFORMATDESCRIPTOR(
@@ -68,25 +68,35 @@ when defined(win32):
   proc swapBuffers*(ctx: GfxContext) =
     SwapBuffers(ctx.hdc)
 
-# elif defined(emscripten):
-#   import ../emscriptenapi
+elif defined(emscripten):
+  import ../emscriptenapi
+  export emscriptenapi
 
-#   type
-#     GfxContext* = ref object
-#       nativeHandle*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
+  type
+    GfxContext* = ref object
+      nativeHandle*: cstring
+      webGlContextHandle*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
 
-#   proc new*(_: type GfxContext, targetCanvas: string): GfxContext =
-#     var attributes: EmscriptenWebGLContextAttributes
-#     emscripten_webgl_init_context_attributes(attributes.addr)
-#     attributes.stencil = true.EM_BOOL
-#     attributes.depth = true.EM_BOOL
-#     attributes.explicitSwapControl = true.EM_BOOL
-#     GfxContext(
-#       nativeHandle: emscripten_webgl_create_context(targetCanvas, attributes.addr),
-#     )
+  proc new*(_: type GfxContext, nativeHandle: cstring): GfxContext =
+    var attributes: EmscriptenWebGLContextAttributes
+    emscripten_webgl_init_context_attributes(attributes.addr)
+    attributes.stencil = true.EM_BOOL
+    attributes.depth = true.EM_BOOL
+    # I can't get these to work.
+    # attributes.explicitSwapControl = true.EM_BOOL
+    # attributes.renderViaOffscreenBackBuffer = true.EM_BOOL
+    GfxContext(
+      nativeHandle: nativeHandle,
+      webGlContextHandle: emscripten_webgl_create_context(nativeHandle, attributes.addr),
+    )
 
-#   proc makeCurrent*(ctx: GfxContext) =
-#     discard
+  proc makeCurrent*(ctx: GfxContext) =
+    discard emscripten_webgl_make_context_current(ctx.webGlContextHandle)
+
+  proc swapBuffers*(ctx: GfxContext) =
+    # This seems to cause problems from my testing.
+    # discard emscripten_webgl_commit_frame()
+    discard
 
 
 

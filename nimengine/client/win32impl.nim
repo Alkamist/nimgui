@@ -270,8 +270,7 @@ proc new*(_: type Client,
 
   let (clientWidth, clientHeight) = getClientWidthAndHeight(hwnd)
 
-  var c = newDefaultClient(clientWidth, clientHeight)
-  c.nativeHandle = hwnd
+  result = newDefaultClient(clientWidth, clientHeight)
+  result.nativeHandle = hwnd
 
-  hwndToClientTable[hwnd] = c
-  c
+  hwndToClientTable[hwnd] = result

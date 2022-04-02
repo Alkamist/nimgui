@@ -1,5 +1,15 @@
 include ./types
 
+func newDefaultClient(width, height: float): Client =
+  Client(
+    mouse: MouseState(),
+    keyboard: KeyboardState(),
+    width: width,
+    height: height,
+    widthPrevious: width,
+    heightPrevious: height,
+  )
+
 proc processMouseMoved(client: Client, x, y: float) =
   client.mouse.xPrevious = client.mouse.x
   client.mouse.yPrevious = client.mouse.y
@@ -125,13 +135,3 @@ func removeListener*(client: Client, kind: ClientEventKind, listener: proc()) =
 
 func aspectRatio*(client: Client): float =
   client.width / client.height
-
-func newDefaultClient(width, height: float): Client =
-  Client(
-    mouse: MouseState(),
-    keyboard: KeyboardState(),
-    width: width,
-    height: height,
-    widthPrevious: width,
-    heightPrevious: height,
-  )

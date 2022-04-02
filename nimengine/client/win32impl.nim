@@ -1,7 +1,7 @@
 import std/[unicode, tables, exitprocs]
 import winim/lean
 
-include ./functions
+include ./clientbase
 
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.}
 
@@ -22,12 +22,12 @@ var windowClass = WNDCLASSEX(
   hIconSm: 0,
 )
 
-template startLoop*(client: Client, code: untyped): untyped =
+template startEventLoop*(client: Client, code: untyped): untyped =
   while not client.shouldClose:
     code
 
     var msg: MSG
-    while PeekMessage(msg, client.nativeInfo.hwnd, 0, 0, PM_REMOVE) != 0:
+    while PeekMessage(msg, client.nativeHandle, 0, 0, PM_REMOVE) != 0:
       TranslateMessage(msg)
       DispatchMessage(msg)
 
@@ -271,7 +271,7 @@ proc new*(_: type Client,
   let (clientWidth, clientHeight) = getClientWidthAndHeight(hwnd)
 
   var c = newDefaultClient(clientWidth, clientHeight)
-  c.nativeInfo.hwnd = hwnd
+  c.nativeHandle = hwnd
 
   hwndToClientTable[hwnd] = c
   c

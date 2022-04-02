@@ -1,5 +1,5 @@
 import ./emscriptenapi
-include ./functions
+include ./clientbase
 
 template startLoop*(client: Client, code: untyped): untyped =
   proc mainFn() {.cdecl.} =

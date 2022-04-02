@@ -1,2 +1,3 @@
 when defined(win32):
-  include client/win32impl
+  import client/win32impl
+  export win32impl

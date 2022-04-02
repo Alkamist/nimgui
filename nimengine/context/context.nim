@@ -13,24 +13,14 @@ export texture
 export types
 export vertexbuffer
 
-when not defined(emscripten):
-  var openGlIsLoaded = false
-
 when defined(win32):
-  import pkg/winim
+  import pkg/winim/lean
 
   type
     GfxContext* = ref object
       nativeHandle*: HWND
       hdc: HDC
       hglrc: HGLRC
-
-  proc new*(_: type GfxContext, nativeHandle: HWND): GfxContext =
-    if not openGlIsLoaded:
-      when not defined(emscripten):
-        opengl.loadExtensions()
-      openGlIsLoaded = true
-    GfxContext(nativeHandle: HWND)
 
   proc makeCurrent*(ctx: GfxContext) =
     var pfd = PIXELFORMATDESCRIPTOR(
@@ -68,49 +58,62 @@ when defined(win32):
     if ctx.hglrc == 0:
       raise newException(OSError, "wglCreateContext failed.")
 
-elif defined(emscripten):
-  import ../emscriptenapi
+    wglMakeCurrent(ctx.hdc, ctx.hglrc)
 
-  type
-    GfxContext* = ref object
-      nativeHandle*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
+  proc new*(_: type GfxContext, nativeHandle: HWND): GfxContext =
+    result = GfxContext(nativeHandle: nativeHandle)
+    result.makeCurrent()
+    opengl.loadExtensions()
 
-  proc new*(_: type GfxContext, targetCanvas: string): GfxContext =
-    var attributes: EmscriptenWebGLContextAttributes
-    emscripten_webgl_init_context_attributes(attributes.addr)
-    attributes.stencil = true.EM_BOOL
-    attributes.depth = true.EM_BOOL
-    GfxContext(
-      nativeHandle: emscripten_webgl_create_context(targetCanvas, attributes.addr),
-    )
+  proc swapBuffers*(ctx: GfxContext) =
+    SwapBuffers(ctx.hdc)
 
-  proc makeCurrent*(ctx: GfxContext) =
-    discard
+# elif defined(emscripten):
+#   import ../emscriptenapi
 
-proc setBackgroundColor*(gfx: GfxContext, color: ColorRgbaConcept) =
+#   type
+#     GfxContext* = ref object
+#       nativeHandle*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
+
+#   proc new*(_: type GfxContext, targetCanvas: string): GfxContext =
+#     var attributes: EmscriptenWebGLContextAttributes
+#     emscripten_webgl_init_context_attributes(attributes.addr)
+#     attributes.stencil = true.EM_BOOL
+#     attributes.depth = true.EM_BOOL
+#     attributes.explicitSwapControl = true.EM_BOOL
+#     GfxContext(
+#       nativeHandle: emscripten_webgl_create_context(targetCanvas, attributes.addr),
+#     )
+
+#   proc makeCurrent*(ctx: GfxContext) =
+#     discard
+
+
+
+proc setBackgroundColor*(ctx: GfxContext, color: ColorRgbaConcept) =
   glClearColor(color.r, color.g, color.b, color.a)
 
-proc clearBackground*(gfx: GfxContext) =
+proc clearBackground*(ctx: GfxContext) =
   glClear(GL_COLOR_BUFFER_BIT)
 
-proc clearDepthBuffer*(gfx: GfxContext) =
+proc clearDepthBuffer*(ctx: GfxContext) =
   glClear(GL_DEPTH_BUFFER_BIT)
 
-proc enableAlphaBlend*(gfx: GfxContext) =
+proc enableAlphaBlend*(ctx: GfxContext) =
   glEnable(GL_BLEND)
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-proc enableDepthTesting*(gfx: GfxContext) =
+proc enableDepthTesting*(ctx: GfxContext) =
   glEnable(GL_DEPTH_TEST)
 
-proc setViewport*(gfx: GfxContext, x, y, width, height: int) =
+proc setViewport*(ctx: GfxContext, x, y, width, height: int) =
   if width >= 0 and height >= 0:
     glViewport(
       x.GLsizei, y.GLsizei,
       width.GLsizei, height.GLsizei,
     )
 
-proc drawTriangles*[V, I](gfx: GfxContext,
+proc drawTriangles*[V, I](ctx: GfxContext,
                           shader: Shader,
                           vertices: VertexBuffer[V],
                           indices: IndexBuffer[I]) =
@@ -124,10 +127,10 @@ proc drawTriangles*[V, I](gfx: GfxContext,
     nil
   )
 
-proc drawTriangles*[V, I](gfx: GfxContext,
+proc drawTriangles*[V, I](ctx: GfxContext,
                           shader: Shader,
                           vertices: VertexBuffer[V],
                           indices: IndexBuffer[I],
                           texture: Texture) =
   texture.select()
-  gfx.drawTriangles(shader, vertices, indices)
+  ctx.drawTriangles(shader, vertices, indices)

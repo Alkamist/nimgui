@@ -1,5 +1,5 @@
 when defined(win32):
-  import pkg/winim
+  import pkg/winim/lean
   type
     NativeHandle = HWND
 

@@ -1,8 +1,8 @@
 import pkg/vmath
 export vmath
 
-import nimengine/gfx
+import nimengine/context
 import nimengine/client
 
-export gfx
+export context
 export client

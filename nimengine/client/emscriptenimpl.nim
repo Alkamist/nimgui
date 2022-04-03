@@ -21,12 +21,6 @@ template startEventLoop*(client: Client, code: untyped): untyped =
 
   emscripten_set_main_loop(mainFn, 0, true)
 
-# proc onResize(eventType: cint, uiEvent: ptr EmscriptenUiEvent, userData: pointer): EM_BOOL {.cdecl.} =
-#   ifClientExists(userData):
-#     echo uiEvent.documentBodyClientHeight
-#     client.processResized(uiEvent.documentBodyClientWidth.float,
-#                           uiEvent.documentBodyClientHeight.float)
-
 proc initSize*(clientWidth, clientHeight: float) {.exportc.} =
   globalClient.width = clientWidth
   globalClient.widthChange = 0.0

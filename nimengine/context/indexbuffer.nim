@@ -3,14 +3,26 @@ import pkg/opengl
 type
   IndexType* = uint8 | uint16 | uint32
 
-  IndexBuffer*[T: IndexType] = object
+  IndexKind* {.pure.} = enum
+    UInt8
+    UInt16
+    UInt32
+
+  IndexBuffer* = object
+    kind*: IndexKind
     len*: int
     id*: GLuint
 
-proc typeToGlEnum*[T: IndexType](buffer: IndexBuffer[T]): GLenum =
-  when T is uint8: result = cGL_UNSIGNED_BYTE
-  elif T is uint16: result = cGL_UNSIGNED_SHORT
-  elif T is uint32: result = GL_UNSIGNED_INT
+proc toIndexKind*(T: type IndexType): IndexKind =
+  when T is uint8: IndexKind.UInt8
+  elif T is uint16: IndexKind.UInt16
+  elif T is uint32: IndexKind.UInt32
+
+proc toGlEnum*(kind: IndexKind): GLenum =
+  case kind:
+  of IndexKind.UInt8: cGL_UNSIGNED_BYTE
+  of IndexKind.UInt16: cGL_UNSIGNED_SHORT
+  of IndexKind.UInt32: GL_UNSIGNED_INT
 
 proc select*(buffer: IndexBuffer) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id)
@@ -18,23 +30,19 @@ proc select*(buffer: IndexBuffer) =
 proc unselect*(buffer: IndexBuffer) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-proc uploadData*[T: IndexType](buffer: var IndexBuffer[T], data: openArray[T]) =
-  var dataSeq = newSeq[T](data.len)
-  for i, v in data:
-    dataSeq[i] = v
-
+proc uploadData*[T: IndexType](buffer: var IndexBuffer, data: var seq[T]) =
+  buffer.kind = T.toIndexKind
   buffer.len = data.len
   buffer.select()
-
   glBufferData(
     target = GL_ELEMENT_ARRAY_BUFFER,
-    size = dataSeq.len * sizeof(T),
-    data = dataSeq[0].addr,
+    size = data.len * sizeof(T),
+    data = data[0].addr,
     usage = GL_STATIC_DRAW,
   )
 
-proc `=destroy`*[T: IndexType](buffer: var IndexBuffer[T]) =
+proc `=destroy`*(buffer: var IndexBuffer) =
   glDeleteBuffers(1, buffer.id.addr)
 
-proc init*[T: IndexType](_: type IndexBuffer[T]): IndexBuffer[T] =
+proc init*(_: type IndexBuffer): IndexBuffer =
   glGenBuffers(1, result.id.addr)

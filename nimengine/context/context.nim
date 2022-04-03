@@ -100,6 +100,9 @@ elif defined(emscripten):
 
 
 
+proc setBackgroundColor*(ctx: GfxContext, r, g, b, a: float) =
+  glClearColor(r, g, b, a)
+
 proc setBackgroundColor*(ctx: GfxContext, color: ColorRgbaConcept) =
   glClearColor(color.r, color.g, color.b, color.a)
 
@@ -123,24 +126,24 @@ proc setViewport*(ctx: GfxContext, x, y, width, height: int) =
       width.GLsizei, height.GLsizei,
     )
 
-proc drawTriangles*[V, I](ctx: GfxContext,
-                          shader: Shader,
-                          vertices: VertexBuffer[V],
-                          indices: IndexBuffer[I]) =
+proc drawTriangles*[V](ctx: GfxContext,
+                       shader: Shader,
+                       vertices: VertexBuffer[V],
+                       indices: IndexBuffer) =
   shader.select()
   vertices.selectLayout()
   indices.select()
   glDrawElements(
     GL_TRIANGLES,
     indices.len.GLsizei,
-    indices.typeToGlEnum,
+    indices.kind.toGlEnum,
     nil
   )
 
-proc drawTriangles*[V, I](ctx: GfxContext,
-                          shader: Shader,
-                          vertices: VertexBuffer[V],
-                          indices: IndexBuffer[I],
-                          texture: Texture) =
+proc drawTriangles*[V](ctx: GfxContext,
+                       shader: Shader,
+                       vertices: VertexBuffer[V],
+                       indices: IndexBuffer,
+                       texture: Texture) =
   texture.select()
   ctx.drawTriangles(shader, vertices, indices)

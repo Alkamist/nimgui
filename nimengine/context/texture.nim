@@ -1,11 +1,16 @@
 import pkg/opengl
 
 type
-  TextureColor = tuple
-    r: uint8
-    g: uint8
-    b: uint8
-    a: uint8
+  TextureColorConcept* = concept c
+    c.r is uint8
+    c.g is uint8
+    c.b is uint8
+    c.a is uint8
+
+  TextureDataConcept* = concept t
+    t.width is int
+    t.height is int
+    t.data is seq[TextureColorConcept]
 
   MinifyFilter* {.pure.} = enum
     Nearest = GL_NEAREST,
@@ -26,15 +31,8 @@ type
     MirroredRepeat = GL_MIRRORED_REPEAT,
     MirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE,
 
-  Texture* = ref object
+  Texture* = object
     id*: GLuint
-    width*, height*: int
-    data*: seq[TextureColor]
-
-proc resize*(texture: Texture, width, height: int) =
-  texture.width = width
-  texture.height = height
-  texture.data.setLen(width * height)
 
 proc select*(texture: Texture) =
   glBindTexture(GL_TEXTURE_2D, texture.id)
@@ -59,30 +57,27 @@ proc setWrapR*(texture: Texture, mode: WrapMode) =
   texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, mode.GLint)
 
-proc uploadData*(texture: Texture) =
+proc uploadData*(texture: Texture, textureData: var TextureDataConcept) =
   texture.select()
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
     GL_RGBA.GLint,
-    texture.width.GLsizei,
-    texture.height.GLsizei,
+    textureData.width.Glsizei,
+    textureData.height.Glsizei,
     0,
     GL_RGBA,
     GL_UNSIGNED_BYTE,
-    texture.data[0].addr,
+    textureData.data[0].addr,
   )
 
 proc generateMipmap*(texture: Texture) =
   texture.select()
   glGenerateMipmap(GL_TEXTURE_2D)
 
-proc new*(_: type Texture, width, height: int): Texture =
+proc init*(_: type Texture): Texture =
   result = Texture()
   glGenTextures(1, result.id.addr)
-  result.width = width
-  result.height = height
-  result.data = newSeq[TextureColor](width * height)
   result.setMinifyFilter(MinifyFilter.Nearest)
   result.setMagnifyFilter(MagnifyFilter.Nearest)
   result.setWrapS(WrapMode.Repeat)

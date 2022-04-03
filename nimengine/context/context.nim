@@ -126,12 +126,12 @@ proc setViewport*(ctx: GfxContext, x, y, width, height: int) =
       width.GLsizei, height.GLsizei,
     )
 
-proc drawTriangles*[V](ctx: GfxContext,
-                       shader: Shader,
-                       vertices: VertexBuffer[V],
-                       indices: IndexBuffer) =
+proc drawTriangles*(ctx: GfxContext,
+                    shader: Shader,
+                    vertices: VertexBuffer,
+                    indices: IndexBuffer) =
   shader.select()
-  vertices.selectLayout()
+  vertices.select()
   indices.select()
   glDrawElements(
     GL_TRIANGLES,
@@ -140,10 +140,10 @@ proc drawTriangles*[V](ctx: GfxContext,
     nil
   )
 
-proc drawTriangles*[V](ctx: GfxContext,
-                       shader: Shader,
-                       vertices: VertexBuffer[V],
-                       indices: IndexBuffer,
-                       texture: Texture) =
+proc drawTriangles*(ctx: GfxContext,
+                    shader: Shader,
+                    vertices: VertexBuffer,
+                    indices: IndexBuffer,
+                    texture: Texture) =
   texture.select()
   ctx.drawTriangles(shader, vertices, indices)

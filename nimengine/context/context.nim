@@ -4,13 +4,11 @@ export opengl
 import ./indexbuffer
 import ./shader
 import ./texture
-import ./types
 import ./vertexbuffer
 
 export indexbuffer
 export shader
 export texture
-export types
 export vertexbuffer
 
 when defined(win32):
@@ -102,9 +100,6 @@ elif defined(emscripten):
 
 proc setBackgroundColor*(ctx: GfxContext, r, g, b, a: float) =
   glClearColor(r, g, b, a)
-
-proc setBackgroundColor*(ctx: GfxContext, color: ColorRgbaConcept) =
-  glClearColor(color.r, color.g, color.b, color.a)
 
 proc clearBackground*(ctx: GfxContext) =
   glClear(GL_COLOR_BUFFER_BIT)

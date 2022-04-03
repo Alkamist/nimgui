@@ -1,7 +1,32 @@
 import pkg/opengl
-import ./types
 
 type
+  # Uniform3fv* = array[3, float32]
+  # UniformMatrix4fv* = array[4, array[4, float32]]
+
+  Uniform3fv* = concept v
+    v[0] is float32
+    v[1] is float32
+    v[2] is float32
+
+  UniformMatrix4fv* = concept m
+    m[0][0] is float32
+    m[0][1] is float32
+    m[0][2] is float32
+    m[0][3] is float32
+    m[1][0] is float32
+    m[1][1] is float32
+    m[1][2] is float32
+    m[1][3] is float32
+    m[2][0] is float32
+    m[2][1] is float32
+    m[2][2] is float32
+    m[2][3] is float32
+    m[3][0] is float32
+    m[3][1] is float32
+    m[3][2] is float32
+    m[3][3] is float32
+
   Shader* = object
     id*: GLuint
 
@@ -24,27 +49,20 @@ proc compileShaderSrc(kind: Glenum, source: string): GLuint =
 proc select*(shader: Shader) =
   glUseProgram(shader.id)
 
-proc setUniform*(shader: Shader, name: string, value: FVec3Concept) =
+proc setUniform*(shader: Shader, name: string, value: Uniform3fv) =
   shader.select()
-  var valueData = [value.x, value.y. value.z]
   glUniform3fv(
     glGetUniformLocation(shader.id, name),
     1,
-    cast[ptr GLfloat](valueData.addr),
+    cast[ptr GLfloat](value.unsafeAddr),
   )
 
-proc setUniform*(shader: Shader, name: string, value: FMat4Concept) =
+proc setUniform*(shader: Shader, name: string, value: UniformMatrix4fv) =
   shader.select()
-  var valueData = [
-    value[0][0], value[0][1], value[0][2], value[0][3],
-    value[1][0], value[1][1], value[1][2], value[1][3],
-    value[2][0], value[2][1], value[2][2], value[2][3],
-    value[3][0], value[3][1], value[3][2], value[3][3],
-  ]
   glUniformMatrix4fv(
     glGetUniformLocation(shader.id, name),
     1, GL_FALSE,
-    cast[ptr GLfloat](valueData.addr),
+    cast[ptr GLfloat](value.unsafeAddr),
   )
 
 proc `=destroy`*(shader: var Shader) =

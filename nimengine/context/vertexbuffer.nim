@@ -55,13 +55,13 @@ proc select*(buffer: VertexBuffer) =
 proc unselect*(buffer: VertexBuffer) =
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-proc uploadData*[T](buffer: var VertexBuffer, data: var openArray[T]) =
+proc uploadData*[T](buffer: var VertexBuffer, data: openArray[T]) =
   buffer.len = data.len
   buffer.select()
   glBufferData(
     target = GL_ARRAY_BUFFER,
     size = data.len * T.sizeof,
-    data = data[0].addr,
+    data = data[0].unsafeAddr,
     usage = GL_STATIC_DRAW,
   )
 

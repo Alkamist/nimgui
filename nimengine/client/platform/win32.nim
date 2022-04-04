@@ -1,7 +1,7 @@
-import std/[unicode, tables, exitprocs]
+import std/[unicode, tables, exitprocs, options]
 import winim/lean
 
-include ./clientbase
+include ../clientbase
 
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.}
 
@@ -22,14 +22,83 @@ var windowClass = WNDCLASSEX(
   hIconSm: 0,
 )
 
+# func getClientWidthAndHeight(hwnd: HWND): (float, float) =
+#   var windowRect: RECT
+#   GetWindowRect(hwnd, windowRect.addr)
+#   var clientScreenCoords: POINT
+#   ClientToScreen(hwnd, clientScreenCoords.addr)
+#   let titleBarHeight = (clientScreenCoords.y - windowRect.top).float
+#   let fullWindowWidth = (windowRect.right - windowRect.left).float
+#   let fullWindowHeight = (windowRect.bottom - windowRect.top).float
+#   (fullWindowWidth, fullWindowHeight - titleBarHeight)
+
+func getClientWidthAndHeight(hwnd: HWND): (LONG, LONG) =
+  var area: RECT
+  GetClientRect(hwnd, area.addr)
+  (area.right, area.bottom)
+
+func getCursorPosition(hwnd: HWND): Option[(LONG, LONG)] =
+  var pos: POINT
+  if GetCursorPos(pos.addr):
+    ScreenToClient(hwnd, pos.addr)
+    return some (pos.x, pos.y)
+
+proc setClipRectToWindow(hwnd: HWND) =
+  var clipRect: RECT
+  GetClientRect(hwnd, &clipRect)
+  ClientToScreen(hwnd, cast[ptr POINT](clipRect.left.addr))
+  ClientToScreen(hwnd, cast[ptr POINT](clipRect.right.addr))
+  ClipCursor(&clipRect)
+
+proc removeClipRect() =
+  ClipCursor(nil)
+
+proc setCursorPosition*(client: Client, x, y: float) =
+  var pos = POINT(x: x.cint, y: y.cint)
+  client.platform.lastCursorPosX = x
+  client.platform.lastCursorPosY = y
+  ClientToScreen(client.platform.handle, pos.addr)
+  SetCursorPos(pos.x, pos.y)
+
+proc centerCursor*(client: Client) =
+  let (width, height) = getClientWidthAndHeight(client.platform.handle)
+  client.setCursorPosition((width div 2).float, (height div 2).float)
+
+proc confineCursor*(client: Client) =
+  setClipRectToWindow(client.platform.handle)
+  client.cursorIsConfined = true
+
+proc unconfineCursor*(client: Client) =
+  removeClipRect()
+  client.cursorIsConfined = false
+
+proc pinCursorToCenter*(client: Client) =
+  let cursorPosRestore = getCursorPosition(client.platform.handle)
+  if cursorPosRestore.isSome:
+    client.platform.restoreCursorPosX = cursorPosRestore.get[0].float
+    client.platform.restoreCursorPosY = cursorPosRestore.get[1].float
+  client.centerCursor()
+  client.cursorIsPinnedToCenter = true
+
+proc unpinCursorFromCenter*(client: Client) =
+  client.setCursorPosition(client.platform.restoreCursorPosX,
+                           client.platform.restoreCursorPosY)
+  client.cursorIsPinnedToCenter = false
+
 template startEventLoop*(client: Client, code: untyped): untyped =
   while not client.shouldClose:
     code
 
     var msg: MSG
-    while PeekMessage(msg, client.nativeHandle, 0, 0, PM_REMOVE) != 0:
+    while PeekMessage(msg, client.platform.handle, 0, 0, PM_REMOVE) != 0:
       TranslateMessage(msg)
       DispatchMessage(msg)
+
+    if client.cursorIsPinnedToCenter:
+      let (width, height) = getClientWidthAndHeight(client.platform.handle)
+      if client.platform.lastCursorPosX != width / 2 or
+         client.platform.lastCursorPosY != height / 2:
+        client.setCursorPosition(width / 2, height / 2)
 
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
@@ -146,16 +215,6 @@ func toKeyboardKey(scanCode: int): KeyboardKey =
   of 222: KeyboardKey.Quote
   else: KeyboardKey.Unknown
 
-func getClientWidthAndHeight(hwnd: HWND): (float, float) =
-  var windowRect: RECT
-  GetWindowRect(hwnd, windowRect.addr)
-  var clientScreenCoords: POINT
-  ClientToScreen(hwnd, clientScreenCoords.addr)
-  let titleBarHeight = (clientScreenCoords.y - windowRect.top).float
-  let fullWindowWidth = (windowRect.right - windowRect.left).float
-  let fullWindowHeight = (windowRect.bottom - windowRect.top).float
-  (fullWindowWidth, fullWindowHeight - titleBarHeight)
-
 template ifClientExists(hwnd: HWND, code: untyped): untyped =
   if hwndToClientTable.contains(hwnd):
     var client {.inject.} = hwndToClientTable[hwnd]
@@ -174,11 +233,23 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
   of WM_SIZE:
     ifClientExists(hwnd):
       let (w, h) = getClientWidthAndHeight(hwnd)
-      client.processResized(w, h)
+      client.processResized(w.float, h.float)
 
   of WM_MOUSEMOVE:
     ifClientExists(hwnd):
-      client.processMouseMoved(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
+      let x = GET_X_LPARAM(lParam)
+      let y = GET_Y_LPARAM(lParam)
+
+      if client.cursorIsConfined:
+        let dx = x - client.platform.lastCursorPosX.int
+        let dy = y - client.platform.lastCursorPosY.int
+        client.processMouseMoved(client.mouse.x + dx.float,
+                                 client.mouse.y + dy.float)
+      else:
+        client.processMouseMoved(x.float, y.float)
+
+      client.platform.lastCursorPosX = x.float
+      client.platform.lastCursorPosY = y.float
 
   of WM_MOUSEWHEEL:
     ifClientExists(hwnd):
@@ -270,7 +341,9 @@ proc new*(_: type Client,
 
   let (clientWidth, clientHeight) = getClientWidthAndHeight(hwnd)
 
-  result = newDefaultClient(clientWidth, clientHeight)
-  result.nativeHandle = hwnd
+  result = newDefaultClient(clientWidth.float, clientHeight.float)
+  result.platform = PlatformData(
+    handle: hwnd,
+  )
 
   hwndToClientTable[hwnd] = result

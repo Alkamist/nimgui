@@ -1,4 +1,192 @@
-include ./types
+include ./platformdata
+
+type
+  MouseEventKind* {.pure.} = enum
+    Moved
+    EnteredClient
+    ExitedClient
+    ButtonPressed
+    ButtonReleased
+    WheelScrolled
+
+  MouseButton* {.pure.} = enum
+    Unknown
+    Left
+    Middle
+    Right
+    Extra1
+    Extra2
+    Extra3
+    Extra4
+    Extra5
+
+  MouseState* = object
+    lastPress*: MouseButton
+    lastRelease*: MouseButton
+    x*, y*: float
+    previousX*, previousY*: float
+    xChange*, yChange*: float
+    wheelX*, wheelY*: float
+    buttonStates*: array[MouseButton, bool]
+
+  KeyboardEventKind* {.pure.} = enum
+    KeyPressed
+    KeyReleased
+    CharacterInput
+
+  KeyboardKey* {.pure.} = enum
+    Unknown
+    A
+    B
+    C
+    D
+    E
+    F
+    G
+    H
+    I
+    J
+    K
+    L
+    M
+    N
+    O
+    P
+    Q
+    R
+    S
+    T
+    U
+    V
+    W
+    X
+    Y
+    Z
+    Key1
+    Key2
+    Key3
+    Key4
+    Key5
+    Key6
+    Key7
+    Key8
+    Key9
+    Key0
+    Pad1
+    Pad2
+    Pad3
+    Pad4
+    Pad5
+    Pad6
+    Pad7
+    Pad8
+    Pad9
+    Pad0
+    F1
+    F2
+    F3
+    F4
+    F5
+    F6
+    F7
+    F8
+    F9
+    F10
+    F11
+    F12
+    Backtick
+    Minus
+    Equal
+    Backspace
+    Tab
+    CapsLock
+    Enter
+    LeftShift
+    RightShift
+    LeftControl
+    RightControl
+    LeftAlt
+    RightAlt
+    LeftMeta
+    RightMeta
+    LeftBracket
+    RightBracket
+    Space
+    Escape
+    Backslash
+    Semicolon
+    Quote
+    Comma
+    Period
+    Slash
+    ScrollLock
+    Pause
+    Insert
+    End
+    PageUp
+    Delete
+    Home
+    PageDown
+    LeftArrow
+    RightArrow
+    DownArrow
+    UpArrow
+    NumLock
+    PadDivide
+    PadMultiply
+    PadSubtract
+    PadAdd
+    PadEnter
+    PadPeriod
+
+  KeyboardState* = object
+    lastPress*: KeyboardKey
+    lastRelease*: KeyboardKey
+    character*: string
+    keyStates*: array[KeyboardKey, bool]
+
+  ClientEventKind* {.pure.} = enum
+    Closed
+    Focused
+    LostFocus
+    Resized
+
+  Client* = ref object
+    platform*: PlatformData
+    mouse*: MouseState
+    keyboard*: KeyboardState
+    width*, height*: float
+    widthPrevious*, heightPrevious*: float
+    widthChange*, heightChange*: float
+    isFocused*: bool
+    mouseIsOver*: bool
+    shouldClose*: bool
+    virtualCursorPosX*: float
+    virtualCursorPosY*: float
+    cursorIsConfined*: bool
+    cursorIsPinnedToCenter*: bool
+    mouseMovedListeners: seq[proc()]
+    mouseEnteredListeners: seq[proc()]
+    mouseExitedListeners: seq[proc()]
+    mouseWheelScrolledListeners: seq[proc()]
+    mouseButtonPressedListeners: seq[proc()]
+    mouseButtonReleasedListeners: seq[proc()]
+    keyboardKeyPressedListeners: seq[proc()]
+    keyboardKeyReleasedListeners: seq[proc()]
+    keyboardCharacterInputListeners: seq[proc()]
+    closedListeners: seq[proc()]
+    focusedListeners: seq[proc()]
+    lostFocusListeners: seq[proc()]
+    resizedListeners: seq[proc()]
+
+func isPressed*(client: Client, key: KeyboardKey): bool =
+  client.keyboard.keyStates[key]
+
+func isPressed*(client: Client, button: MouseButton): bool =
+  client.mouse.buttonStates[button]
+
+func aspectRatio*(client: Client): float =
+  client.width / client.height
 
 func newDefaultClient(width, height: float): Client =
   Client(
@@ -11,12 +199,16 @@ func newDefaultClient(width, height: float): Client =
   )
 
 proc processMouseMoved(client: Client, x, y: float) =
-  client.mouse.xPrevious = client.mouse.x
-  client.mouse.yPrevious = client.mouse.y
+  if client.mouse.x == x and client.mouse.y == y:
+    return
+
+  client.mouse.previousX = client.mouse.x
+  client.mouse.previousY = client.mouse.y
   client.mouse.x = x
   client.mouse.y = y
-  client.mouse.xChange = client.mouse.x - client.mouse.xPrevious
-  client.mouse.yChange = client.mouse.y - client.mouse.yPrevious
+  client.mouse.xChange = client.mouse.x - client.mouse.previousX
+  client.mouse.yChange = client.mouse.y - client.mouse.previousY
+
   for listener in client.mouseMovedListeners:
     listener()
 
@@ -37,22 +229,26 @@ proc processMouseWheelScrolled(client: Client, x, y: float) =
     listener()
 
 proc processMouseButtonPressed(client: Client, button: MouseButton) =
-  client.mouse.press = button
+  client.mouse.lastPress = button
+  client.mouse.buttonStates[button] = true
   for listener in client.mouseButtonPressedListeners:
     listener()
 
 proc processMouseButtonReleased(client: Client, button: MouseButton) =
-  client.mouse.release = button
+  client.mouse.lastRelease = button
+  client.mouse.buttonStates[button] = false
   for listener in client.mouseButtonReleasedListeners:
     listener()
 
 proc processKeyboardKeyPressed(client: Client, key: KeyboardKey) =
-  client.keyboard.press = key
+  client.keyboard.lastPress = key
+  client.keyboard.keyStates[key] = true
   for listener in client.keyboardKeyPressedListeners:
     listener()
 
 proc processKeyboardKeyReleased*(client: Client, key: KeyboardKey) =
-  client.keyboard.release = key
+  client.keyboard.lastRelease = key
+  client.keyboard.keyStates[key] = false
   for listener in client.keyboardKeyReleasedListeners:
     listener()
 
@@ -132,6 +328,3 @@ func removeListener*(client: Client, kind: ClientEventKind, listener: proc()) =
   of ClientEventKind.Focused: client.focusedListeners.delListener listener
   of ClientEventKind.LostFocus: client.lostFocusListeners.delListener listener
   of ClientEventKind.Resized: client.resizedListeners.delListener listener
-
-func aspectRatio*(client: Client): float =
-  client.width / client.height

@@ -1,6 +1,6 @@
 when defined(win32):
-  import client/win32impl
-  export win32impl
+  import client/platform/win32
+  export win32
 elif defined(emscripten):
-  import client/emscriptenimpl
-  export emscriptenimpl
+  import client/platform/emscripten
+  export emscripten

@@ -74,7 +74,9 @@ proc new*(_: type Client,
           width = 1024, height = 768,
           parent = 0): Client =
   globalClient = newDefaultClient(width.float, height.float)
-  globalClient.nativeHandle = "#canvas"
+  globalClient.nativeData = NativeData(
+    handle: "#canvas",
+  )
 
   emscripten_run_script("""
   let canvas = document.getElementById("canvas");

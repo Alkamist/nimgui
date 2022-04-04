@@ -1,5 +1,5 @@
-import nimengine/context
+import nimengine/gfx
 import nimengine/client
 
-export context
+export gfx
 export client

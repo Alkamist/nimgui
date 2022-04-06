@@ -22,16 +22,6 @@ var windowClass = WNDCLASSEX(
   hIconSm: 0,
 )
 
-# func getClientWidthAndHeight(hwnd: HWND): (float, float) =
-#   var windowRect: RECT
-#   GetWindowRect(hwnd, windowRect.addr)
-#   var clientScreenCoords: POINT
-#   ClientToScreen(hwnd, clientScreenCoords.addr)
-#   let titleBarHeight = (clientScreenCoords.y - windowRect.top).float
-#   let fullWindowWidth = (windowRect.right - windowRect.left).float
-#   let fullWindowHeight = (windowRect.bottom - windowRect.top).float
-#   (fullWindowWidth, fullWindowHeight - titleBarHeight)
-
 func getClientWidthAndHeight(hwnd: HWND): (LONG, LONG) =
   var area: RECT
   GetClientRect(hwnd, area.addr)
@@ -66,11 +56,11 @@ proc centerCursor*(client: Client) =
 
 proc confineCursor*(client: Client) =
   setClipRectToWindow(client.platform.handle)
-  client.cursorIsConfined = true
+  client.mouseIsConfined = true
 
 proc unconfineCursor*(client: Client) =
   removeClipRect()
-  client.cursorIsConfined = false
+  client.mouseIsConfined = false
 
 proc pinCursorToCenter*(client: Client) =
   let cursorPosRestore = getCursorPosition(client.platform.handle)
@@ -78,12 +68,12 @@ proc pinCursorToCenter*(client: Client) =
     client.platform.restoreCursorPosX = cursorPosRestore.get[0].float
     client.platform.restoreCursorPosY = cursorPosRestore.get[1].float
   client.centerCursor()
-  client.cursorIsPinnedToCenter = true
+  client.mouseIsPinnedToCenter = true
 
 proc unpinCursorFromCenter*(client: Client) =
   client.setCursorPosition(client.platform.restoreCursorPosX,
                            client.platform.restoreCursorPosY)
-  client.cursorIsPinnedToCenter = false
+  client.mouseIsPinnedToCenter = false
 
 template startEventLoop*(client: Client, code: untyped): untyped =
   while not client.shouldClose:
@@ -94,7 +84,7 @@ template startEventLoop*(client: Client, code: untyped): untyped =
       TranslateMessage(msg)
       DispatchMessage(msg)
 
-    if client.cursorIsPinnedToCenter:
+    if client.mouseIsPinnedToCenter:
       let (width, height) = getClientWidthAndHeight(client.platform.handle)
       if client.platform.lastCursorPosX != width / 2 or
          client.platform.lastCursorPosY != height / 2:
@@ -225,7 +215,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   of WM_CLOSE:
     ifClientExists(hwnd):
-      client.processClosed()
+      client.processClose()
       DestroyWindow(hwnd)
       client.shouldClose = true
       hwndToClientTable.del(hwnd)
@@ -233,31 +223,31 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
   of WM_SIZE:
     ifClientExists(hwnd):
       let (w, h) = getClientWidthAndHeight(hwnd)
-      client.processResized(w.float, h.float)
+      client.processResize(w.float, h.float)
 
   of WM_MOUSEMOVE:
     ifClientExists(hwnd):
       let x = GET_X_LPARAM(lParam)
       let y = GET_Y_LPARAM(lParam)
 
-      if client.cursorIsConfined:
+      if client.mouseIsConfined:
         let dx = x - client.platform.lastCursorPosX.int
         let dy = y - client.platform.lastCursorPosY.int
-        client.processMouseMoved(client.mouse.x + dx.float,
-                                 client.mouse.y + dy.float)
+        client.processMouseMove(client.mouseX + dx.float,
+                                client.mouseY + dy.float)
       else:
-        client.processMouseMoved(x.float, y.float)
+        client.processMouseMove(x.float, y.float)
 
       client.platform.lastCursorPosX = x.float
       client.platform.lastCursorPosY = y.float
 
   of WM_MOUSEWHEEL:
     ifClientExists(hwnd):
-      client.processMouseWheelScrolled(0.0, GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float)
+      client.processMouseWheel(0.0, GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float)
 
   of WM_MOUSEHWHEEL:
     ifClientExists(hwnd):
-      client.processMouseWheelScrolled(GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float, 0.0)
+      client.processMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float, 0.0)
 
   of WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
      WM_MBUTTONDOWN, WM_MBUTTONDBLCLK,
@@ -265,12 +255,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
      WM_XBUTTONDOWN, WM_XBUTTONDBLCLK:
     ifClientExists(hwnd):
       SetCapture(hwnd)
-      client.processMouseButtonPressed(toMouseButton(msg, wParam))
+      client.processMousePress(toMouseButton(msg, wParam))
 
   of WM_LBUTTONUP, WM_MBUTTONUP, WM_RBUTTONUP, WM_XBUTTONUP:
     ifClientExists(hwnd):
       ReleaseCapture()
-      client.processMouseButtonReleased(toMouseButton(msg, wParam))
+      client.processMouseRelease(toMouseButton(msg, wParam))
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     ifClientExists(hwnd):
@@ -284,7 +274,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
         of 56:
           if isRight: KeyboardKey.RightAlt else: KeyboardKey.LeftAlt
         else: toKeyboardKey(wParam.int)
-      client.processKeyboardKeyPressed(key)
+      client.processKeyPress(key)
 
   of WM_KEYUP, WM_SYSKEYUP:
     ifClientExists(hwnd):
@@ -298,12 +288,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
         of 56:
           if isRight: KeyboardKey.RightAlt else: KeyboardKey.LeftAlt
         else: toKeyboardKey(wParam.int)
-      client.processKeyboardKeyReleased(key)
+      client.processKeyRelease(key)
 
   of WM_CHAR, WM_SYSCHAR:
     ifClientExists(hwnd):
       if wParam > 0 and wParam < 0x10000:
-        client.processKeyboardCharacterInput(cast[Rune](wParam).toUTF8)
+        client.processCharacter(cast[Rune](wParam).toUTF8)
 
   else:
     discard

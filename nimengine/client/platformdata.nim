@@ -1,4 +1,4 @@
-when defined(win32):
+when defined(windows):
   import pkg/winim/lean
 
   type

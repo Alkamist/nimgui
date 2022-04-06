@@ -1,14 +1,6 @@
 include ./platformdata
 
 type
-  MouseEventKind* {.pure.} = enum
-    Moved
-    EnteredClient
-    ExitedClient
-    ButtonPressed
-    ButtonReleased
-    WheelScrolled
-
   MouseButton* {.pure.} = enum
     Unknown
     Left
@@ -19,20 +11,6 @@ type
     Extra3
     Extra4
     Extra5
-
-  MouseState* = object
-    lastPress*: MouseButton
-    lastRelease*: MouseButton
-    x*, y*: float
-    previousX*, previousY*: float
-    xChange*, yChange*: float
-    wheelX*, wheelY*: float
-    buttonStates*: array[MouseButton, bool]
-
-  KeyboardEventKind* {.pure.} = enum
-    KeyPressed
-    KeyReleased
-    CharacterInput
 
   KeyboardKey* {.pure.} = enum
     Unknown
@@ -139,192 +117,141 @@ type
     PadEnter
     PadPeriod
 
-  KeyboardState* = object
-    lastPress*: KeyboardKey
-    lastRelease*: KeyboardKey
-    character*: string
-    keyStates*: array[KeyboardKey, bool]
-
-  ClientEventKind* {.pure.} = enum
-    Closed
-    Focused
-    LostFocus
-    Resized
-
   Client* = ref object
     platform*: PlatformData
-    mouse*: MouseState
-    keyboard*: KeyboardState
+
+    widthPixels*, heightPixels*: int
+
     width*, height*: float
     widthPrevious*, heightPrevious*: float
     widthChange*, heightChange*: float
     isFocused*: bool
-    mouseIsOver*: bool
     shouldClose*: bool
-    virtualCursorPosX*: float
-    virtualCursorPosY*: float
-    cursorIsConfined*: bool
-    cursorIsPinnedToCenter*: bool
-    mouseMovedListeners: seq[proc()]
-    mouseEnteredListeners: seq[proc()]
-    mouseExitedListeners: seq[proc()]
-    mouseWheelScrolledListeners: seq[proc()]
-    mouseButtonPressedListeners: seq[proc()]
-    mouseButtonReleasedListeners: seq[proc()]
-    keyboardKeyPressedListeners: seq[proc()]
-    keyboardKeyReleasedListeners: seq[proc()]
-    keyboardCharacterInputListeners: seq[proc()]
-    closedListeners: seq[proc()]
-    focusedListeners: seq[proc()]
-    lostFocusListeners: seq[proc()]
-    resizedListeners: seq[proc()]
+
+    mouseIsOver*: bool
+    mouseIsConfined*: bool
+    mouseIsPinnedToCenter*: bool
+    mousePress*: MouseButton
+    mouseRelease*: MouseButton
+    mouseX*, mouseY*: float
+    previousMouseX*, previousMouseY*: float
+    mouseXChange*, mouseYChange*: float
+    mouseWheelX*, mouseWheelY*: float
+    mouseButtonStates*: array[MouseButton, bool]
+
+    keyPress*: KeyboardKey
+    keyRelease*: KeyboardKey
+    character*: string
+    keyStates*: array[KeyboardKey, bool]
+
+    onClose*: proc(client: Client)
+    onFocus*: proc(client: Client)
+    onLoseFocus*: proc(client: Client)
+    onResize*: proc(client: Client)
+    onMouseMove*: proc(client: Client)
+    onMouseEnter*: proc(client: Client)
+    onMouseExit*: proc(client: Client)
+    onMouseWheel*: proc(client: Client)
+    onMousePress*: proc(client: Client)
+    onMouseRelease*: proc(client: Client)
+    onKeyPress*: proc(client: Client)
+    onKeyRelease*: proc(client: Client)
+    onCharacter*: proc(client: Client)
 
 func isPressed*(client: Client, key: KeyboardKey): bool =
-  client.keyboard.keyStates[key]
+  client.keyStates[key]
 
 func isPressed*(client: Client, button: MouseButton): bool =
-  client.mouse.buttonStates[button]
+  client.mouseButtonStates[button]
 
 func aspectRatio*(client: Client): float =
   client.width / client.height
 
 func newDefaultClient(width, height: float): Client =
   Client(
-    mouse: MouseState(),
-    keyboard: KeyboardState(),
     width: width,
     height: height,
     widthPrevious: width,
     heightPrevious: height,
   )
 
-proc processMouseMoved(client: Client, x, y: float) =
-  if client.mouse.x == x and client.mouse.y == y:
+proc processMouseMove(client: Client, x, y: float) =
+  if client.mouseX == x and client.mouseY == y:
     return
 
-  client.mouse.previousX = client.mouse.x
-  client.mouse.previousY = client.mouse.y
-  client.mouse.x = x
-  client.mouse.y = y
-  client.mouse.xChange = client.mouse.x - client.mouse.previousX
-  client.mouse.yChange = client.mouse.y - client.mouse.previousY
+  client.previousMouseX = client.mouseX
+  client.previousMouseY = client.mouseY
+  client.mouseX = x
+  client.mouseY = y
+  client.mouseXChange = client.mouseX - client.previousMouseX
+  client.mouseYChange = client.mouseY - client.previousMouseY
 
-  for listener in client.mouseMovedListeners:
-    listener()
+  if client.onMouseMove != nil:
+    client.onMouseMove(client)
 
-proc processMouseEntered(client: Client) =
+proc processMouseEnter(client: Client) =
   client.mouseIsOver = true
-  for listener in client.mouseEnteredListeners:
-    listener()
+  if client.onMouseEnter != nil:
+    client.onMouseEnter(client)
 
-proc processMouseExited(client: Client) =
+proc processMouseExit(client: Client) =
   client.mouseIsOver = false
-  for listener in client.mouseExitedListeners:
-    listener()
+  if client.onMouseExit != nil:
+    client.onMouseExit(client)
 
-proc processMouseWheelScrolled(client: Client, x, y: float) =
-  client.mouse.wheelX = x
-  client.mouse.wheelY = y
-  for listener in client.mouseWheelScrolledListeners:
-    listener()
+proc processMouseWheel(client: Client, x, y: float) =
+  client.mouseWheelX = x
+  client.mouseWheelY = y
+  if client.onMouseWheel != nil:
+    client.onMouseWheel(client)
 
-proc processMouseButtonPressed(client: Client, button: MouseButton) =
-  client.mouse.lastPress = button
-  client.mouse.buttonStates[button] = true
-  for listener in client.mouseButtonPressedListeners:
-    listener()
+proc processMousePress(client: Client, button: MouseButton) =
+  client.mousePress = button
+  client.mouseButtonStates[button] = true
+  if client.onMousePress != nil:
+    client.onMousePress(client)
 
-proc processMouseButtonReleased(client: Client, button: MouseButton) =
-  client.mouse.lastRelease = button
-  client.mouse.buttonStates[button] = false
-  for listener in client.mouseButtonReleasedListeners:
-    listener()
+proc processMouseRelease(client: Client, button: MouseButton) =
+  client.mouseRelease = button
+  client.mouseButtonStates[button] = false
+  if client.onMouseRelease != nil:
+    client.onMouseRelease(client)
 
-proc processKeyboardKeyPressed(client: Client, key: KeyboardKey) =
-  client.keyboard.lastPress = key
-  client.keyboard.keyStates[key] = true
-  for listener in client.keyboardKeyPressedListeners:
-    listener()
+proc processKeyPress(client: Client, key: KeyboardKey) =
+  client.keyPress = key
+  client.keyStates[key] = true
+  if client.onKeyPress != nil:
+    client.onKeyPress(client)
 
-proc processKeyboardKeyReleased*(client: Client, key: KeyboardKey) =
-  client.keyboard.lastRelease = key
-  client.keyboard.keyStates[key] = false
-  for listener in client.keyboardKeyReleasedListeners:
-    listener()
+proc processKeyRelease*(client: Client, key: KeyboardKey) =
+  client.keyRelease = key
+  client.keyStates[key] = false
+  if client.onKeyRelease != nil:
+    client.onKeyRelease(client)
 
-proc processKeyboardCharacterInput(client: Client, character: string) =
-  client.keyboard.character = character
-  for listener in client.keyboardCharacterInputListeners:
-    listener()
+proc processCharacter(client: Client, character: string) =
+  client.character = character
+  if client.onCharacter != nil:
+    client.onCharacter(client)
 
-proc processClosed(client: Client) =
-  for listener in client.closedListeners:
-    listener()
+proc processClose(client: Client) =
+  if client.onClose != nil:
+    client.onClose(client)
 
-proc processFocused(client: Client) =
-  for listener in client.focusedListeners:
-    listener()
+proc processFocus(client: Client) =
+  if client.onFocus != nil:
+    client.onFocus(client)
 
-proc processLostFocus(client: Client) =
-  for listener in client.lostFocusListeners:
-    listener()
+proc processLoseFocus(client: Client) =
+  if client.onLoseFocus != nil:
+    client.onLoseFocus(client)
 
-proc processResized(client: Client, width, height: float) =
+proc processResize(client: Client, width, height: float) =
   client.widthPrevious = client.width
   client.heightPrevious = client.height
   client.width = width
   client.height = height
   client.widthChange = client.width - client.widthPrevious
   client.heightChange = client.height - client.heightPrevious
-  for listener in client.resizedListeners:
-    listener()
-
-template delListener(listeners: seq[untyped], listenerToDelete: proc()): untyped =
-  for listenerId in 0 ..< listeners.len:
-    if listeners[listenerId] == listenerToDelete:
-      listeners.del listenerId
-      break
-
-func addListener*(client: Client, kind: MouseEventKind, listener: proc()) =
-  case kind:
-  of MouseEventKind.Moved: client.mouseMovedListeners.add listener
-  of MouseEventKind.EnteredClient: client.mouseEnteredListeners.add listener
-  of MouseEventKind.ExitedClient: client.mouseExitedListeners.add listener
-  of MouseEventKind.ButtonPressed: client.mouseButtonPressedListeners.add listener
-  of MouseEventKind.ButtonReleased: client.mouseButtonReleasedListeners.add listener
-  of MouseEventKind.WheelScrolled: client.mouseWheelScrolledListeners.add listener
-
-func removeListener*(client: Client, kind: MouseEventKind, listener: proc()) =
-  case kind:
-  of MouseEventKind.Moved: client.mouseMovedListeners.delListener listener
-  of MouseEventKind.EnteredClient: client.mouseEnteredListeners.delListener listener
-  of MouseEventKind.ExitedClient: client.mouseExitedListeners.delListener listener
-  of MouseEventKind.ButtonPressed: client.mouseButtonPressedListeners.delListener listener
-  of MouseEventKind.ButtonReleased: client.mouseButtonReleasedListeners.delListener listener
-  of MouseEventKind.WheelScrolled: client.mouseWheelScrolledListeners.delListener listener
-
-func addListener*(client: Client, kind: KeyboardEventKind, listener: proc()) =
-  case kind:
-  of KeyboardEventKind.KeyPressed: client.keyboardKeyPressedListeners.add listener
-  of KeyboardEventKind.KeyReleased: client.keyboardKeyReleasedListeners.add listener
-  of KeyboardEventKind.CharacterInput: client.keyboardCharacterInputListeners.add listener
-
-func removeListener*(client: Client, kind: KeyboardEventKind, listener: proc()) =
-  case kind:
-  of KeyboardEventKind.KeyPressed: client.keyboardKeyPressedListeners.delListener listener
-  of KeyboardEventKind.KeyReleased: client.keyboardKeyReleasedListeners.delListener listener
-  of KeyboardEventKind.CharacterInput: client.keyboardCharacterInputListeners.delListener listener
-
-func addListener*(client: Client, kind: ClientEventKind, listener: proc()) =
-  case kind:
-  of ClientEventKind.Closed: client.closedListeners.add listener
-  of ClientEventKind.Focused: client.focusedListeners.add listener
-  of ClientEventKind.LostFocus: client.lostFocusListeners.add listener
-  of ClientEventKind.Resized: client.resizedListeners.add listener
-
-func removeListener*(client: Client, kind: ClientEventKind, listener: proc()) =
-  case kind:
-  of ClientEventKind.Closed: client.closedListeners.delListener listener
-  of ClientEventKind.Focused: client.focusedListeners.delListener listener
-  of ClientEventKind.LostFocus: client.lostFocusListeners.delListener listener
-  of ClientEventKind.Resized: client.resizedListeners.delListener listener
+  if client.onResize != nil:
+    client.onResize(client)

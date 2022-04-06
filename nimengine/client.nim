@@ -1,4 +1,4 @@
-when defined(win32):
+when defined(windows):
   import client/platform/win32
   export win32
 elif defined(emscripten):

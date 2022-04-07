@@ -8,6 +8,7 @@ when defined(windows):
       lastCursorPosY*: float
       restoreCursorPosX*: float
       restoreCursorPosY*: float
+      isTrackingMouse*: bool
 
 elif defined(emscripten):
   type

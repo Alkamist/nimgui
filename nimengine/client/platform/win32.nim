@@ -213,6 +213,14 @@ template ifClientExists(hwnd: HWND, code: untyped): untyped =
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   case msg:
 
+  of WM_SETFOCUS:
+    ifClientExists(hwnd):
+      client.processFocus()
+
+  of WM_KILLFOCUS:
+    ifClientExists(hwnd):
+      client.processLoseFocus()
+
   of WM_CLOSE:
     ifClientExists(hwnd):
       client.processClose()
@@ -230,6 +238,17 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       let x = GET_X_LPARAM(lParam)
       let y = GET_Y_LPARAM(lParam)
 
+      if not client.platform.isTrackingMouse:
+        var tme: TTRACKMOUSEEVENT
+        ZeroMemory(tme.addr, sizeof(tme))
+        tme.cbSize = sizeof(tme).cint
+        tme.dwFlags = TME_LEAVE
+        tme.hwndTrack = client.platform.handle
+        TrackMouseEvent(tme.addr)
+
+        client.platform.isTrackingMouse = true
+        client.processMouseEnter()
+
       if client.mouseIsConfined:
         let dx = x - client.platform.lastCursorPosX.int
         let dy = y - client.platform.lastCursorPosY.int
@@ -240,6 +259,11 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
       client.platform.lastCursorPosX = x.float
       client.platform.lastCursorPosY = y.float
+
+  of WM_MOUSELEAVE:
+    ifClientExists(hwnd):
+      client.platform.isTrackingMouse = false
+      client.processMouseExit()
 
   of WM_MOUSEWHEEL:
     ifClientExists(hwnd):

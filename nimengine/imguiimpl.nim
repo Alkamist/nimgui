@@ -2,7 +2,7 @@ import std/times
 import ./imgui
 import ./client
 
-var FLT_MAX {.nodecl.}: cfloat
+var FLT_MAX {.importc, nodecl.}: cfloat
 
 type
   BackendData = ref object
@@ -18,8 +18,10 @@ type
     previousOnMouseEnter: proc(client: Client)
     previousOnMouseExit: proc(client: Client)
     previousOnMousePress: proc(client: Client)
+    previousOnMouseRelease: proc(client: Client)
     previousOnMouseWheel: proc(client: Client)
     previousOnKeyPress: proc(client: Client)
+    previousOnKeyRelease: proc(client: Client)
     previousOnCharacter: proc(client: Client)
 
 var bd = BackendData()
@@ -139,7 +141,7 @@ func toImGuiKey(key: KeyboardKey): ImGuiKey =
   of KeyboardKey.F12: ImGuiKey_F12
   else: ImGuiKey_None
 
-proc onMousePress(client: Client) =
+proc ImGui_OnMousePress(client: Client) =
   if bd.previousOnMousePress != nil and client == bd.client:
     bd.previousOnMousePress(client)
 
@@ -148,14 +150,23 @@ proc onMousePress(client: Client) =
     var io = ImGui_GetIO()
     io.AddMouseButtonEvent(button, true)
 
-proc onMouseWheel(client: Client) =
+proc ImGui_OnMouseRelease(client: Client) =
+  if bd.previousOnMouseRelease != nil and client == bd.client:
+    bd.previousOnMouseRelease(client)
+
+  let button = client.mousePress.toImGuiMouseButton
+  if button >= 0 and button < ImGuiMouseButton_COUNT:
+    var io = ImGui_GetIO()
+    io.AddMouseButtonEvent(button, false)
+
+proc ImGui_OnMouseWheel(client: Client) =
   if bd.previousOnMouseWheel != nil and client == bd.client:
     bd.previousOnMouseWheel(client)
 
   var io = ImGui_GetIO()
   io.AddMouseWheelEvent(client.mouseWheelX.cfloat, client.mouseWheelY.cfloat)
 
-proc onKeyPress(client: Client) =
+proc ImGui_OnKeyPress(client: Client) =
   if bd.previousOnKeyPress != nil and client == bd.client:
     bd.previousOnKeyPress(client)
 
@@ -163,21 +174,29 @@ proc onKeyPress(client: Client) =
   var imguiKey = client.keyPress.toImguiKey
   io.AddKeyEvent(imguiKey, true)
 
-proc onFocus(client: Client) =
+proc ImGui_OnKeyRelease(client: Client) =
+  if bd.previousOnKeyRelease != nil and client == bd.client:
+    bd.previousOnKeyRelease(client)
+
+  var io = ImGui_GetIO()
+  var imguiKey = client.keyRelease.toImguiKey
+  io.AddKeyEvent(imguiKey, false)
+
+proc ImGui_OnFocus(client: Client) =
   if bd.previousOnFocus != nil and client == bd.client:
     bd.previousOnFocus(client)
 
   var io = ImGui_GetIO()
   io.AddFocusEvent(true)
 
-proc onLoseFocus(client: Client) =
+proc ImGui_OnLoseFocus(client: Client) =
   if bd.previousOnLoseFocus != nil and client == bd.client:
     bd.previousOnLoseFocus(client)
 
   var io = ImGui_GetIO()
   io.AddFocusEvent(false)
 
-proc onMouseMove(client: Client) =
+proc ImGui_OnMouseMove(client: Client) =
   if bd.previousOnMouseMove != nil and client == bd.client:
     bd.previousOnMouseMove(client)
 
@@ -187,7 +206,7 @@ proc onMouseMove(client: Client) =
   bd.lastValidMouseX = client.mouseX
   bd.lastValidMouseY = client.mouseY
 
-proc onMouseEnter(client: Client) =
+proc ImGui_OnMouseEnter(client: Client) =
   if bd.previousOnMouseEnter != nil and client == bd.client:
     bd.previousOnMouseEnter(client)
 
@@ -196,7 +215,7 @@ proc onMouseEnter(client: Client) =
   var io = ImGui_GetIO()
   io.AddMousePosEvent(bd.lastValidMouseX.cfloat, bd.lastValidMouseY.cfloat)
 
-proc onMouseExit(client: Client) =
+proc ImGui_OnMouseExit(client: Client) =
   if bd.previousOnMouseExit != nil and client == bd.client:
     bd.previousOnMouseExit(client)
 
@@ -207,7 +226,7 @@ proc onMouseExit(client: Client) =
     var io = ImGui_GetIO()
     io.AddMousePosEvent(-FLT_MAX, -FLT_MAX)
 
-proc onCharacter(client: Client) =
+proc ImGui_OnCharacter(client: Client) =
   if bd.previousOnCharacter != nil and client == bd.client:
     bd.previousOnCharacter(client)
 
@@ -224,9 +243,24 @@ proc installCallbacks(client: Client) =
   bd.previousOnMouseEnter = client.onMouseEnter
   bd.previousOnMouseExit = client.onMouseExit
   bd.previousOnMousePress = client.onMousePress
+  bd.previousOnMouseRelease = client.onMouseRelease
   bd.previousOnMouseWheel = client.onMouseWheel
   bd.previousOnKeyPress = client.onKeyPress
+  bd.previousOnKeyRelease = client.onKeyRelease
   bd.previousOnCharacter = client.onCharacter
+
+  client.onFocus = ImGui_OnFocus
+  client.onLoseFocus = ImGui_OnLoseFocus
+  client.onMouseMove = ImGui_OnMouseMove
+  client.onMouseEnter = ImGui_OnMouseEnter
+  client.onMouseExit = ImGui_OnMouseExit
+  client.onMousePress = ImGui_OnMousePress
+  client.onMouseRelease = ImGui_OnMouseRelease
+  client.onMouseWheel = ImGui_OnMouseWheel
+  client.onKeyPress = ImGui_OnKeyPress
+  client.onKeyRelease = ImGui_OnKeyRelease
+  client.onCharacter = ImGui_OnCharacter
+
   bd.installedCallbacks = true
 
 proc restoreCallbacks(client: Client) =
@@ -239,22 +273,27 @@ proc restoreCallbacks(client: Client) =
   client.onMouseEnter = bd.previousOnMouseEnter
   client.onMouseExit = bd.previousOnMouseExit
   client.onMousePress = bd.previousOnMousePress
+  client.onMouseRelease = bd.previousOnMouseRelease
   client.onMouseWheel = bd.previousOnMouseWheel
   client.onKeyPress = bd.previousOnKeyPress
+  client.onKeyRelease = bd.previousOnKeyRelease
   client.onCharacter = bd.previousOnCharacter
 
-  bd.installedCallbacks = false
   bd.previousOnFocus = nil
   bd.previousOnLoseFocus = nil
   bd.previousOnMouseMove = nil
   bd.previousOnMouseEnter = nil
   bd.previousOnMouseExit = nil
   bd.previousOnMousePress = nil
+  bd.previousOnMouseRelease = nil
   bd.previousOnMouseWheel = nil
   bd.previousOnKeyPress = nil
+  bd.previousOnKeyRelease = nil
   bd.previousOnCharacter = nil
 
-proc imGuiInit*(client: Client) =
+  bd.installedCallbacks = false
+
+proc ImGui_ImplClient_Init*(client: Client) =
   var io = ImGui_GetIO()
   assert(io.BackendPlatformUserData == nil, "A platform backend is already initialized.")
 
@@ -266,7 +305,7 @@ proc imGuiInit*(client: Client) =
 
   client.installCallbacks()
 
-proc imGuiShutdown*() =
+proc ImGui_ImplClient_Shutdown*() =
   assert(bd != nil, "No platform backend to shutdown, or already shutdown?")
   var io = ImGui_GetIO()
 
@@ -276,15 +315,17 @@ proc imGuiShutdown*() =
   io.BackendPlatformName = nil
   io.BackendPlatformUserData = nil
 
-proc imGuiNewFrame*() =
+proc ImGui_ImplClient_NewFrame*() =
   var io = ImGui_GetIO()
   assert(bd != nil, "ImGui has not been initialized for Client.")
 
   # Setup display size every frame to accommodate for window resizing.
   let w = bd.client.width
   let h = bd.client.height
-  let displayW = bd.client.widthPixels
-  let displayH = bd.client.heightPixels
+  # let displayW = bd.client.widthPixels
+  # let displayH = bd.client.heightPixels
+  let displayW = bd.client.width
+  let displayH = bd.client.height
   io.DisplaySize = ImVec2.init(w.cfloat, h.cfloat)
   if w > 0 and h > 0:
     io.DisplayFramebufferScale = ImVec2.init(displayW.cfloat / w.cfloat, displayH.cfloat / h.cfloat)
@@ -292,10 +333,9 @@ proc imGuiNewFrame*() =
   # Setup time step.
   let currentTime = cpuTime()
 
-  io.DeltaTime =
-    if bd.time > 0.0:
-      (currentTime - bd.time).cfloat
-    else:
-      (1.0 / 60.0).cfloat
+  if currentTime > bd.time:
+    io.DeltaTime = (currentTime - bd.time).cfloat
+  else:
+    io.DeltaTime = (1.0 / 60.0).cfloat
 
   bd.time = currentTime

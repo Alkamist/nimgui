@@ -1,12 +1,12 @@
-import std/times
-import ./imgui
-import ./client
+import ../imgui
+import ./types
+
+# TODO: Clipboard, mouse cursors, input stealing, gamepads, docking branch
 
 var FLT_MAX {.importc, nodecl.}: cfloat
 
 type
   BackendData = ref object
-    time: float
     installedCallbacks: bool
     client: Client
     mouseClient: Client
@@ -301,7 +301,6 @@ proc ImGui_ImplClient_Init*(client: Client) =
   io.BackendPlatformName = "nim_client_backend"
 
   bd.client = client
-  bd.time = 0.0
 
   client.installCallbacks()
 
@@ -316,26 +315,20 @@ proc ImGui_ImplClient_Shutdown*() =
   io.BackendPlatformUserData = nil
 
 proc ImGui_ImplClient_NewFrame*() =
-  var io = ImGui_GetIO()
   assert(bd != nil, "ImGui has not been initialized for Client.")
 
-  # Setup display size every frame to accommodate for window resizing.
+  var io = ImGui_GetIO()
+
   let w = bd.client.width
   let h = bd.client.height
-  # let displayW = bd.client.widthPixels
-  # let displayH = bd.client.heightPixels
   let displayW = bd.client.width
   let displayH = bd.client.height
+
   io.DisplaySize = ImVec2.init(w.cfloat, h.cfloat)
   if w > 0 and h > 0:
     io.DisplayFramebufferScale = ImVec2.init(displayW.cfloat / w.cfloat, displayH.cfloat / h.cfloat)
 
-  # Setup time step.
-  let currentTime = cpuTime()
-
-  if currentTime > bd.time:
-    io.DeltaTime = (currentTime - bd.time).cfloat
+  if bd.client.delta > 0.0:
+    io.DeltaTime = bd.client.delta
   else:
     io.DeltaTime = (1.0 / 60.0).cfloat
-
-  bd.time = currentTime

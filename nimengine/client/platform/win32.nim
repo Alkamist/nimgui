@@ -1,26 +1,12 @@
 import std/[unicode, tables, exitprocs, options]
 import winim/lean
 
-include ../clientbase
+import ../types
+import ../base
 
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.}
 
-var hwndToClientTable = newTable[HWND, Client]()
-var windowClassIsRegistered = false
-var windowClass = WNDCLASSEX(
-  cbSize: WNDCLASSEX.sizeof.UINT,
-  style: CS_CLASSDC,
-  lpfnWndProc: windowProc,
-  cbClsExtra: 0,
-  cbWndExtra: 0,
-  hInstance: GetModuleHandle(nil),
-  hIcon: 0,
-  hCursor: LoadCursor(0, IDC_ARROW),
-  hbrBackground: CreateSolidBrush(RGB(0, 0, 0)),
-  lpszMenuName: nil,
-  lpszClassName: "Default Window Class",
-  hIconSm: 0,
-)
+
 
 func getClientWidthAndHeight(hwnd: HWND): (LONG, LONG) =
   var area: RECT
@@ -42,53 +28,6 @@ proc setClipRectToWindow(hwnd: HWND) =
 
 proc removeClipRect() =
   ClipCursor(nil)
-
-proc setCursorPosition*(client: Client, x, y: float) =
-  var pos = POINT(x: x.cint, y: y.cint)
-  client.platform.lastCursorPosX = x
-  client.platform.lastCursorPosY = y
-  ClientToScreen(client.platform.handle, pos.addr)
-  SetCursorPos(pos.x, pos.y)
-
-proc centerCursor*(client: Client) =
-  let (width, height) = getClientWidthAndHeight(client.platform.handle)
-  client.setCursorPosition((width div 2).float, (height div 2).float)
-
-proc confineCursor*(client: Client) =
-  setClipRectToWindow(client.platform.handle)
-  client.mouseIsConfined = true
-
-proc unconfineCursor*(client: Client) =
-  removeClipRect()
-  client.mouseIsConfined = false
-
-proc pinCursorToCenter*(client: Client) =
-  let cursorPosRestore = getCursorPosition(client.platform.handle)
-  if cursorPosRestore.isSome:
-    client.platform.restoreCursorPosX = cursorPosRestore.get[0].float
-    client.platform.restoreCursorPosY = cursorPosRestore.get[1].float
-  client.centerCursor()
-  client.mouseIsPinnedToCenter = true
-
-proc unpinCursorFromCenter*(client: Client) =
-  client.setCursorPosition(client.platform.restoreCursorPosX,
-                           client.platform.restoreCursorPosY)
-  client.mouseIsPinnedToCenter = false
-
-template startEventLoop*(client: Client, code: untyped): untyped =
-  while not client.shouldClose:
-    code
-
-    var msg: MSG
-    while PeekMessage(msg, client.platform.handle, 0, 0, PM_REMOVE) != 0:
-      TranslateMessage(msg)
-      DispatchMessage(msg)
-
-    if client.mouseIsPinnedToCenter:
-      let (width, height) = getClientWidthAndHeight(client.platform.handle)
-      if client.platform.lastCursorPosX != width / 2 or
-         client.platform.lastCursorPosY != height / 2:
-        client.setCursorPosition(width / 2, height / 2)
 
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
@@ -205,12 +144,126 @@ func toKeyboardKey(scanCode: int): KeyboardKey =
   of 222: KeyboardKey.Quote
   else: KeyboardKey.Unknown
 
-template ifClientExists(hwnd: HWND, code: untyped): untyped =
-  if hwndToClientTable.contains(hwnd):
-    var client {.inject.} = hwndToClientTable[hwnd]
+
+
+var hwndToClientTable = newTable[HWND, Client]()
+var windowClassIsRegistered = false
+var windowClass = WNDCLASSEX(
+  cbSize: WNDCLASSEX.sizeof.UINT,
+  style: CS_CLASSDC,
+  lpfnWndProc: windowProc,
+  cbClsExtra: 0,
+  cbWndExtra: 0,
+  hInstance: GetModuleHandle(nil),
+  hIcon: 0,
+  hCursor: LoadCursor(0, IDC_ARROW),
+  hbrBackground: CreateSolidBrush(RGB(0, 0, 0)),
+  lpszMenuName: nil,
+  lpszClassName: "Default Window Class",
+  hIconSm: 0,
+)
+
+
+
+proc setCursorPosition*(client: Client, x, y: float) =
+  var pos = POINT(x: x.cint, y: y.cint)
+  client.platform.lastCursorPosX = x
+  client.platform.lastCursorPosY = y
+  ClientToScreen(client.platform.handle, pos.addr)
+  SetCursorPos(pos.x, pos.y)
+
+proc centerCursor*(client: Client) =
+  let (width, height) = getClientWidthAndHeight(client.platform.handle)
+  client.setCursorPosition((width div 2).float, (height div 2).float)
+
+proc confineCursor*(client: Client) =
+  setClipRectToWindow(client.platform.handle)
+  client.mouseIsConfined = true
+
+proc unconfineCursor*(client: Client) =
+  removeClipRect()
+  client.mouseIsConfined = false
+
+proc pinCursorToCenter*(client: Client) =
+  let cursorPosRestore = getCursorPosition(client.platform.handle)
+  if cursorPosRestore.isSome:
+    client.platform.restoreCursorPosX = cursorPosRestore.get[0].float
+    client.platform.restoreCursorPosY = cursorPosRestore.get[1].float
+  client.centerCursor()
+  client.mouseIsPinnedToCenter = true
+
+proc unpinCursorFromCenter*(client: Client) =
+  client.setCursorPosition(client.platform.restoreCursorPosX,
+                           client.platform.restoreCursorPosY)
+  client.mouseIsPinnedToCenter = false
+
+template startEventLoop*(client: Client, code: untyped): untyped =
+  client.eventLoopInit()
+
+  while not client.shouldClose:
+    client.eventLoopNewFrame()
+
     code
 
+    var msg: MSG
+    while PeekMessage(msg, client.platform.handle, 0, 0, PM_REMOVE) != 0:
+      TranslateMessage(msg)
+      DispatchMessage(msg)
+
+    if client.mouseIsPinnedToCenter:
+      let (width, height) = getClientWidthAndHeight(client.platform.handle)
+      if client.platform.lastCursorPosX != width / 2 or
+         client.platform.lastCursorPosY != height / 2:
+        client.setCursorPosition(width / 2, height / 2)
+
+  client.eventLoopShutdown()
+
+proc new*(_: type Client,
+          title = "Client",
+          x, y = 0,
+          width = 1024, height = 768,
+          parent: HWND = 0): Client =
+  if not windowClassIsRegistered:
+    RegisterClassEx(windowClass)
+    windowClassIsRegistered = true
+    addExitProc proc =
+      UnregisterClass(windowClass.lpszClassName, windowClass.hInstance)
+
+  let hwnd = CreateWindow(
+    lpClassName = windowClass.lpszClassName,
+    lpWindowName = title,
+    dwStyle = WS_OVERLAPPEDWINDOW,
+    x = x.int32,
+    y = y.int32,
+    nWidth = width.int32,
+    nHeight = height.int32,
+    hWndParent = parent,
+    hMenu = 0,
+    hInstance = windowClass.hInstance,
+    lpParam = nil,
+  )
+
+  ShowWindow(hwnd, SW_SHOWDEFAULT)
+  UpdateWindow(hwnd)
+  InvalidateRect(hwnd, nil, 1)
+
+  let (clientWidth, clientHeight) = getClientWidthAndHeight(hwnd)
+
+  result = newDefaultClient(clientWidth.float, clientHeight.float)
+  result.platform = PlatformData(
+    handle: hwnd,
+  )
+
+  hwndToClientTable[hwnd] = result
+
+
+# The giant win32 api event handler function that dispatches events.
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
+  template ifClientExists(hwnd: HWND, code: untyped): untyped =
+    if hwndToClientTable.contains(hwnd):
+      var client {.inject.} = hwndToClientTable[hwnd]
+      code
+
   case msg:
 
   of WM_SETFOCUS:
@@ -323,41 +376,3 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     discard
 
   DefWindowProc(hwnd, msg, wParam, lParam)
-
-proc new*(_: type Client,
-          title = "Client",
-          x, y = 0,
-          width = 1024, height = 768,
-          parent: HWND = 0): Client =
-  if not windowClassIsRegistered:
-    RegisterClassEx(windowClass)
-    windowClassIsRegistered = true
-    addExitProc proc =
-      UnregisterClass(windowClass.lpszClassName, windowClass.hInstance)
-
-  let hwnd = CreateWindow(
-    lpClassName = windowClass.lpszClassName,
-    lpWindowName = title,
-    dwStyle = WS_OVERLAPPEDWINDOW,
-    x = x.int32,
-    y = y.int32,
-    nWidth = width.int32,
-    nHeight = height.int32,
-    hWndParent = parent,
-    hMenu = 0,
-    hInstance = windowClass.hInstance,
-    lpParam = nil,
-  )
-
-  ShowWindow(hwnd, SW_SHOWDEFAULT)
-  UpdateWindow(hwnd)
-  InvalidateRect(hwnd, nil, 1)
-
-  let (clientWidth, clientHeight) = getClientWidthAndHeight(hwnd)
-
-  result = newDefaultClient(clientWidth.float, clientHeight.float)
-  result.platform = PlatformData(
-    handle: hwnd,
-  )
-
-  hwndToClientTable[hwnd] = result

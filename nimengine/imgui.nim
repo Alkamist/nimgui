@@ -133,6 +133,8 @@ proc init*(_: type ImVec2, x, y: cfloat): ImVec2 {.importc: "ImVec2", header: im
 
 {.push discardable.}
 
+proc ImGui_ShowDemoWindow*(p_open: ptr bool = nil) {.importc: "ImGui::ShowDemoWindow", header: imguiHeader.}
+
 proc ImGui_CreateContext*(shared_font_atlas: ptr ImFontAtlas = nil): ptr ImGuiContext {.importc: "ImGui::CreateContext", header: imguiHeader.}
 proc ImGui_DestroyContext*(ctx: ptr ImGuiContext = nil) {.importc: "ImGui::DestroyContext", header: imguiHeader.}
 proc ImGui_GetCurrentContext*(): ptr ImGuiContext {.importc: "ImGui::GetCurrentContext", header: imguiHeader.}

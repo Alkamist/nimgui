@@ -46,6 +46,6 @@ proc uploadData*[T: IndexType](buffer: var IndexBuffer, data: openArray[T]) =
 proc `=destroy`*(buffer: var IndexBuffer) =
   glDeleteBuffers(1, buffer.id.addr)
 
-proc init*(_: type IndexBuffer, kind: IndexKind): IndexBuffer =
+proc initIndexBuffer*(kind: IndexKind): IndexBuffer =
   result.kind = kind
   glGenBuffers(1, result.id.addr)

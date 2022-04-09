@@ -68,7 +68,7 @@ proc setUniform*(shader: Shader, name: string, value: UniformMatrix4fv) =
 proc `=destroy`*(shader: var Shader) =
   glDeleteProgram(shader.id)
 
-proc init*(_: type Shader, vertexSource, fragmentSource: string): Shader =
+proc initShader*(vertexSource, fragmentSource: string): Shader =
   result.id = glCreateProgram()
 
   var vertexId = compileShaderSrc(GL_VERTEX_SHADER, vertexSource)

@@ -58,7 +58,7 @@ when defined(windows):
 
     wglMakeCurrent(ctx.hdc, ctx.hglrc)
 
-  proc new*(_: type GfxContext, nativeHandle: HWND): GfxContext =
+  proc newGfxContext*(nativeHandle: HWND): GfxContext =
     result = GfxContext(nativeHandle: nativeHandle)
     result.makeCurrent()
     opengl.loadExtensions()
@@ -75,7 +75,7 @@ elif defined(emscripten):
       nativeHandle*: cstring
       webGlContextHandle*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
 
-  proc new*(_: type GfxContext, nativeHandle: cstring): GfxContext =
+  proc newGfxContext*(nativeHandle: cstring): GfxContext =
     var attributes: EmscriptenWebGLContextAttributes
     emscripten_webgl_init_context_attributes(attributes.addr)
     attributes.stencil = true.EM_BOOL

@@ -75,7 +75,7 @@ proc generateMipmap*(texture: Texture) =
   texture.select()
   glGenerateMipmap(GL_TEXTURE_2D)
 
-proc init*(_: type Texture): Texture =
+proc initTexture*(): Texture =
   result = Texture()
   glGenTextures(1, result.id.addr)
   result.setMinifyFilter(MinifyFilter.Nearest)

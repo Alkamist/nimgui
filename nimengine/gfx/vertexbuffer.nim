@@ -94,6 +94,6 @@ proc `layout=`*(buffer: var VertexBuffer, layout: openArray[VertexAttributeKind]
 proc `=destroy`*(buffer: var VertexBuffer) =
   glDeleteBuffers(1, buffer.id.addr)
 
-proc init*(_: type VertexBuffer, layout: openArray[VertexAttributeKind]): VertexBuffer =
+proc initVertexBuffer*(layout: openArray[VertexAttributeKind]): VertexBuffer =
   glGenBuffers(1, result.id.addr)
   result.layout = layout

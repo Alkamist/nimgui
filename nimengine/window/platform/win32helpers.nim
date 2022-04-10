@@ -1,6 +1,6 @@
 import std/options
 import winim/lean
-import ../base
+import ../types
 
 export options
 

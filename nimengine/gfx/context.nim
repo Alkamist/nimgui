@@ -11,90 +11,79 @@ export shader
 export texture
 export vertexbuffer
 
+var openGlIsLoaded = false
+
 when defined(windows):
   import pkg/winim/lean
 
   type
     GfxContext* = ref object
-      nativeHandle*: HWND
+      handle*: HWND
       hdc*: HDC
+      startHdc: HDC
       hglrc*: HGLRC
+      startHglrc*: HGLRC
 
-  proc makeCurrent*(ctx: GfxContext) =
+  proc destroy*(ctx: GfxContext) =
+    wglMakeCurrent(0, 0)
+    wglDeleteContext(ctx.hglrc)
+
+  proc activate*(ctx: GfxContext) =
+    ctx.startHdc = wglGetCurrentDC()
+    ctx.startHglrc = wglGetCurrentContext()
+    let dc = GetDC(ctx.handle)
+    wglMakeCurrent(dc, ctx.hglrc)
+
+  proc deactivate*(ctx: GfxContext) =
+    ReleaseDC(ctx.handle, ctx.hdc)
+    wglMakeCurrent(ctx.startHdc, ctx.startHglrc)
+
+  proc newGfxContext*(handle: HWND): GfxContext =
+    result = GfxContext(handle: handle)
+
     var pfd = PIXELFORMATDESCRIPTOR(
-      nSize: PIXELFORMATDESCRIPTOR.sizeof.WORD,
+      nSize: sizeof(PIXELFORMATDESCRIPTOR).WORD,
       nVersion: 1,
+      dwFlags: PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_SUPPORT_COMPOSITION or PFD_DOUBLEBUFFER,
+      iPixelType: PFD_TYPE_RGBA,
+      cColorBits: 32,
+      cRedBits: 0, cRedShift: 0,
+      cGreenBits: 0, cGreenShift: 0,
+      cBlueBits: 0, cBlueShift: 0,
+      cAlphaBits: 0, cAlphaShift: 0,
+      cAccumBits: 0,
+      cAccumRedBits: 0,
+      cAccumGreenBits: 0,
+      cAccumBlueBits: 0,
+      cAccumAlphaBits: 0,
+      cDepthBits: 24,
+      cStencilBits: 8,
+      cAuxBuffers: 0,
+      iLayerType: PFD_MAIN_PLANE,
+      bReserved: 0,
+      dwLayerMask: 0,
+      dwVisibleMask: 0,
+      dwDamageMask: 0,
     )
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW or
-                  PFD_SUPPORT_OPENGL or
-                  PFD_SUPPORT_COMPOSITION or
-                  PFD_DOUBLEBUFFER
-    pfd.iPixelType = PFD_TYPE_RGBA
-    pfd.cColorBits = 32
-    pfd.cAlphaBits = 8
-    pfd.iLayerType = PFD_MAIN_PLANE
 
-    ctx.hdc = GetDC(ctx.nativeHandle)
-    let format = ChoosePixelFormat(ctx.hdc, pfd.addr)
-    if format == 0:
-      raise newException(OSError, "ChoosePixelFormat failed.")
+    let dc = GetDC(handle)
+    result.hdc = dc
 
-    if SetPixelFormat(ctx.hdc, format, pfd.addr) == 0:
-      raise newException(OSError, "SetPixelFormat failed.")
+    let fmt = ChoosePixelFormat(dc, pfd.addr)
+    SetPixelFormat(dc, fmt, pfd.addr)
 
-    var activeFormat = GetPixelFormat(ctx.hdc)
-    if activeFormat == 0:
-      raise newException(OSError, "GetPixelFormat failed.")
+    result.hglrc = wglCreateContext(dc)
+    wglMakeCurrent(dc, result.hglrc)
 
-    if DescribePixelFormat(ctx.hdc, format, pfd.sizeof.UINT, pfd.addr) == 0:
-      raise newException(OSError, "DescribePixelFormat failed.")
+    if not openGlIsLoaded:
+      opengl.loadExtensions()
+      openGlIsLoaded = true
 
-    if (pfd.dwFlags and PFD_SUPPORT_OPENGL) != PFD_SUPPORT_OPENGL:
-      raise newException(OSError, "PFD_SUPPORT_OPENGL check failed.")
-
-    ctx.hglrc = wglCreateContext(ctx.hdc)
-    if ctx.hglrc == 0:
-      raise newException(OSError, "wglCreateContext failed.")
-
-    wglMakeCurrent(ctx.hdc, ctx.hglrc)
-
-  proc newGfxContext*(nativeHandle: HWND): GfxContext =
-    result = GfxContext(nativeHandle: nativeHandle)
-    result.makeCurrent()
-    opengl.loadExtensions()
+    discard glGetError()
+    ReleaseDC(handle, dc)
 
   proc swapBuffers*(ctx: GfxContext) =
     SwapBuffers(ctx.hdc)
-
-elif defined(emscripten):
-  import ../emscriptenapi
-  export emscriptenapi
-
-  type
-    GfxContext* = ref object
-      nativeHandle*: cstring
-      webGlContextHandle*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
-
-  proc newGfxContext*(nativeHandle: cstring): GfxContext =
-    var attributes: EmscriptenWebGLContextAttributes
-    emscripten_webgl_init_context_attributes(attributes.addr)
-    attributes.stencil = true.EM_BOOL
-    attributes.depth = true.EM_BOOL
-    # I can't get these to work.
-    # attributes.explicitSwapControl = true.EM_BOOL
-    # attributes.renderViaOffscreenBackBuffer = true.EM_BOOL
-    GfxContext(
-      nativeHandle: nativeHandle,
-      webGlContextHandle: emscripten_webgl_create_context(nativeHandle, attributes.addr),
-    )
-
-  proc makeCurrent*(ctx: GfxContext) =
-    discard emscripten_webgl_make_context_current(ctx.webGlContextHandle)
-
-  proc swapBuffers*(ctx: GfxContext) =
-    # This seems to cause problems from my testing.
-    # discard emscripten_webgl_commit_frame()
-    discard
 
 
 

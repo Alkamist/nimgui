@@ -1,9 +1,6 @@
 import pkg/opengl
 
 type
-  # Uniform3fv* = array[3, float32]
-  # UniformMatrix4fv* = array[4, array[4, float32]]
-
   Uniform3fv* = concept v
     v[0] is float32
     v[1] is float32

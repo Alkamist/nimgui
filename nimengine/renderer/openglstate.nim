@@ -39,17 +39,20 @@ type
 proc getCurrentOpenGlState*(): OpenGlState =
   result = OpenGlState()
   glGetIntegerv(GL_ACTIVE_TEXTURE, cast[ptr GLint](result.activeTexture.addr))
-  glActiveTexture(GL_TEXTURE0)
   glGetIntegerv(GL_CURRENT_PROGRAM, cast[ptr GLint](result.program.addr))
-  glGetIntegerv(GL_TEXTURE_BINDING_2D, cast[ptr GLint](result.texture))
+  # glGetIntegerv(GL_TEXTURE_BINDING_2D, cast[ptr GLint](result.texture)) # Crashes on my system for some reason.
+
   # if result.openGlVersion >= 330:
   #   glGetIntegerv(GL_SAMPLER_BINDING, cast[ptr GLint](result.sampler.addr))
   # else:
   #   result.sampler = 0
-  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, cast[ptr GLint](result.arrayBuffer))
-  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, cast[ptr GLint](result.vertexArrayObject)) # Not supported on ES2/WebGL1.
+
+  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, cast[ptr GLint](result.arrayBuffer.addr))
+  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, cast[ptr GLint](result.vertexArrayObject.addr)) # Not supported on ES2/WebGL1.
+
   when not defined(emscripten):
     glGetIntegerv(GL_POLYGON_MODE, cast[ptr GLint](result.polygonMode.addr))
+
   glGetIntegerv(GL_VIEWPORT, cast[ptr GLint](result.viewport.addr))
   glGetIntegerv(GL_SCISSOR_BOX, cast[ptr GLint](result.scissorBox.addr))
   glGetIntegerv(GL_BLEND_SRC_RGB, cast[ptr GLint](result.blendSrcRgb.addr))
@@ -63,17 +66,20 @@ proc getCurrentOpenGlState*(): OpenGlState =
   result.depthTestIsEnabled = glIsEnabled(GL_DEPTH_TEST)
   result.stencilTestIsEnabled = glIsEnabled(GL_STENCIL_TEST)
   result.scissorTestIsEnabled = glIsEnabled(GL_SCISSOR_TEST)
+
   # if result.openGlVersion >= 310:
   #   result.primitiveRestartIsEnabled = glIsEnabled(GL_PRIMITIVE_RESTART)
   # else:
   #   result.primitiveRestartIsEnabled = GL_FALSE
 
-proc setCurrentOpenGlState*(state: OpenGlState) =
+proc makeCurrent*(state: OpenGlState) =
   glUseProgram(state.program)
   glBindTexture(GL_TEXTURE_2D, state.texture)
+
   # if (state.openGlVersion >= 330):
   #   glBindSampler(0, state.sampler)
-  glActiveTexture(state.activeTexture)
+  # glActiveTexture(state.activeTexture) # Nim opengl doesn't seem to load this.
+
   glBindVertexArray(state.vertexArrayObject) # Not supported on ES2/WebGL1.
   glBindBuffer(GL_ARRAY_BUFFER, state.arrayBuffer)
   glBlendEquationSeparate(state.blendEquationRgb, state.blendEquationAlpha)
@@ -83,12 +89,15 @@ proc setCurrentOpenGlState*(state: OpenGlState) =
   if state.depthTestIsEnabled: glEnable(GL_DEPTH_TEST) else: glDisable(GL_DEPTH_TEST)
   if state.stencilTestIsEnabled: glEnable(GL_STENCIL_TEST) else: glDisable(GL_STENCIL_TEST)
   if state.scissorTestIsEnabled: glEnable(GL_SCISSOR_TEST) else: glDisable(GL_SCISSOR_TEST)
+
   # if state.openGlVersion >= 310:
   #   if state.primitiveRestartIsEnabled:
   #     glEnable(GL_PRIMITIVE_RESTART)
   #   else:
   #     glDisable(GL_PRIMITIVE_RESTART)
+
   when not defined(emscripten):
     glPolygonMode(GL_FRONT_AND_BACK, cast[GLenum](state.polygonMode[0]))
-  glViewport(state.viewport[0], state.viewport[1], cast[GLsizei](state.viewport[2]), cast[GLsizei](state.viewport[3]))
-  glScissor(state.scissorBox[0], state.scissorBox[1], cast[GLsizei](state.scissorBox[2]), cast[GLsizei](state.scissorBox[3]))
+
+  glViewport(state.viewport[0], state.viewport[1], state.viewport[2].GLsizei, state.viewport[3].GLsizei)
+  glScissor(state.scissorBox[0], state.scissorBox[1], state.scissorBox[2].GLsizei, state.scissorBox[3].GLsizei)

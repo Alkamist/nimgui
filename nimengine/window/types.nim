@@ -1,9 +1,3 @@
-import pkg/pixie
-import ../gfx
-
-export pixie
-export gfx
-
 when defined(windows):
   import winim/lean
   type

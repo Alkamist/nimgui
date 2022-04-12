@@ -26,7 +26,7 @@ proc enableCursor*(window: Window) =
   window.unpinCursorFromCenter()
   window.showCursor()
 
-proc processFrame*(window: Window) =
+proc process*(window: Window) =
   if not window.isClosed:
     if window.previousTime <= 0.0:
       window.previousTime = cpuTime()
@@ -34,24 +34,8 @@ proc processFrame*(window: Window) =
     window.time = cpuTime()
     window.delta = window.time - window.previousTime
 
-    window.ctx.image.fill(rgba(0, 0, 0, 0))
+    if window.update != nil:
+      window.update(window)
 
-    window.gfxCtx.select()
-    window.gfxCtx.setViewport(0, 0, window.width.int, window.height.int)
-    window.gfxCtx.clearBackground()
-
-    if window.render != nil:
-      window.render(window)
-
-    window.quadTexture.uploadData(window.ctx.image)
-    window.gfxCtx.drawTriangles(
-      window.quadShader,
-      window.quadVertexBuffer,
-      window.quadIndexBuffer,
-      window.quadTexture,
-    )
-    window.gfxCtx.swapBuffers()
-    window.gfxCtx.unselect()
-
-    window.postFrame()
+    window.postUpdate()
     window.previousTime = window.time

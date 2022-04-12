@@ -133,13 +133,6 @@ type
     PadPeriod
 
   Window* = ref object
-    gfxCtx*: GfxContext
-    ctx*: pixie.Context
-    quadVertexBuffer*: VertexBuffer
-    quadIndexBuffer*: IndexBuffer
-    quadTexture*: Texture
-    quadShader*: Shader
-
     time*: float
     previousTime*: float
     delta*: float
@@ -172,7 +165,7 @@ type
     character*: string
     keyStates*: array[KeyboardKey, bool]
 
-    render*: proc(window: Window)
+    update*: proc(window: Window)
     onClose*: proc(window: Window)
     onFocus*: proc(window: Window)
     onLoseFocus*: proc(window: Window)

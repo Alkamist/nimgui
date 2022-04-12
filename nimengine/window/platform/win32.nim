@@ -62,7 +62,7 @@ proc unpinCursorFromCenter*(window: Window) =
                             window.platform.restoreCursorPosY)
     window.cursorIsPinnedToCenter = false
 
-proc postFrame*(window: Window) =
+proc postUpdate*(window: Window) =
   if not window.isChild:
     pollEvents(window.platform.handle)
 
@@ -142,7 +142,6 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     window.previousWidth = w.float
     window.previousHeight = h.float
     window.platform = WindowPlatformData(handle: hwnd)
-    window.setupGraphics()
 
   let window = cast[Window](GetWindowLongPtr(hwnd, GWLP_USERDATA))
   if window == nil or hwnd != window.platform.handle:

@@ -60,15 +60,15 @@ proc setWrapR*(texture: Texture, mode: WrapMode) =
 proc uploadData*(texture: Texture, textureData: TextureData) =
   texture.select()
   glTexImage2D(
-    GL_TEXTURE_2D,
-    0,
-    GL_RGBA.GLint,
-    textureData.width.Glsizei,
-    textureData.height.Glsizei,
-    0,
-    GL_RGBA,
-    GL_UNSIGNED_BYTE,
-    textureData.data[0].unsafeAddr,
+    target = GL_TEXTURE_2D,
+    level = 0,
+    internalformat = GL_RGBA.GLint,
+    width = textureData.width.GLsizei,
+    height = textureData.height.GLsizei,
+    border = 0,
+    format = GL_RGBA,
+    `type` = GL_UNSIGNED_BYTE,
+    pixels = textureData.data[0].unsafeAddr,
   )
 
 proc generateMipmap*(texture: Texture) =

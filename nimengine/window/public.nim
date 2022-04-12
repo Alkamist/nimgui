@@ -26,7 +26,7 @@ proc enableCursor*(window: Window) =
   window.unpinCursorFromCenter()
   window.showCursor()
 
-proc process*(window: Window) =
+proc update*(window: Window) =
   if not window.isClosed:
     if window.previousTime <= 0.0:
       window.previousTime = cpuTime()
@@ -34,8 +34,8 @@ proc process*(window: Window) =
     window.time = cpuTime()
     window.delta = window.time - window.previousTime
 
-    if window.update != nil:
-      window.update(window)
+    if window.onUpdate != nil:
+      window.onUpdate()
 
     window.postUpdate()
     window.previousTime = window.time

@@ -12,64 +12,64 @@ proc processMouseMove*(window: Window, x, y: float) =
   window.mouseYChange = window.mouseY - window.previousMouseY
 
   if window.onMouseMove != nil:
-    window.onMouseMove(window)
+    window.onMouseMove()
 
 proc processMouseEnter*(window: Window) =
   window.cursorIsOver = true
   if window.onMouseEnter != nil:
-    window.onMouseEnter(window)
+    window.onMouseEnter()
 
 proc processMouseExit*(window: Window) =
   window.cursorIsOver = false
   if window.onMouseExit != nil:
-    window.onMouseExit(window)
+    window.onMouseExit()
 
 proc processMouseWheel*(window: Window, x, y: float) =
   window.mouseWheelX = x
   window.mouseWheelY = y
   if window.onMouseWheel != nil:
-    window.onMouseWheel(window)
+    window.onMouseWheel()
 
 proc processMousePress*(window: Window, button: MouseButton) =
   window.mousePress = button
   window.mouseButtonStates[button] = true
   if window.onMousePress != nil:
-    window.onMousePress(window)
+    window.onMousePress()
 
 proc processMouseRelease*(window: Window, button: MouseButton) =
   window.mouseRelease = button
   window.mouseButtonStates[button] = false
   if window.onMouseRelease != nil:
-    window.onMouseRelease(window)
+    window.onMouseRelease()
 
 proc processKeyPress*(window: Window, key: KeyboardKey) =
   window.keyPress = key
   window.keyStates[key] = true
   if window.onKeyPress != nil:
-    window.onKeyPress(window)
+    window.onKeyPress()
 
 proc processKeyRelease*(window: Window, key: KeyboardKey) =
   window.keyRelease = key
   window.keyStates[key] = false
   if window.onKeyRelease != nil:
-    window.onKeyRelease(window)
+    window.onKeyRelease()
 
 proc processCharacter*(window: Window, character: string) =
   window.character = character
   if window.onCharacter != nil:
-    window.onCharacter(window)
+    window.onCharacter()
 
 proc processClose*(window: Window) =
   if window.onClose != nil:
-    window.onClose(window)
+    window.onClose()
 
 proc processFocus*(window: Window) =
   if window.onFocus != nil:
-    window.onFocus(window)
+    window.onFocus()
 
 proc processLoseFocus*(window: Window) =
   if window.onLoseFocus != nil:
-    window.onLoseFocus(window)
+    window.onLoseFocus()
 
 proc processMove*(window: Window, x, y: float) =
   window.previousX = window.x
@@ -79,7 +79,7 @@ proc processMove*(window: Window, x, y: float) =
   window.xChange = window.x - window.previousX
   window.yChange = window.y - window.previousY
   if window.onMove != nil:
-    window.onMove(window)
+    window.onMove()
 
 proc processResize*(window: Window, width, height: float) =
   window.previousWidth = window.width
@@ -90,4 +90,4 @@ proc processResize*(window: Window, width, height: float) =
   window.heightChange = window.height - window.previousHeight
 
   if window.onResize != nil:
-    window.onResize(window)
+    window.onResize()

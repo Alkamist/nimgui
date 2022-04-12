@@ -1,4 +1,7 @@
+import pkg/pixie
 import ../gfx
+
+export pixie
 export gfx
 
 when defined(windows):
@@ -131,6 +134,11 @@ type
 
   Window* = ref object
     gfxCtx*: GfxContext
+    ctx*: pixie.Context
+    quadVertexBuffer*: VertexBuffer
+    quadIndexBuffer*: IndexBuffer
+    quadTexture*: Texture
+    quadShader*: Shader
 
     time*: float
     previousTime*: float
@@ -144,6 +152,7 @@ type
     widthChange*, heightChange*: float
     isFocused*: bool
     isClosed*: bool
+    isChild*: bool
 
     cursorIsOver*: bool
     cursorIsConfined*: bool
@@ -163,12 +172,12 @@ type
     character*: string
     keyStates*: array[KeyboardKey, bool]
 
+    render*: proc(window: Window)
     onClose*: proc(window: Window)
     onFocus*: proc(window: Window)
     onLoseFocus*: proc(window: Window)
     onMove*: proc(window: Window)
     onResize*: proc(window: Window)
-    onFrame*: proc(window: Window)
     onMouseMove*: proc(window: Window)
     onMouseEnter*: proc(window: Window)
     onMouseExit*: proc(window: Window)
@@ -178,6 +187,5 @@ type
     onKeyPress*: proc(window: Window)
     onKeyRelease*: proc(window: Window)
     onCharacter*: proc(window: Window)
-    onPaint*: proc(window: Window)
 
     platform*: WindowPlatformData

@@ -3,7 +3,7 @@ import winim/lean
 
 import ./win32helpers
 import ../types
-import ../eventfunctions
+import ../base
 
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.}
 
@@ -62,11 +62,10 @@ proc unpinCursorFromCenter*(window: Window) =
                             window.platform.restoreCursorPosY)
     window.cursorIsPinnedToCenter = false
 
-proc preFrame*(window: Window) =
-  discard
-
 proc postFrame*(window: Window) =
-  pollEvents(window.platform.handle)
+  if not window.isChild:
+    pollEvents(window.platform.handle)
+
   if window.cursorIsPinnedToCenter:
     let (width, height) = getClientWidthAndHeight(window.platform.handle)
     if window.platform.lastCursorPosX != width / 2 or
@@ -102,12 +101,14 @@ proc newWindow*(title = "Window",
     )
     RegisterClassEx(windowClass)
 
-  let noParent = cast[pointer](parentHandle) == nil
+  let isChild = cast[pointer](parentHandle) != nil
   let windowStyle =
-    if noParent:
-      WS_OVERLAPPEDWINDOW or WS_VISIBLE
-    else:
+    if isChild:
       WS_CHILD or WS_VISIBLE or WS_CLIPCHILDREN or WS_CLIPSIBLINGS
+    else:
+      WS_OVERLAPPEDWINDOW or WS_VISIBLE
+
+  result.isChild = isChild
 
   discard CreateWindow(
     lpClassName = windowClassName,
@@ -141,16 +142,13 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     window.previousWidth = w.float
     window.previousHeight = h.float
     window.platform = WindowPlatformData(handle: hwnd)
-    window.gfxCtx = newGfxContext(hwnd)
+    window.setupGraphics()
 
   let window = cast[Window](GetWindowLongPtr(hwnd, GWLP_USERDATA))
   if window == nil or hwnd != window.platform.handle:
     return DefWindowProc(hwnd, msg, wParam, lParam)
 
   case msg:
-
-  of WM_PAINT:
-    window.processPaint()
 
   of WM_SETCURSOR:
     if LOWORD(lParam) == HTCLIENT:
@@ -168,6 +166,10 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       setClipRectToWindow(hwnd)
     window.processMove(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
 
+  of WM_SIZE:
+    let (w, h) = getClientWidthAndHeight(hwnd)
+    window.processResize(w.float, h.float)
+
   of WM_CLOSE:
     window.close()
 
@@ -175,12 +177,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     dec windowCount
     windowCount = windowCount.max(0)
     if windowCount == 0:
-      window.gfxCtx.destroy()
       UnregisterClass(windowClassName, GetModuleHandle(nil))
-
-  of WM_SIZE:
-    let (w, h) = getClientWidthAndHeight(hwnd)
-    window.processResize(w.float, h.float)
 
   of WM_MOUSEMOVE:
     let x = GET_X_LPARAM(lParam)

@@ -33,12 +33,25 @@ proc processFrame*(window: Window) =
 
     window.time = cpuTime()
     window.delta = window.time - window.previousTime
-    window.preFrame()
 
-    if window.onFrame != nil:
-      window.gfxCtx.activate()
-      window.onFrame(window)
-      window.gfxCtx.deactivate()
+    window.ctx.image.fill(rgba(0, 0, 0, 0))
+
+    window.gfxCtx.select()
+    window.gfxCtx.setViewport(0, 0, window.width.int, window.height.int)
+    window.gfxCtx.clearBackground()
+
+    if window.render != nil:
+      window.render(window)
+
+    window.quadTexture.uploadData(window.ctx.image)
+    window.gfxCtx.drawTriangles(
+      window.quadShader,
+      window.quadVertexBuffer,
+      window.quadIndexBuffer,
+      window.quadTexture,
+    )
+    window.gfxCtx.swapBuffers()
+    window.gfxCtx.unselect()
 
     window.postFrame()
     window.previousTime = window.time

@@ -1,5 +1,55 @@
 import ./types
 
+const vertexShader2d = """
+#version 300 es
+precision highp float;
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoord;
+out vec2 TexCoord;
+void main()
+{
+  gl_Position = vec4(aPos, 1.0f);
+  TexCoord = aTexCoord;
+}
+"""
+
+const fragmentShader2d = """
+#version 300 es
+precision highp float;
+out vec4 FragColor;
+in vec2 TexCoord;
+uniform sampler2D texture1;
+void main()
+{
+  vec4 texColor = texture(texture1, TexCoord);
+  FragColor = texColor;
+}
+"""
+
+proc setupGraphics*(window: Window) =
+  window.gfxCtx = newGfxContext(window.platform.handle)
+  window.gfxCtx.enableAlphaBlend()
+
+  window.quadVertexBuffer = initVertexBuffer([VertexAttributeKind.Float3,
+                                              VertexAttributeKind.Float2])
+  window.quadVertexBuffer.uploadData [
+    ([-1f, -1f, 0f], [0.0f, 0.0f]),
+    ([1f, -1f, 0f], [1.0f, 0.0f]),
+    ([1f, 1f, 0f], [1.0f, 1.0f]),
+    ([-1f, 1f, 0f], [0.0f, 1.0f]),
+  ]
+
+  window.quadIndexBuffer = initIndexBuffer(IndexKind.UInt32)
+  window.quadIndexBuffer.uploadData([
+    0'u32, 1, 3,
+    1, 3, 2,
+  ])
+
+  window.quadShader = initShader(vertexShader2d, fragmentShader2d)
+  window.quadTexture = initTexture()
+
+  window.ctx = newContext(1, 1)
+
 proc processMouseMove*(window: Window, x, y: float) =
   if window.mouseX == x and window.mouseY == y:
     return
@@ -59,10 +109,6 @@ proc processCharacter*(window: Window, character: string) =
   if window.onCharacter != nil:
     window.onCharacter(window)
 
-proc processPaint*(window: Window) =
-  if window.onPaint != nil:
-    window.onPaint(window)
-
 proc processClose*(window: Window) =
   if window.onClose != nil:
     window.onClose(window)
@@ -92,5 +138,30 @@ proc processResize*(window: Window, width, height: float) =
   window.height = height
   window.widthChange = window.width - window.previousWidth
   window.heightChange = window.height - window.previousHeight
+
+  let w = window.width.int.max(1)
+  let h = window.height.int.max(1)
+  window.ctx.image.width = w
+  window.ctx.image.height = h
+  window.ctx.image.data.setLen(w * h)
+  window.ctx.image.fill(rgba(0, 0, 0, 0))
+
   if window.onResize != nil:
     window.onResize(window)
+
+  window.gfxCtx.select()
+  window.gfxCtx.setViewport(0, 0, window.width.int, window.height.int)
+  window.gfxCtx.clearBackground()
+
+  if window.render != nil:
+    window.render(window)
+
+  window.quadTexture.uploadData(window.ctx.image)
+  window.gfxCtx.drawTriangles(
+    window.quadShader,
+    window.quadVertexBuffer,
+    window.quadIndexBuffer,
+    window.quadTexture,
+  )
+  window.gfxCtx.swapBuffers()
+  window.gfxCtx.unselect()

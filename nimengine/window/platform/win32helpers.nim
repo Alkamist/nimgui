@@ -1,11 +1,11 @@
 import std/options
-import winim/lean
+import winim/lean as win32
 import ../types
 
 export options
 
 func getClientWidthAndHeight*(hwnd: HWND): (LONG, LONG) =
-  var area: RECT
+  var area: win32.RECT
   GetClientRect(hwnd, area.addr)
   (area.right, area.bottom)
 
@@ -16,7 +16,7 @@ func getCursorPosition*(hwnd: HWND): Option[(LONG, LONG)] =
     return some (pos.x, pos.y)
 
 proc setClipRectToWindow*(hwnd: HWND) =
-  var clipRect: RECT
+  var clipRect: win32.RECT
   GetClientRect(hwnd, &clipRect)
   ClientToScreen(hwnd, cast[ptr POINT](clipRect.left.addr))
   ClientToScreen(hwnd, cast[ptr POINT](clipRect.right.addr))

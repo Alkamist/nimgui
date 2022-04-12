@@ -11,8 +11,6 @@ export shader
 export texture
 export vertexbuffer
 
-var openGlIsLoaded = false
-
 when defined(windows):
   import pkg/winim/lean
 
@@ -23,20 +21,6 @@ when defined(windows):
       startHdc: HDC
       hglrc*: HGLRC
       startHglrc*: HGLRC
-
-  proc destroy*(ctx: GfxContext) =
-    wglMakeCurrent(0, 0)
-    wglDeleteContext(ctx.hglrc)
-
-  proc activate*(ctx: GfxContext) =
-    ctx.startHdc = wglGetCurrentDC()
-    ctx.startHglrc = wglGetCurrentContext()
-    let dc = GetDC(ctx.handle)
-    wglMakeCurrent(dc, ctx.hglrc)
-
-  proc deactivate*(ctx: GfxContext) =
-    ReleaseDC(ctx.handle, ctx.hdc)
-    wglMakeCurrent(ctx.startHdc, ctx.startHglrc)
 
   proc newGfxContext*(handle: HWND): GfxContext =
     result = GfxContext(handle: handle)
@@ -75,17 +59,29 @@ when defined(windows):
     result.hglrc = wglCreateContext(dc)
     wglMakeCurrent(dc, result.hglrc)
 
-    if not openGlIsLoaded:
-      opengl.loadExtensions()
-      openGlIsLoaded = true
+    opengl.loadExtensions()
 
     discard glGetError()
     ReleaseDC(handle, dc)
 
-  proc swapBuffers*(ctx: GfxContext) =
-    SwapBuffers(ctx.hdc)
 
 
+proc destroy*(ctx: GfxContext) =
+  wglMakeCurrent(0, 0)
+  wglDeleteContext(ctx.hglrc)
+
+proc select*(ctx: GfxContext) =
+  ctx.startHdc = wglGetCurrentDC()
+  ctx.startHglrc = wglGetCurrentContext()
+  let dc = GetDC(ctx.handle)
+  wglMakeCurrent(dc, ctx.hglrc)
+
+proc unselect*(ctx: GfxContext) =
+  ReleaseDC(ctx.handle, ctx.hdc)
+  wglMakeCurrent(ctx.startHdc, ctx.startHglrc)
+
+proc swapBuffers*(ctx: GfxContext) =
+  SwapBuffers(ctx.hdc)
 
 proc setBackgroundColor*(ctx: GfxContext, r, g, b, a: float) =
   glClearColor(r, g, b, a)

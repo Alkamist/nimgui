@@ -1,84 +1,81 @@
-import pkg/opengl
-export opengl
-
+import ./gmath
 import ./window
-import ./renderer/platformcontext
-import ./renderer/indexbuffer
-import ./renderer/vertexBuffer
-import ./renderer/shader
-import ./renderer/texture
-import ./renderer/quadbatch
+import ./renderer/rlgl
+import ./renderer/openglcontext
 
-export indexbuffer
-export vertexBuffer
-export shader
-export texture
-export quadbatch
+export rlgl
 
 type
   Renderer* = ref object
     window*: Window
     onRender*: proc()
-    platformContext: PlatformContext
+    openGlContext: OpenGlContext
 
 proc newRenderer*(window: Window): Renderer =
   result = Renderer()
   result.window = window
-  result.platformContext = initPlatformContext(window.platform.handle)
+  result.openGlContext = initOpenGlContext(window.platform.handle)
+  result.openGlContext.select()
+  rlLoadExtensions(result.openGlContext.getProcAddress)
+  rlglInit(window.width.cint, window.height.cint)
 
-proc clear*(self: Renderer, r, g, b, a: float) =
-  glClearColor(r.GLfloat, g.GLfloat, b.GLfloat, a.GLfloat)
-  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+proc render*(renderer: Renderer) =
+  renderer.openGlContext.select()
 
-proc drawTriangles*(self: Renderer,
-                    shader: Shader,
-                    vertices: VertexBuffer,
-                    indices: IndexBuffer) =
-  shader.select()
-  vertices.select()
-  indices.select()
-  glDrawElements(
-    GL_TRIANGLES,
-    indices.len.GLsizei,
-    indices.kind.toGlEnum,
-    nil
-  )
+  rlViewport(0, 0, renderer.window.width.cint, renderer.window.height.cint)
 
-proc drawTriangles*(self: Renderer,
-                    shader: Shader,
-                    vertices: VertexBuffer,
-                    indices: IndexBuffer,
-                    texture: Texture) =
-  texture.select()
-  self.drawTriangles(shader, vertices, indices)
+  rlLoadIdentity()
+  rlOrtho(0, renderer.window.width.cfloat, 0, renderer.window.height.cfloat, 0, 100.0)
 
-proc setupRenderState(self: Renderer) =
-  glEnable(GL_BLEND)
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-  # glEnable(GL_CULL_FACE)
-  # glEnable(GL_DEPTH_TEST)
-  glEnable(GL_SCISSOR_TEST)
-  glEnable(GL_TEXTURE_2D)
-  glEnableClientState(GL_VERTEX_ARRAY)
-  glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-  glEnableClientState(GL_COLOR_ARRAY)
-  glActiveTexture(GL_TEXTURE0)
+  if renderer.onRender != nil:
+    renderer.onRender()
 
-proc resize(self: Renderer, x, y, w, h: float) =
-  if w >= 0 and h >= 0:
-    glViewport(x.GLsizei, y.GLsizei,
-               w.GLsizei, h.GLsizei)
-    glScissor(x.GLsizei, y.GLsizei,
-              w.GLsizei, h.GLsizei)
+  rlDrawRenderBatchActive()
+  renderer.openGlContext.swapBuffers()
 
-proc render*(self: Renderer) =
-  let w = self.window.width
-  let h = self.window.height
+proc setBackgroundColor*(renderer: Renderer, r, g, b, a: uint8) =
+  rlClearColor(r, g, b, a)
 
-  self.setupRenderState()
-  self.resize(0, 0, w, h)
+proc clear*(renderer: Renderer) =
+  rlClearScreenBuffers()
 
-  if self.onRender != nil:
-    self.onRender()
+proc drawLineSegment*(renderer: Renderer, a, b: Vec2, thickness: float32, color: Color) =
+  let perpendicularStretcher = (b - a).rotated(-0.5 * Pi).normalized() * thickness
 
-  self.platformContext.swapBuffers()
+  let a0 = a - perpendicularStretcher
+  let a1 = a + perpendicularStretcher
+  let b0 = b - perpendicularStretcher
+  let b1 = b + perpendicularStretcher
+
+  rlCheckRenderBatchLimit(6)
+
+  rlBegin(RL_TRIANGLES)
+
+  rlColor4f(color.r, color.g, color.b, color.a)
+
+  rlVertex2f(a0.x, a0.y)
+  rlVertex2f(a1.x, a1.y)
+  rlVertex2f(b0.x, b0.y)
+
+  rlVertex2f(b0.x, b0.y)
+  rlVertex2f(a1.x, a1.y)
+  rlVertex2f(b1.x, b1.y)
+
+  rlEnd()
+
+# proc drawRectangle*(renderer: Renderer, rect: Rect, color: Color) =
+#   rlCheckRenderBatchLimit(6)
+
+#   rlBegin(RL_TRIANGLES)
+
+#   rlColor4f(color.r * 255, color.g * 255, color.b * 255, color.a * 255)
+
+#   rlVertex2f(topLeft.x, topLeft.y)
+#   rlVertex2f(bottomLeft.x, bottomLeft.y)
+#   rlVertex2f(topRight.x, topRight.y)
+
+#   rlVertex2f(topRight.x, topRight.y)
+#   rlVertex2f(bottomLeft.x, bottomLeft.y)
+#   rlVertex2f(bottomRight.x, bottomRight.y)
+
+#   rlEnd()

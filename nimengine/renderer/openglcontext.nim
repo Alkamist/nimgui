@@ -1,18 +1,18 @@
-import pkg/opengl
-
 when defined(windows):
   import pkg/winim/lean
 
+  let hmodule = LoadLibraryA("opengl32.dll")
+
   type
-    PlatformContext* = object
+    OpenGlContext* = object
       handle: HWND
       hdc: HDC
       startHdc: HDC
       hglrc: HGLRC
       startHglrc: HGLRC
 
-  proc initPlatformContext*(handle: HWND): PlatformContext =
-    result = PlatformContext(handle: handle)
+  proc initOpenGlContext*(handle: HWND): OpenGlContext =
+    result = OpenGlContext(handle: handle)
 
     var pfd = PIXELFORMATDESCRIPTOR(
       nSize: sizeof(PIXELFORMATDESCRIPTOR).WORD,
@@ -48,24 +48,31 @@ when defined(windows):
     result.hglrc = wglCreateContext(dc)
     wglMakeCurrent(dc, result.hglrc)
 
-    opengl.loadExtensions()
-
-    discard glGetError()
     ReleaseDC(handle, dc)
 
-proc destroy*(ctx: PlatformContext) =
-  wglMakeCurrent(0, 0)
-  wglDeleteContext(ctx.hglrc)
+  proc destroy*(ctx: OpenGlContext) =
+    wglMakeCurrent(0, 0)
+    wglDeleteContext(ctx.hglrc)
 
-proc select*(ctx: var PlatformContext) =
-  ctx.startHdc = wglGetCurrentDC()
-  ctx.startHglrc = wglGetCurrentContext()
-  let dc = GetDC(ctx.handle)
-  wglMakeCurrent(dc, ctx.hglrc)
+  proc select*(ctx: var OpenGlContext) =
+    ctx.startHdc = wglGetCurrentDC()
+    ctx.startHglrc = wglGetCurrentContext()
+    let dc = GetDC(ctx.handle)
+    wglMakeCurrent(dc, ctx.hglrc)
 
-proc unselect*(ctx: PlatformContext) =
-  ReleaseDC(ctx.handle, ctx.hdc)
-  wglMakeCurrent(ctx.startHdc, ctx.startHglrc)
+  proc unselect*(ctx: OpenGlContext) =
+    ReleaseDC(ctx.handle, ctx.hdc)
+    wglMakeCurrent(ctx.startHdc, ctx.startHglrc)
 
-proc swapBuffers*(ctx: PlatformContext) =
-  SwapBuffers(ctx.hdc)
+  proc swapBuffers*(ctx: OpenGlContext) =
+    SwapBuffers(ctx.hdc)
+
+  proc getProcAddressWgl(procname: cstring): pointer =
+    let p = wglGetProcAddress(procname)
+    if p != nil:
+      p
+    else:
+      GetProcAddress(hmodule, procname)
+
+  proc getProcAddress*(ctx: OpenGlContext): pointer =
+    getProcAddressWgl

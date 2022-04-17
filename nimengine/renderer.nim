@@ -39,43 +39,36 @@ proc setBackgroundColor*(renderer: Renderer, r, g, b, a: uint8) =
 proc clear*(renderer: Renderer) =
   rlClearScreenBuffers()
 
-proc drawLineSegment*(renderer: Renderer, a, b: Vec2, thickness: float32, color: Color) =
-  let perpendicularStretcher = (b - a).rotated(-0.5 * Pi).normalized() * thickness
-
-  let a0 = a - perpendicularStretcher
-  let a1 = a + perpendicularStretcher
-  let b0 = b - perpendicularStretcher
-  let b1 = b + perpendicularStretcher
-
+proc drawQuad*(renderer: Renderer, bottom0, bottom1, top0, top1: Vec2, color: Color) =
   rlCheckRenderBatchLimit(6)
 
   rlBegin(RL_TRIANGLES)
 
   rlColor4f(color.r, color.g, color.b, color.a)
 
-  rlVertex2f(a0.x, a0.y)
-  rlVertex2f(a1.x, a1.y)
-  rlVertex2f(b0.x, b0.y)
+  rlVertex2f(bottom0.x, bottom0.y)
+  rlVertex2f(bottom1.x, bottom1.y)
+  rlVertex2f(top0.x, top0.y)
 
-  rlVertex2f(b0.x, b0.y)
-  rlVertex2f(a1.x, a1.y)
-  rlVertex2f(b1.x, b1.y)
+  rlVertex2f(top0.x, top0.y)
+  rlVertex2f(bottom1.x, bottom1.y)
+  rlVertex2f(top1.x, top1.y)
 
   rlEnd()
 
-# proc drawRectangle*(renderer: Renderer, rect: Rect, color: Color) =
-#   rlCheckRenderBatchLimit(6)
+proc drawRect*(renderer: Renderer, rect: Rect, color: Color) =
+  let bottomLeft = vec2(rect.x, rect.y)
+  let bottomRight = vec2(rect.x + rect.width, rect.y)
+  let topLeft = vec2(rect.x, rect.y + rect.height)
+  let topRight = vec2(rect.x + rect.width, rect.y + rect.height)
+  renderer.drawQuad(bottomLeft, bottomRight, topLeft, topRight, color)
 
-#   rlBegin(RL_TRIANGLES)
+proc drawLineSegment*(renderer: Renderer, a, b: Vec2, thickness: float32, color: Color) =
+  let perpendicularStretcher = (b - a).rotated(-0.5 * Pi).normalized() * thickness * 0.5
 
-#   rlColor4f(color.r * 255, color.g * 255, color.b * 255, color.a * 255)
+  let a0 = a - perpendicularStretcher
+  let a1 = a + perpendicularStretcher
+  let b0 = b - perpendicularStretcher
+  let b1 = b + perpendicularStretcher
 
-#   rlVertex2f(topLeft.x, topLeft.y)
-#   rlVertex2f(bottomLeft.x, bottomLeft.y)
-#   rlVertex2f(topRight.x, topRight.y)
-
-#   rlVertex2f(topRight.x, topRight.y)
-#   rlVertex2f(bottomLeft.x, bottomLeft.y)
-#   rlVertex2f(bottomRight.x, bottomRight.y)
-
-#   rlEnd()
+  renderer.drawQuad(a0, a1, b0, b1, color)

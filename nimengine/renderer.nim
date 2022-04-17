@@ -1,9 +1,19 @@
-import ./gmath
-import ./window
-import ./renderer/rlgl
-import ./renderer/openglcontext
+import pkg/opengl
+export opengl
 
-export rlgl
+import ./window
+import ./renderer/openglcontext
+import ./renderer/indexbuffer
+import ./renderer/vertexbuffer
+import ./renderer/shader
+import ./renderer/texture
+import ./renderer/renderbatch
+
+export indexbuffer
+export vertexBuffer
+export shader
+export texture
+export renderbatch
 
 type
   Renderer* = ref object
@@ -15,60 +25,63 @@ proc newRenderer*(window: Window): Renderer =
   result = Renderer()
   result.window = window
   result.openGlContext = initOpenGlContext(window.platform.handle)
-  result.openGlContext.select()
-  rlLoadExtensions(result.openGlContext.getProcAddress)
-  rlglInit(window.width.cint, window.height.cint)
+  opengl.loadExtensions()
 
-proc render*(renderer: Renderer) =
-  renderer.openGlContext.select()
+proc setBackgroundColor*(self: Renderer, r, g, b, a: float) =
+  glClearColor(r.GLfloat, g.GLfloat, b.GLfloat, a.GLfloat)
 
-  rlViewport(0, 0, renderer.window.width.cint, renderer.window.height.cint)
+proc clear*(self: Renderer) =
+  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-  rlLoadIdentity()
-  rlOrtho(0, renderer.window.width.cfloat, 0, renderer.window.height.cfloat, 0, 100.0)
+proc drawTriangles*(self: Renderer,
+                    shader: Shader,
+                    vertices: VertexBuffer,
+                    indices: IndexBuffer) =
+  shader.select()
+  vertices.select()
+  indices.select()
+  glDrawElements(
+    GL_TRIANGLES,
+    indices.len.GLsizei,
+    indices.kind.toGlEnum,
+    nil,
+  )
 
-  if renderer.onRender != nil:
-    renderer.onRender()
+proc drawTriangles*(self: Renderer,
+                    shader: Shader,
+                    vertices: VertexBuffer,
+                    indices: IndexBuffer,
+                    texture: Texture) =
+  texture.select()
+  self.drawTriangles(shader, vertices, indices)
 
-  rlDrawRenderBatchActive()
-  renderer.openGlContext.swapBuffers()
+proc setupRenderState(self: Renderer) =
+  glEnable(GL_BLEND)
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+  # glEnable(GL_CULL_FACE)
+  # glEnable(GL_DEPTH_TEST)
+  glEnable(GL_SCISSOR_TEST)
+  glEnable(GL_TEXTURE_2D)
+  glEnableClientState(GL_VERTEX_ARRAY)
+  glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+  glEnableClientState(GL_COLOR_ARRAY)
+  glActiveTexture(GL_TEXTURE0)
 
-proc setBackgroundColor*(renderer: Renderer, r, g, b, a: uint8) =
-  rlClearColor(r, g, b, a)
+proc resize(self: Renderer, x, y, w, h: float) =
+  if w >= 0 and h >= 0:
+    glViewport(x.GLsizei, y.GLsizei,
+               w.GLsizei, h.GLsizei)
+    glScissor(x.GLsizei, y.GLsizei,
+              w.GLsizei, h.GLsizei)
 
-proc clear*(renderer: Renderer) =
-  rlClearScreenBuffers()
+proc render*(self: Renderer) =
+  let w = self.window.width
+  let h = self.window.height
 
-proc drawQuad*(renderer: Renderer, bottom0, bottom1, top0, top1: Vec2, color: Color) =
-  rlCheckRenderBatchLimit(6)
+  self.setupRenderState()
+  self.resize(0, 0, w, h)
 
-  rlBegin(RL_TRIANGLES)
+  if self.onRender != nil:
+    self.onRender()
 
-  rlColor4f(color.r, color.g, color.b, color.a)
-
-  rlVertex2f(bottom0.x, bottom0.y)
-  rlVertex2f(bottom1.x, bottom1.y)
-  rlVertex2f(top0.x, top0.y)
-
-  rlVertex2f(top0.x, top0.y)
-  rlVertex2f(bottom1.x, bottom1.y)
-  rlVertex2f(top1.x, top1.y)
-
-  rlEnd()
-
-proc drawRect*(renderer: Renderer, rect: Rect, color: Color) =
-  let bottomLeft = vec2(rect.x, rect.y)
-  let bottomRight = vec2(rect.x + rect.width, rect.y)
-  let topLeft = vec2(rect.x, rect.y + rect.height)
-  let topRight = vec2(rect.x + rect.width, rect.y + rect.height)
-  renderer.drawQuad(bottomLeft, bottomRight, topLeft, topRight, color)
-
-proc drawLineSegment*(renderer: Renderer, a, b: Vec2, thickness: float32, color: Color) =
-  let perpendicularStretcher = (b - a).rotated(-0.5 * Pi).normalized() * thickness * 0.5
-
-  let a0 = a - perpendicularStretcher
-  let a1 = a + perpendicularStretcher
-  let b0 = b - perpendicularStretcher
-  let b1 = b + perpendicularStretcher
-
-  renderer.drawQuad(a0, a1, b0, b1, color)
+  self.openGlContext.swapBuffers()

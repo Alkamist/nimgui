@@ -7,6 +7,7 @@ type
 
   Vertex2d* = object
     position*: tuple[x, y: float32]
+    texCoords*: tuple[u, v: float32]
     color*: tuple[r, g, b, a: float32]
 
   RenderBatch2d* = object
@@ -21,11 +22,15 @@ type
 const verticesPerQuad = 4
 const indicesPerQuad = 6
 
-func vertex2d(position: SomeVec2, color: SomeColor): Vertex2d =
+func vertex2d*(position, texCoords: SomeVec2, color: SomeColor): Vertex2d =
   Vertex2d(
     position: (
       x: position.x.float32,
       y: position.y.float32,
+    ),
+    texCoords: (
+      u: texCoords.x.float32,
+      v: texCoords.y.float32,
     ),
     color: (
       r: color.r.float32,
@@ -38,13 +43,14 @@ func vertex2d(position: SomeVec2, color: SomeColor): Vertex2d =
 proc initRenderBatch2d*(): RenderBatch2d =
   RenderBatch2d(
     vertexBuffer: initVertexBuffer([VertexAttributeKind.Float2,
+                                    VertexAttributeKind.Float2,
                                     VertexAttributeKind.Float4]),
     indexBuffer: initIndexBuffer(Index2d.toIndexKind),
   )
 
 proc render*(self: var RenderBatch2d) =
-  self.vertexBuffer.uploadData(self.vertexData[0..<self.vertexWrite])
-  self.indexBuffer.uploadData(self.indexData[0..<self.indexWrite])
+  self.vertexBuffer.upload(self.vertexData[0..<self.vertexWrite])
+  self.indexBuffer.upload(self.indexData[0..<self.indexWrite])
   if self.onRender != nil:
     self.onRender()
   self.vertexWrite = 0
@@ -70,13 +76,13 @@ proc reserveQuads*(self: var RenderBatch2d, quadCount: int) =
 proc unreserveQuads*(self: var RenderBatch2d, quadCount: int) =
   self.unreserve(quadCount * verticesPerQuad, quadCount * indicesPerQuad)
 
-proc addQuad*(self: var RenderBatch2d, a, b, c, d: SomeVec2, color: SomeColor) =
+proc addQuad*(self: var RenderBatch2d, a, b, c, d: Vertex2d) =
   self.renderIfOverflow(verticesPerQuad, indicesPerQuad)
 
-  self.vertexData[self.vertexWrite + 0] = vertex2d(a, color)
-  self.vertexData[self.vertexWrite + 1] = vertex2d(b, color)
-  self.vertexData[self.vertexWrite + 2] = vertex2d(c, color)
-  self.vertexData[self.vertexWrite + 3] = vertex2d(d, color)
+  self.vertexData[self.vertexWrite + 0] = a
+  self.vertexData[self.vertexWrite + 1] = b
+  self.vertexData[self.vertexWrite + 2] = c
+  self.vertexData[self.vertexWrite + 3] = d
 
   self.indexData[self.indexWrite + 0] = (self.vertexWrite + 0).uint32
   self.indexData[self.indexWrite + 1] = (self.vertexWrite + 1).uint32

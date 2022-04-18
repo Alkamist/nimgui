@@ -55,7 +55,9 @@ proc select*(buffer: VertexBuffer) =
 proc unselect*(buffer: VertexBuffer) =
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-proc uploadData*[T](buffer: var VertexBuffer, data: openArray[T]) =
+# This currently does not check to see if the data you are uploading
+# matches the layout provided.
+proc upload*[T](buffer: var VertexBuffer, data: openArray[T]) =
   if data.len == 0: return
   buffer.len = data.len
   buffer.select()

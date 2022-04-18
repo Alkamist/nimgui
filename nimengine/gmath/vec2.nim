@@ -159,14 +159,14 @@ func angleTo*(self, other: Vec2): float32 =
 func directionTo*(self, other: Vec2): Vec2 =
   (other - self).normalized
 
-func limitLength*(self: var Vec2, limit: float32) =
+func limit*(self: var Vec2, limit: float32) =
   let length = self.length
   if length > 0.0 and limit < length:
     self /= length
     self *= limit
 
-func lengthLimited*(self: Vec2, limit: float32): Vec2 =
+func limited*(self: Vec2, limit: float32): Vec2 =
   result = self
-  result.limitLength(limit)
+  result.limit(limit)
 
 {.pop.}

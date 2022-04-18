@@ -1,17 +1,7 @@
 import pkg/opengl
+import ./concepts
 
 type
-  TextureColor* = concept c
-    c.r is uint8
-    c.g is uint8
-    c.b is uint8
-    c.a is uint8
-
-  TextureData*[T: openArray[TextureColor]] = concept d
-    d.width is int
-    d.height is int
-    d.data is T
-
   MinifyFilter* {.pure.} = enum
     Nearest = GL_NEAREST,
     Linear = GL_LINEAR,
@@ -57,18 +47,18 @@ proc setWrapR*(texture: Texture, mode: WrapMode) =
   texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, mode.GLint)
 
-proc uploadData*(texture: Texture, textureData: TextureData) =
+proc upload*(texture: Texture, image: SomeImage) =
   texture.select()
   glTexImage2D(
     target = GL_TEXTURE_2D,
     level = 0,
     internalformat = GL_RGBA.GLint,
-    width = textureData.width.GLsizei,
-    height = textureData.height.GLsizei,
+    width = image.width.GLsizei,
+    height = image.height.GLsizei,
     border = 0,
     format = GL_RGBA,
     `type` = GL_UNSIGNED_BYTE,
-    pixels = textureData.data[0].unsafeAddr,
+    pixels = image.data[0].unsafeAddr,
   )
 
 proc generateMipmap*(texture: Texture) =

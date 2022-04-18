@@ -1,4 +1,15 @@
 type
+  SomeColorUInt8* = concept self
+    self.r is uint8
+    self.g is uint8
+    self.b is uint8
+    self.a is uint8
+
+  SomeImage*[T: openArray[SomeColorUInt8]] = concept self
+    self.width is int
+    self.height is int
+    self.data is T
+
   SomeVec2* = concept self
     self.x is SomeFloat
     self.y is SomeFloat

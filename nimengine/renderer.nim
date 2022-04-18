@@ -2,7 +2,6 @@ import pkg/opengl
 export opengl
 
 import ./window
-import ./renderer/color
 import ./renderer/concepts
 import ./renderer/openglcontext
 import ./renderer/indexbuffer
@@ -11,7 +10,6 @@ import ./renderer/shader
 import ./renderer/texture
 import ./renderer/renderbatch
 
-export color
 export indexbuffer
 export vertexBuffer
 export shader
@@ -57,9 +55,9 @@ proc clear*(self: Renderer) =
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
 proc drawTriangles*(self: Renderer,
-                    shader: Shader,
                     vertices: VertexBuffer,
-                    indices: IndexBuffer) =
+                    indices: IndexBuffer,
+                    shader: Shader) =
   if vertices.len == 0 or indices.len == 0:
     return
   shader.select()
@@ -73,15 +71,15 @@ proc drawTriangles*(self: Renderer,
   )
 
 proc drawTriangles*(self: Renderer,
-                    shader: Shader,
                     vertices: VertexBuffer,
                     indices: IndexBuffer,
+                    shader: Shader,
                     texture: Texture) =
   texture.select()
-  self.drawTriangles(shader, vertices, indices)
+  self.drawTriangles(vertices, indices, shader)
 
-proc drawRenderBatch2d*(self: Renderer, shader: Shader, batch: RenderBatch2d) =
-  self.drawTriangles(shader, batch.vertexBuffer, batch.indexBuffer)
+proc drawRenderBatch2d*(self: Renderer, batch: RenderBatch2d, shader: Shader, texture: Texture) =
+  self.drawTriangles(batch.vertexBuffer, batch.indexBuffer, shader, texture)
 
 proc render*(self: Renderer) =
   self.openGlContext.select()

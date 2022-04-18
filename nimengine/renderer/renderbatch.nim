@@ -1,29 +1,8 @@
+import ./concepts
+import ./vertexbuffer
+import ./indexbuffer
+
 type
-  SomeVec2 = concept self
-    self.x is SomeFloat
-    self.y is SomeFloat
-
-  # SomeRect = concept self
-  #   self.x is SomeFloat
-  #   self.y is SomeFloat
-  #   self.width is SomeFloat
-  #   self.height is SomeFloat
-
-  SomeColor = concept self
-    self.r is SomeFloat
-    self.g is SomeFloat
-    self.b is SomeFloat
-    self.a is SomeFloat
-
-  # Vec2 = object
-  #   x, y: float
-
-  # Rect = object
-  #   x, y, width, height: float
-
-  # Color = object
-  #   r, g, b, a: float
-
   Index2d* = uint32
 
   Vertex2d* = object
@@ -31,11 +10,16 @@ type
     color*: tuple[r, g, b, a: float32]
 
   RenderBatch2d* = object
+    vertexBuffer*: VertexBuffer
     vertexData*: seq[Vertex2d]
     vertexWrite*: int
+    indexBuffer*: IndexBuffer
     indexData*: seq[Index2d]
     indexWrite*: int
     onRender*: proc()
+
+const verticesPerQuad = 4
+const indicesPerQuad = 6
 
 func vertex2d(position: SomeVec2, color: SomeColor): Vertex2d =
   Vertex2d(
@@ -52,26 +36,22 @@ func vertex2d(position: SomeVec2, color: SomeColor): Vertex2d =
   )
 
 proc initRenderBatch2d*(): RenderBatch2d =
-  RenderBatch2d()
+  RenderBatch2d(
+    vertexBuffer: initVertexBuffer([VertexAttributeKind.Float2,
+                                    VertexAttributeKind.Float4]),
+    indexBuffer: initIndexBuffer(Index2d.toIndexKind),
+  )
 
 proc render*(self: var RenderBatch2d) =
+  self.vertexBuffer.uploadData(self.vertexData[0..<self.vertexWrite])
+  self.indexBuffer.uploadData(self.indexData[0..<self.indexWrite])
   if self.onRender != nil:
     self.onRender()
-
-  self.vertexData.setLen(0)
   self.vertexWrite = 0
-  self.indexData.setLen(0)
   self.indexWrite = 0
 
 proc reserve*(self: var RenderBatch2d, vertexCount, indexCount: int) =
-  assert(indexCount <= Index2d.high.int)
-
-  # If the number of vertices is higher than the maximum value an index
-  # can have (based on its data type), then there is an overflow and
-  # we need to make a draw call and flush the buffer.
-  if self.indexData.len + indexCount > Index2d.high.int:
-    self.render()
-
+  assert(self.indexData.len + indexCount <= Index2d.high.int)
   self.vertexData.setLen(self.vertexData.len + vertexCount)
   self.indexData.setLen(self.indexData.len + indexCount)
 
@@ -79,13 +59,20 @@ proc unreserve*(self: var RenderBatch2d, vertexCount, indexCount: int) =
   self.vertexData.setLen((self.vertexData.len - vertexCount).max(0))
   self.indexData.setLen((self.indexData.len - indexCount).max(0))
 
-proc reserveQuads*(self: var RenderBatch2d, count: int) =
-  self.reserve(4 * count, 6 * count)
+proc renderIfOverflow*(self: var RenderBatch2d, vertexCount, indexCount: int) =
+  if self.vertexWrite + vertexCount > self.vertexData.len or
+     self.indexWrite + indexCount > self.indexData.len:
+    self.render()
 
-proc unreserveQuads*(self: var RenderBatch2d, count: int) =
-  self.unreserve(4 * count, 6 * count)
+proc reserveQuads*(self: var RenderBatch2d, quadCount: int) =
+  self.reserve(quadCount * verticesPerQuad, quadCount * indicesPerQuad)
+
+proc unreserveQuads*(self: var RenderBatch2d, quadCount: int) =
+  self.unreserve(quadCount * verticesPerQuad, quadCount * indicesPerQuad)
 
 proc addQuad*(self: var RenderBatch2d, a, b, c, d: SomeVec2, color: SomeColor) =
+  self.renderIfOverflow(verticesPerQuad, indicesPerQuad)
+
   self.vertexData[self.vertexWrite + 0] = vertex2d(a, color)
   self.vertexData[self.vertexWrite + 1] = vertex2d(b, color)
   self.vertexData[self.vertexWrite + 2] = vertex2d(c, color)
@@ -98,5 +85,5 @@ proc addQuad*(self: var RenderBatch2d, a, b, c, d: SomeVec2, color: SomeColor) =
   self.indexData[self.indexWrite + 4] = (self.vertexWrite + 2).uint32
   self.indexData[self.indexWrite + 5] = (self.vertexWrite + 3).uint32
 
-  self.vertexWrite += 4
-  self.indexWrite += 6
+  self.vertexWrite += verticesPerQuad
+  self.indexWrite += indicesPerQuad

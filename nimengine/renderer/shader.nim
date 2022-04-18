@@ -1,29 +1,7 @@
 import pkg/opengl
+import ./concepts
 
 type
-  Uniform3fv* = concept v
-    v[0] is float32
-    v[1] is float32
-    v[2] is float32
-
-  UniformMatrix4fv* = concept m
-    m[0][0] is float32
-    m[0][1] is float32
-    m[0][2] is float32
-    m[0][3] is float32
-    m[1][0] is float32
-    m[1][1] is float32
-    m[1][2] is float32
-    m[1][3] is float32
-    m[2][0] is float32
-    m[2][1] is float32
-    m[2][2] is float32
-    m[2][3] is float32
-    m[3][0] is float32
-    m[3][1] is float32
-    m[3][2] is float32
-    m[3][3] is float32
-
   Shader* = object
     id*: GLuint
 
@@ -46,7 +24,7 @@ proc compileShaderSrc(kind: Glenum, source: string): GLuint =
 proc select*(shader: Shader) =
   glUseProgram(shader.id)
 
-proc setUniform*(shader: Shader, name: string, value: Uniform3fv) =
+proc setUniform*(shader: Shader, name: string, value: SomeUniform3fv) =
   shader.select()
   glUniform3fv(
     glGetUniformLocation(shader.id, name),
@@ -54,7 +32,7 @@ proc setUniform*(shader: Shader, name: string, value: Uniform3fv) =
     cast[ptr GLfloat](value.unsafeAddr),
   )
 
-proc setUniform*(shader: Shader, name: string, value: UniformMatrix4fv) =
+proc setUniform*(shader: Shader, name: string, value: SomeUniformMatrix4fv) =
   shader.select()
   glUniformMatrix4fv(
     glGetUniformLocation(shader.id, name),

@@ -56,6 +56,7 @@ proc unselect*(buffer: VertexBuffer) =
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 proc uploadData*[T](buffer: var VertexBuffer, data: openArray[T]) =
+  if data.len == 0: return
   buffer.len = data.len
   buffer.select()
   glBufferData(
@@ -85,7 +86,7 @@ proc uploadLayout(buffer: VertexBuffer) =
 proc layout*(buffer: VertexBuffer): seq[VertexAttributeKind] =
   buffer.m_layout
 
-proc `layout=`*(buffer: var VertexBuffer, layout: openArray[VertexAttributeKind]) =
+proc setLayout*(buffer: var VertexBuffer, layout: openArray[VertexAttributeKind]) =
   buffer.m_layout = newSeq[VertexAttributeKind](layout.len)
   for i, attribute in layout:
     buffer.m_layout[i] = attribute
@@ -96,4 +97,4 @@ proc `=destroy`*(buffer: var VertexBuffer) =
 
 proc initVertexBuffer*(layout: openArray[VertexAttributeKind]): VertexBuffer =
   glGenBuffers(1, result.id.addr)
-  result.layout = layout
+  result.setLayout(layout)

@@ -2,6 +2,7 @@ import pkg/opengl
 export opengl
 
 import ./window
+import ./renderer/color
 import ./renderer/concepts
 import ./renderer/openglcontext
 import ./renderer/indexbuffer
@@ -10,6 +11,7 @@ import ./renderer/shader
 import ./renderer/texture
 import ./renderer/renderbatch
 
+export color
 export indexbuffer
 export vertexBuffer
 export shader

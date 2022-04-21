@@ -91,7 +91,7 @@ proc render*(self: Renderer) =
   glEnableClientState(GL_VERTEX_ARRAY)
   glEnableClientState(GL_TEXTURE_COORD_ARRAY)
   glEnableClientState(GL_COLOR_ARRAY)
-  glActiveTexture(GL_TEXTURE0)
+  # glActiveTexture(GL_TEXTURE0)
 
   let w = self.window.width
   let h = self.window.height

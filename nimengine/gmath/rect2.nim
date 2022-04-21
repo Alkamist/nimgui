@@ -18,6 +18,18 @@ template y*(self: Rect2): untyped = self.position.y
 template width*(self: Rect2): untyped = self.size.width
 template height*(self: Rect2): untyped = self.size.height
 
+func bottomLeft*(self: Rect2): Vec2 =
+  self.position
+
+func bottomRight*(self: Rect2): Vec2 =
+  vec2(self.x + self.width, self.y)
+
+func topLeft*(self: Rect2): Vec2 =
+  vec2(self.x, self.y + self.height)
+
+func topRight*(self: Rect2): Vec2 =
+  self.position + self.size
+
 func area*(self: Rect2): float32 =
   self.width * self.height
 

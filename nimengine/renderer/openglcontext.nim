@@ -4,15 +4,16 @@ when defined(windows):
   let hmodule = LoadLibraryA("opengl32.dll")
 
   type
-    OpenGlContext* = object
+    OpenGlContext* = ref object
       handle: HWND
       hdc: HDC
       startHdc: HDC
       hglrc: HGLRC
       startHglrc: HGLRC
 
-  proc initOpenGlContext*(handle: HWND): OpenGlContext =
-    result = OpenGlContext(handle: handle)
+  proc newOpenGlContext*(handle: pointer): OpenGlContext =
+    let hwnd = cast[HWND](handle)
+    result = OpenGlContext(handle: hwnd)
 
     var pfd = PIXELFORMATDESCRIPTOR(
       nSize: sizeof(PIXELFORMATDESCRIPTOR).WORD,
@@ -39,7 +40,7 @@ when defined(windows):
       dwDamageMask: 0,
     )
 
-    let dc = GetDC(handle)
+    let dc = GetDC(hwnd)
     result.hdc = dc
 
     let fmt = ChoosePixelFormat(dc, pfd.addr)
@@ -48,13 +49,12 @@ when defined(windows):
     result.hglrc = wglCreateContext(dc)
     wglMakeCurrent(dc, result.hglrc)
 
-    ReleaseDC(handle, dc)
+    ReleaseDC(hwnd, dc)
 
-  proc destroy*(self: OpenGlContext) =
-    wglMakeCurrent(0, 0)
+  proc delete*(self: OpenGlContext) =
     wglDeleteContext(self.hglrc)
 
-  proc select*(self: var OpenGlContext) =
+  proc select*(self: OpenGlContext) =
     self.startHdc = wglGetCurrentDC()
     self.startHglrc = wglGetCurrentContext()
     let dc = GetDC(self.handle)

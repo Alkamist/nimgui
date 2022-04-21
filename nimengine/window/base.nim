@@ -1,93 +1,96 @@
 import ./types
 
-proc processMouseMove*(window: Window, x, y: float) =
-  if window.mouseX == x and window.mouseY == y:
+proc processMouseMove*(self: Window, x, y: float) =
+  if self.mouseX == x and self.mouseY == y:
     return
 
-  window.previousMouseX = window.mouseX
-  window.previousMouseY = window.mouseY
-  window.mouseX = x
-  window.mouseY = y
-  window.mouseXChange = window.mouseX - window.previousMouseX
-  window.mouseYChange = window.mouseY - window.previousMouseY
+  self.previousMouseX = self.mouseX
+  self.previousMouseY = self.mouseY
+  self.mouseX = x
+  self.mouseY = y
+  self.mouseXChange = self.mouseX - self.previousMouseX
+  self.mouseYChange = self.mouseY - self.previousMouseY
 
-  if window.onMouseMove != nil:
-    window.onMouseMove()
+  if self.onMouseMove != nil:
+    self.onMouseMove()
 
-proc processMouseEnter*(window: Window) =
-  window.cursorIsOver = true
-  if window.onMouseEnter != nil:
-    window.onMouseEnter()
+proc processMouseEnter*(self: Window) =
+  self.cursorIsOver = true
+  if self.onMouseEnter != nil:
+    self.onMouseEnter()
 
-proc processMouseExit*(window: Window) =
-  window.cursorIsOver = false
-  if window.onMouseExit != nil:
-    window.onMouseExit()
+proc processMouseExit*(self: Window) =
+  self.cursorIsOver = false
+  if self.onMouseExit != nil:
+    self.onMouseExit()
 
-proc processMouseWheel*(window: Window, x, y: float) =
-  window.mouseWheelX = x
-  window.mouseWheelY = y
-  if window.onMouseWheel != nil:
-    window.onMouseWheel()
+proc processMouseWheel*(self: Window, x, y: float) =
+  self.mouseWheelX = x
+  self.mouseWheelY = y
+  if self.onMouseWheel != nil:
+    self.onMouseWheel()
 
-proc processMousePress*(window: Window, button: MouseButton) =
-  window.mousePress = button
-  window.mouseButtonStates[button] = true
-  if window.onMousePress != nil:
-    window.onMousePress()
+proc processMousePress*(self: Window, button: MouseButton) =
+  self.mousePress = button
+  self.mouseButtonStates[button] = true
+  if self.onMousePress != nil:
+    self.onMousePress()
 
-proc processMouseRelease*(window: Window, button: MouseButton) =
-  window.mouseRelease = button
-  window.mouseButtonStates[button] = false
-  if window.onMouseRelease != nil:
-    window.onMouseRelease()
+proc processMouseRelease*(self: Window, button: MouseButton) =
+  self.mouseRelease = button
+  self.mouseButtonStates[button] = false
+  if self.onMouseRelease != nil:
+    self.onMouseRelease()
 
-proc processKeyPress*(window: Window, key: KeyboardKey) =
-  window.keyPress = key
-  window.keyStates[key] = true
-  if window.onKeyPress != nil:
-    window.onKeyPress()
+proc processKeyPress*(self: Window, key: KeyboardKey) =
+  self.keyPress = key
+  self.keyStates[key] = true
+  if self.onKeyPress != nil:
+    self.onKeyPress()
 
-proc processKeyRelease*(window: Window, key: KeyboardKey) =
-  window.keyRelease = key
-  window.keyStates[key] = false
-  if window.onKeyRelease != nil:
-    window.onKeyRelease()
+proc processKeyRelease*(self: Window, key: KeyboardKey) =
+  self.keyRelease = key
+  self.keyStates[key] = false
+  if self.onKeyRelease != nil:
+    self.onKeyRelease()
 
-proc processCharacter*(window: Window, character: string) =
-  window.character = character
-  if window.onCharacter != nil:
-    window.onCharacter()
+proc processCharacter*(self: Window, character: string) =
+  self.character = character
+  if self.onCharacter != nil:
+    self.onCharacter()
 
-proc processClose*(window: Window) =
-  if window.onClose != nil:
-    window.onClose()
+proc processClose*(self: Window) =
+  if self.onClose != nil:
+    self.onClose()
 
-proc processFocus*(window: Window) =
-  if window.onFocus != nil:
-    window.onFocus()
+proc processFocus*(self: Window) =
+  if self.onFocus != nil:
+    self.onFocus()
 
-proc processLoseFocus*(window: Window) =
-  if window.onLoseFocus != nil:
-    window.onLoseFocus()
+proc processLoseFocus*(self: Window) =
+  if self.onLoseFocus != nil:
+    self.onLoseFocus()
 
-proc processMove*(window: Window, x, y: float) =
-  window.previousX = window.x
-  window.previousY = window.y
-  window.x = x
-  window.y = y
-  window.xChange = window.x - window.previousX
-  window.yChange = window.y - window.previousY
-  if window.onMove != nil:
-    window.onMove()
+proc processMove*(self: Window, x, y: float) =
+  self.previousX = self.x
+  self.previousY = self.y
+  self.x = x
+  self.y = y
+  self.xChange = self.x - self.previousX
+  self.yChange = self.y - self.previousY
+  if self.onMove != nil:
+    self.onMove()
 
-proc processResize*(window: Window, width, height: float) =
-  window.previousWidth = window.width
-  window.previousHeight = window.height
-  window.width = width
-  window.height = height
-  window.widthChange = window.width - window.previousWidth
-  window.heightChange = window.height - window.previousHeight
+proc processResize*(self: Window, width, height: float) =
+  self.previousWidth = self.width
+  self.previousHeight = self.height
+  self.width = width
+  self.height = height
+  self.widthChange = self.width - self.previousWidth
+  self.heightChange = self.height - self.previousHeight
 
-  if window.onResize != nil:
-    window.onResize()
+  if self.onResize != nil:
+    self.onResize()
+
+  if self.renderer != nil:
+    self.renderer.render(self.width.int, self.height.int)

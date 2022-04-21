@@ -80,13 +80,12 @@ proc close*(window: Window) =
 proc newWindow*(title = "Window",
                 x, y = 0,
                 width = 1024, height = 768,
-                parentHandle: HWND = 0): Window =
+                parentHandle: pointer = nil): Window =
   result = Window()
 
   if windowCount == 0:
     var windowClass = WNDCLASSEX(
       cbSize: WNDCLASSEX.sizeof.UINT,
-      # style: CS_DBLCLKS or CS_OWNDC,
       style: CS_OWNDC,
       lpfnWndProc: windowProc,
       cbClsExtra: 0,
@@ -101,7 +100,7 @@ proc newWindow*(title = "Window",
     )
     RegisterClassEx(windowClass)
 
-  let isChild = cast[pointer](parentHandle) != nil
+  let isChild = parentHandle != nil
   let windowStyle =
     if isChild:
       WS_CHILD or WS_VISIBLE or WS_CLIPCHILDREN or WS_CLIPSIBLINGS
@@ -118,7 +117,7 @@ proc newWindow*(title = "Window",
     y = y.int32,
     nWidth = width.int32,
     nHeight = height.int32,
-    hWndParent = parentHandle,
+    hWndParent = cast[HWND](parentHandle),
     hMenu = 0,
     hInstance = GetModuleHandle(nil),
     lpParam = cast[pointer](result),

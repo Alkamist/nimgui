@@ -1,7 +1,6 @@
 import pkg/opengl
 export opengl
 
-import ./window
 import ./renderer/concepts
 import ./renderer/openglcontext
 import ./renderer/indexbuffer
@@ -58,17 +57,18 @@ proc orthoProjection(left, right, top, bottom: float32): array[4, array[4, float
 
 type
   Renderer* = ref object
-    window*: Window
     onRender2d*: proc()
     onRender3d*: proc()
-    openGlContext: OpenGlContext
-    defaultShader2d: Shader
-    defaultTexture: Texture
+    openGlContext*: OpenGlContext
+    defaultShader2d*: Shader
+    defaultTexture*: Texture
 
-proc newRenderer*(window: Window): Renderer =
+proc `=destroy`*(self: var type Renderer()[]) =
+  self.openGlContext.delete()
+
+proc newRenderer*(handle: pointer): Renderer =
   result = Renderer()
-  result.window = window
-  result.openGlContext = initOpenGlContext(window.platform.handle)
+  result.openGlContext = newOpenGlContext(handle)
   opengl.loadExtensions()
   result.defaultShader2d = initShader(defaultVertexShader2d, defaultFragmentShader2d)
   result.defaultTexture = initTexture()
@@ -128,7 +128,7 @@ proc drawRenderBatch2d*(self: Renderer,
                         shader = self.defaultShader2d) =
   self.drawTriangles(batch.vertexBuffer, batch.indexBuffer, shader, texture)
 
-proc render*(self: Renderer) =
+proc render*(self: Renderer, width, height: int) =
   self.openGlContext.select()
 
   glEnable(GL_BLEND)
@@ -140,8 +140,8 @@ proc render*(self: Renderer) =
   glEnableClientState(GL_COLOR_ARRAY)
   # glActiveTexture(GL_TEXTURE0)
 
-  let w = self.window.width
-  let h = self.window.height
+  let w = width.float
+  let h = height.float
   self.setViewport(0, 0, w, h)
   self.setClipRect(0, 0, w, h)
 

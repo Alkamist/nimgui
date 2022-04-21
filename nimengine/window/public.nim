@@ -1,5 +1,8 @@
 import std/times
 
+import ../renderer
+export renderer
+
 import ./types
 export types
 
@@ -7,35 +10,44 @@ when defined(windows):
   import ./platform/win32
   export win32
 
-func isPressed*(window: Window, key: KeyboardKey): bool =
-  window.keyStates[key]
+func isPressed*(self: Window, key: KeyboardKey): bool =
+  self.keyStates[key]
 
-func isPressed*(window: Window, button: MouseButton): bool =
-  window.mouseButtonStates[button]
+func isPressed*(self: Window, button: MouseButton): bool =
+  self.mouseButtonStates[button]
 
-func aspectRatio*(window: Window): float =
-  window.width / window.height
+func aspectRatio*(self: Window): float =
+  self.width / self.height
 
-proc disableCursor*(window: Window) =
-  window.hideCursor()
-  window.pinCursorToCenter()
-  window.confineCursor()
+proc disableCursor*(self: Window) =
+  self.hideCursor()
+  self.pinCursorToCenter()
+  self.confineCursor()
 
-proc enableCursor*(window: Window) =
-  window.unconfineCursor()
-  window.unpinCursorFromCenter()
-  window.showCursor()
+proc enableCursor*(self: Window) =
+  self.unconfineCursor()
+  self.unpinCursorFromCenter()
+  self.showCursor()
 
-proc update*(window: Window) =
-  if not window.isClosed:
-    if window.previousTime <= 0.0:
-      window.previousTime = cpuTime()
+proc update*(self: Window) =
+  if not self.isClosed:
+    if self.previousTime <= 0.0:
+      self.previousTime = cpuTime()
 
-    window.time = cpuTime()
-    window.delta = window.time - window.previousTime
+    self.time = cpuTime()
+    self.delta = self.time - self.previousTime
 
-    if window.onUpdate != nil:
-      window.onUpdate()
+    if self.onUpdate != nil:
+      self.onUpdate()
 
-    window.postUpdate()
-    window.previousTime = window.time
+    if self.renderer != nil:
+      self.renderer.render(self.width.int, self.height.int)
+
+    self.postUpdate()
+    self.previousTime = self.time
+
+proc enableRenderer*(self: Window) =
+  self.renderer = newRenderer(cast[pointer](self.platform.handle))
+
+proc disableRenderer*(self: Window) =
+  self.renderer = nil

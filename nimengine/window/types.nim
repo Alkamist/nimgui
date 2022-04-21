@@ -1,3 +1,6 @@
+import ../renderer
+export renderer
+
 when defined(windows):
   import winim/lean
   type
@@ -176,3 +179,4 @@ type
     onCharacter*: proc()
 
     platform*: WindowPlatformData
+    renderer*: Renderer

@@ -1,3 +1,5 @@
+# Most things are ported from Godot and are untested/unfinished.
+
 import std/math
 export math
 

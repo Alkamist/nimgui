@@ -23,32 +23,35 @@ type
 
   Texture* = object
     id*: GLuint
+    width*, height*: int
 
-proc select*(texture: Texture) =
-  glBindTexture(GL_TEXTURE_2D, texture.id)
+proc select*(self: Texture) =
+  glBindTexture(GL_TEXTURE_2D, self.id)
 
-proc setMinifyFilter*(texture: Texture, filter: MinifyFilter) =
-  texture.select()
+proc setMinifyFilter*(self: Texture, filter: MinifyFilter) =
+  self.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter.GLint)
 
-proc setMagnifyFilter*(texture: Texture, filter: MagnifyFilter) =
-  texture.select()
+proc setMagnifyFilter*(self: Texture, filter: MagnifyFilter) =
+  self.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter.GLint)
 
-proc setWrapS*(texture: Texture, mode: WrapMode) =
-  texture.select()
+proc setWrapS*(self: Texture, mode: WrapMode) =
+  self.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode.GLint)
 
-proc setWrapT*(texture: Texture, mode: WrapMode) =
-  texture.select()
+proc setWrapT*(self: Texture, mode: WrapMode) =
+  self.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode.GLint)
 
-proc setWrapR*(texture: Texture, mode: WrapMode) =
-  texture.select()
+proc setWrapR*(self: Texture, mode: WrapMode) =
+  self.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, mode.GLint)
 
-proc upload*(texture: Texture, image: SomeImage) =
-  texture.select()
+proc upload*(self: var Texture, image: SomeImage) =
+  self.width = image.width
+  self.height = image.height
+  self.select()
   glTexImage2D(
     target = GL_TEXTURE_2D,
     level = 0,
@@ -61,8 +64,8 @@ proc upload*(texture: Texture, image: SomeImage) =
     pixels = image.data[0].unsafeAddr,
   )
 
-proc generateMipmap*(texture: Texture) =
-  texture.select()
+proc generateMipmap*(self: Texture) =
+  self.select()
   glGenerateMipmap(GL_TEXTURE_2D)
 
 proc initTexture*(): Texture =

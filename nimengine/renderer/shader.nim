@@ -19,29 +19,29 @@ proc compileShaderSrc(kind: Glenum, source: string): GLuint =
     var message = newString(length)
     glGetShaderInfoLog(result, length, length.addr, message.cstring)
     glDeleteShader(result)
-    raise newException(IOError, "Failed to compile shader: " & $message)
+    raise newException(IOError, "Failed to compile self: " & $message)
 
-proc select*(shader: Shader) =
-  glUseProgram(shader.id)
+proc select*(self: Shader) =
+  glUseProgram(self.id)
 
-proc setUniform*(shader: Shader, name: string, value: SomeUniform3fv) =
-  shader.select()
+proc setUniform*(self: Shader, name: string, value: SomeUniform3fv) =
+  self.select()
   glUniform3fv(
-    glGetUniformLocation(shader.id, name),
+    glGetUniformLocation(self.id, name),
     1,
     cast[ptr GLfloat](value.unsafeAddr),
   )
 
-proc setUniform*(shader: Shader, name: string, value: SomeUniformMatrix4fv) =
-  shader.select()
+proc setUniform*(self: Shader, name: string, value: SomeUniformMatrix4fv) =
+  self.select()
   glUniformMatrix4fv(
-    glGetUniformLocation(shader.id, name),
+    glGetUniformLocation(self.id, name),
     1, GL_FALSE,
     cast[ptr GLfloat](value.unsafeAddr),
   )
 
-proc `=destroy`*(shader: var Shader) =
-  glDeleteProgram(shader.id)
+proc `=destroy`*(self: var Shader) =
+  glDeleteProgram(self.id)
 
 proc initShader*(vertexSource, fragmentSource: string): Shader =
   result.id = glCreateProgram()

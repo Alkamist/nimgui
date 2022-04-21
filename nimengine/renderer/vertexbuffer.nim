@@ -49,18 +49,18 @@ func byteCount*(layout: openArray[VertexAttributeKind]): int =
   for kind in layout:
     result += kind.byteCount
 
-proc select*(buffer: VertexBuffer) =
-  glBindBuffer(GL_ARRAY_BUFFER, buffer.id)
+proc select*(self: VertexBuffer) =
+  glBindBuffer(GL_ARRAY_BUFFER, self.id)
 
-proc unselect*(buffer: VertexBuffer) =
+proc unselect*(self: VertexBuffer) =
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 # This currently does not check to see if the data you are uploading
 # matches the layout provided.
-proc upload*[T](buffer: var VertexBuffer, data: openArray[T]) =
+proc upload*[T](self: var VertexBuffer, data: openArray[T]) =
   if data.len == 0: return
-  buffer.len = data.len
-  buffer.select()
+  self.len = data.len
+  self.select()
   glBufferData(
     target = GL_ARRAY_BUFFER,
     size = data.len * T.sizeof,
@@ -68,12 +68,12 @@ proc upload*[T](buffer: var VertexBuffer, data: openArray[T]) =
     usage = GL_STATIC_DRAW,
   )
 
-proc uploadLayout(buffer: VertexBuffer) =
-  let vertexByteCount = buffer.m_layout.byteCount
+proc uploadLayout(self: VertexBuffer) =
+  let vertexByteCount = self.m_layout.byteCount
   var byteOffset = 0
-  buffer.select()
+  self.select()
 
-  for i, attribute in buffer.m_layout:
+  for i, attribute in self.m_layout:
     glEnableVertexAttribArray(i.GLuint)
     glVertexAttribPointer(
       index = i.GLuint, # the 0 based index of the attribute
@@ -85,17 +85,17 @@ proc uploadLayout(buffer: VertexBuffer) =
     )
     byteOffset += attribute.byteCount
 
-proc layout*(buffer: VertexBuffer): seq[VertexAttributeKind] =
-  buffer.m_layout
+proc layout*(self: VertexBuffer): seq[VertexAttributeKind] =
+  self.m_layout
 
-proc setLayout*(buffer: var VertexBuffer, layout: openArray[VertexAttributeKind]) =
-  buffer.m_layout = newSeq[VertexAttributeKind](layout.len)
+proc setLayout*(self: var VertexBuffer, layout: openArray[VertexAttributeKind]) =
+  self.m_layout = newSeq[VertexAttributeKind](layout.len)
   for i, attribute in layout:
-    buffer.m_layout[i] = attribute
-  buffer.uploadLayout()
+    self.m_layout[i] = attribute
+  self.uploadLayout()
 
-proc `=destroy`*(buffer: var VertexBuffer) =
-  glDeleteBuffers(1, buffer.id.addr)
+proc `=destroy`*(self: var VertexBuffer) =
+  glDeleteBuffers(1, self.id.addr)
 
 proc initVertexBuffer*(layout: openArray[VertexAttributeKind]): VertexBuffer =
   glGenBuffers(1, result.id.addr)

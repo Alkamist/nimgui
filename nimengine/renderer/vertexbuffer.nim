@@ -7,7 +7,7 @@ type
     Int, Int2, Int3, Int4,
     Bool,
 
-  VertexBuffer* = object
+  VertexBuffer* = ref object
     len*: int
     id*: GLuint
     m_layout: seq[VertexAttributeKind]
@@ -94,9 +94,10 @@ proc setLayout*(self: var VertexBuffer, layout: openArray[VertexAttributeKind]) 
     self.m_layout[i] = attribute
   self.uploadLayout()
 
-proc `=destroy`*(self: var VertexBuffer) =
+proc `=destroy`*(self: var type VertexBuffer()[]) =
   glDeleteBuffers(1, self.id.addr)
 
-proc initVertexBuffer*(layout: openArray[VertexAttributeKind]): VertexBuffer =
+proc newVertexBuffer*(layout: openArray[VertexAttributeKind]): VertexBuffer =
+  result = VertexBuffer()
   glGenBuffers(1, result.id.addr)
   result.setLayout(layout)

@@ -8,11 +8,11 @@ type
     width, height: float32
     uv: tuple[left, right, bottom, top: float32]
 
-  TextureAtlas* = object
+  TextureAtlas* = ref object
     texture*: Texture
     idToSliceTable: Table[int, TextureSlice]
 
-proc initTextureAtlas*(texture = initTexture()): TextureAtlas =
+proc newTextureAtlas*(texture = newTexture()): TextureAtlas =
   TextureAtlas(texture: texture)
 
 template width*(self: TextureAtlas): int = self.texture.width

@@ -59,19 +59,18 @@ type
   Renderer* = ref object
     onRender2d*: proc()
     onRender3d*: proc()
-    openGlContext*: OpenGlContext
     defaultShader2d*: Shader
     defaultTexture*: Texture
-
-proc `=destroy`*(self: var type Renderer()[]) =
-  self.openGlContext.delete()
+    # This needs to be last so it is destroyed after the default shader
+    # and texture with --gc:arc and --gc:orc.
+    openGlContext*: OpenGlContext
 
 proc newRenderer*(handle: pointer): Renderer =
   result = Renderer()
   result.openGlContext = newOpenGlContext(handle)
   opengl.loadExtensions()
-  result.defaultShader2d = initShader(defaultVertexShader2d, defaultFragmentShader2d)
-  result.defaultTexture = initTexture()
+  result.defaultShader2d = newShader(defaultVertexShader2d, defaultFragmentShader2d)
+  result.defaultTexture = newTexture()
   let defaultTextureImage = (
     width: 1,
     height: 1,

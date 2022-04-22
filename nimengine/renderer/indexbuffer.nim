@@ -8,7 +8,7 @@ type
     UInt16
     UInt32
 
-  IndexBuffer* = object
+  IndexBuffer* = ref object
     kind*: IndexKind
     len*: int
     id*: GLuint
@@ -44,9 +44,9 @@ proc upload*[T: IndexType](self: var IndexBuffer, data: openArray[T]) =
     usage = GL_STATIC_DRAW,
   )
 
-proc `=destroy`*(self: var IndexBuffer) =
+proc `=destroy`*(self: var type IndexBuffer()[]) =
   glDeleteBuffers(1, self.id.addr)
 
-proc initIndexBuffer*(kind: IndexKind): IndexBuffer =
-  result.kind = kind
+proc newIndexBuffer*(kind: IndexKind): IndexBuffer =
+  result = IndexBuffer(kind: kind)
   glGenBuffers(1, result.id.addr)

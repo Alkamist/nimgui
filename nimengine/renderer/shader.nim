@@ -2,7 +2,7 @@ import pkg/opengl
 import ./concepts
 
 type
-  Shader* = object
+  Shader* = ref object
     id*: GLuint
 
 proc compileShaderSrc(kind: Glenum, source: string): GLuint =
@@ -40,11 +40,11 @@ proc setUniform*(self: Shader, name: string, value: SomeUniformMatrix4fv) =
     cast[ptr GLfloat](value.unsafeAddr),
   )
 
-proc `=destroy`*(self: var Shader) =
+proc `=destroy`*(self: var type Shader()[]) =
   glDeleteProgram(self.id)
 
-proc initShader*(vertexSource, fragmentSource: string): Shader =
-  result.id = glCreateProgram()
+proc newShader*(vertexSource, fragmentSource: string): Shader =
+  result = Shader(id: glCreateProgram())
 
   var vertexId = compileShaderSrc(GL_VERTEX_SHADER, vertexSource)
   var fragmentId = compileShaderSrc(GL_FRAGMENT_SHADER, fragmentSource)

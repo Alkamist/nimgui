@@ -10,7 +10,7 @@ type
     texCoords*: tuple[u, v: float32]
     color*: tuple[r, g, b, a: float32]
 
-  RenderBatch2d* = object
+  RenderBatch2d* = ref object
     vertexBuffer*: VertexBuffer
     vertexData*: seq[Vertex2d]
     vertexWrite*: int
@@ -40,12 +40,12 @@ func vertex2d*(position, texCoords: SomeVec2, color: SomeColor): Vertex2d =
     )
   )
 
-proc initRenderBatch2d*(): RenderBatch2d =
+proc newRenderBatch2d*(): RenderBatch2d =
   RenderBatch2d(
-    vertexBuffer: initVertexBuffer([VertexAttributeKind.Float2,
-                                    VertexAttributeKind.Float2,
-                                    VertexAttributeKind.Float4]),
-    indexBuffer: initIndexBuffer(Index2d.toIndexKind),
+    vertexBuffer: newVertexBuffer([VertexAttributeKind.Float2,
+                                   VertexAttributeKind.Float2,
+                                   VertexAttributeKind.Float4]),
+    indexBuffer: newIndexBuffer(Index2d.toIndexKind),
   )
 
 proc render*(self: var RenderBatch2d) =

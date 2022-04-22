@@ -21,7 +21,7 @@ type
     MirroredRepeat = GL_MIRRORED_REPEAT,
     MirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE,
 
-  Texture* = object
+  Texture* = ref object
     id*: GLuint
     width*, height*: int
 
@@ -68,7 +68,10 @@ proc generateMipmap*(self: Texture) =
   self.select()
   glGenerateMipmap(GL_TEXTURE_2D)
 
-proc initTexture*(): Texture =
+proc `=destroy`*(self: var type Texture()[]) =
+  glDeleteTextures(1, self.id.addr)
+
+proc newTexture*(): Texture =
   result = Texture()
   glGenTextures(1, result.id.addr)
   result.setMinifyFilter(MinifyFilter.Nearest)

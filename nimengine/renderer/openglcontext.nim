@@ -11,6 +11,9 @@ when defined(windows):
       hglrc: HGLRC
       startHglrc: HGLRC
 
+  proc `=destroy`*(self: var type OpenGlContext()[]) =
+    wglDeleteContext(self.hglrc)
+
   proc newOpenGlContext*(handle: pointer): OpenGlContext =
     let hwnd = cast[HWND](handle)
     result = OpenGlContext(handle: hwnd)
@@ -51,8 +54,8 @@ when defined(windows):
 
     ReleaseDC(hwnd, dc)
 
-  proc delete*(self: OpenGlContext) =
-    wglDeleteContext(self.hglrc)
+  # proc delete*(self: OpenGlContext) =
+  #   wglDeleteContext(self.hglrc)
 
   proc select*(self: OpenGlContext) =
     self.startHdc = wglGetCurrentDC()

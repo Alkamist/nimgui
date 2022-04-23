@@ -1,57 +1,52 @@
 import std/math
 import ./utils
 
+export math
+export utils
+
 type
-  Vec2* = object
-    coords*: array[2, float32]
+  Vec2 = tuple[x, y: float]
+
+func vec2*(x, y: float): Vec2 {.inline.} =
+  (x: x, y: y)
+
+type
+  SomeVec2* = concept s
+    s.x
+    s.y
 
 {.push inline.}
 
-func vec2*(x, y: float32 = 0): Vec2 =
-  Vec2(coords: [x, y])
-
-template x*(self: Vec2): untyped = self.coords[0]
-template y*(self: Vec2): untyped = self.coords[1]
-template width*(self: Vec2): untyped = self.coords[0]
-template height*(self: Vec2): untyped = self.coords[1]
-
-template `x=`*(self: Vec2, v: float32): untyped = self.coords[0] = v
-template `y=`*(self: Vec2, v: float32): untyped = self.coords[1] = v
-template `width=`*(self: Vec2, v: float32): untyped = self.coords[0] = v
-template `height=`*(self: Vec2, v: float32): untyped = self.coords[1] = v
-
-template `[]`*(self: Vec2, i: int): untyped = self.coords[i]
-template `[]=`*(self: Vec2, i: int, v: float32): untyped = self.coords[i] = v
-
-func `$`*(self: Vec2): string =
-  "Vec2: " & $self.x.prettyFloat & ", " & $self.y.prettyFloat
-
 template defineUnaryOperator(op): untyped =
-  func op*(self: Vec2): Vec2 =
-    vec2(op(self.x), op(self.y))
+  func op*[T: SomeVec2](s: T): T =
+    result.x = op(s.x)
+    result.y = op(s.y)
 
 template defineBinaryOperator(op): untyped =
-  func op*(self, other: Vec2): Vec2 =
-    vec2(op(self.x, other.x), op(self.y, other.y))
+  func op*[A, B: SomeVec2](a: A, b: B): A =
+    result.x = op(a.x, b.x)
+    result.y = op(a.y, b.y)
 
-  func op*(self: Vec2, other: float32): Vec2 =
-    vec2(op(self.x, other), op(self.y, other))
+  func op*[A: SomeVec2, B: not SomeVec2](a: A, b: B): A =
+    result.x = op(a.x, typeof(a.x)(b))
+    result.y = op(a.y, typeof(a.y)(b))
 
-  func op*(self: float32, other: Vec2): Vec2 =
-    vec2(op(self, other.x), op(self, other.y))
+  func op*[A: not SomeVec2, B: SomeVec2](a: A, b: B): B =
+    result.x = op(typeof(b.x)(a), b.x)
+    result.y = op(typeof(b.y)(a), b.y)
 
 template defineBinaryEqualOperator(op): untyped =
-  func op*(self: var Vec2, other: Vec2) =
-    op(self.x, other.x)
-    op(self.y, other.y)
+  func op*[A, B: SomeVec2](a: var A, b: B) =
+    op(a.x, b.x)
+    op(a.y, b.y)
 
-  func op*(self: var Vec2, other: float32) =
-    op(self.x, other)
-    op(self.y, other)
+  func op*[A: SomeVec2, B: not SomeVec2](a: var A, b: B) =
+    op(a.x, b)
+    op(a.y, b)
 
 template defineComparativeOperator(op): untyped =
-  func op*(self, other: Vec2): bool =
-    op(self.x, other.x) and op(self.y, other.y)
+  func op*[A, B: SomeVec2](a: A, b: B): bool =
+    op(a.x, b.x) and op(a.y, b.y)
 
 defineUnaryOperator(`+`)
 defineUnaryOperator(`-`)
@@ -60,6 +55,7 @@ defineBinaryOperator(`+`)
 defineBinaryOperator(`-`)
 defineBinaryOperator(`*`)
 defineBinaryOperator(`/`)
+defineBinaryOperator(`div`)
 defineBinaryOperator(`mod`)
 
 defineBinaryEqualOperator(`+=`)
@@ -70,103 +66,114 @@ defineBinaryEqualOperator(`/=`)
 defineComparativeOperator(`~=`)
 defineComparativeOperator(`==`)
 
-func dot*(self, other: Vec2): float32 =
-  self.x * other.x + self.y * other.y
+func setAll*[T: SomeVec2, V](s: var T, value: V) =
+  s.x = typeof(s.x)(value)
+  s.y = typeof(s.y)(value)
 
-func length*(self: Vec2): float32 =
-  (self.x * self.x + self.y * self.y).sqrt
+func setZero*[T: SomeVec2](s: var T) =
+  s.setAll(0)
 
-func lengthSquared*(self: Vec2): float32 =
-  self.x * self.x + self.y * self.y
+func length*[T: SomeVec2](s: T): auto =
+  (s.x * s.x + s.y * s.y).sqrt
 
-func isNormalized*(self: Vec2): bool =
-  self.lengthSquared ~= 1.0
+func lengthSquared*[T: SomeVec2](s: T): auto =
+  s.x * s.x + s.y * s.y
 
-func distanceTo*(self, to: Vec2): float32 =
-  (self - to).length
+func dot*[A, B: SomeVec2](a: A, b: B): auto =
+  a.x * b.x + a.y * b.y
 
-func distanceSquaredTo*(self, to: Vec2): float32 =
-  (self - to).lengthSquared
+func cross*[A, B: SomeVec2](a: A, b: B): auto =
+  a.x * b.y - a.y * b.x
 
-func setAll*(self: var Vec2, value: float32) =
-  self.x = value
-  self.y = value
+func distanceTo*[A, B: SomeVec2](a: A, b: B): auto =
+  (a - b).length
 
-func setZero*(self: var Vec2) =
-  self.setAll(0)
+func distanceSquaredTo*[A, B: SomeVec2](a: A, b: B): auto =
+  (a - b).lengthSquared
 
-func cross*(self, other: Vec2): float32 =
-  self.x * other.y - self.y * other.x
+func rotated*[T: SomeVec2, P](s: T, phi: P): T =
+  let sn = sin(phi)
+  let cs = cos(phi)
+  result.x = s.x * cs - s.y * sn
+  result.y = s.x * sn + s.y * cs
 
-func rotated*(self: Vec2, phi: float32): Vec2 =
-  let s = sin(phi)
-  let c = cos(phi)
-  vec2(self.x * c - self.y * s, self.x * s + self.y * c)
+func rotate*[T: SomeVec2, P](s: var T, phi: P) =
+  s = s.rotated(phi)
 
-func rotate*(self: var Vec2, phi: float32) =
-  self = self.rotated(phi)
+func angle*[T: SomeVec2](s: T): auto =
+  arctan2(s.y, s.x)
 
-func angle*(self: Vec2): float32 =
-  arctan2(self.y, self.x)
+func isNormalized*[T: SomeVec2](s: T): bool =
+  s.lengthSquared ~= 1.0
 
-func normalize*(self: var Vec2) =
-  let lengthSquared = self.lengthSquared
+func normalize*[T: SomeVec2](s: var T) =
+  let lengthSquared = s.lengthSquared
   if lengthSquared == 0:
-    self.setZero
+    s.setZero()
   else:
     let length = lengthSquared.sqrt
-    self /= length
+    s /= length
 
-func normalized*(self: Vec2): Vec2 =
-  result = self
-  result.normalize
+func normalized*[T: SomeVec2](s: T): T =
+  result = s
+  result.normalize()
 
-func lerped*(self, other: Vec2, weight: float32): Vec2 =
-  self * (1.0 - weight) + other * weight
+func lerped*[A, B: SomeVec2, W](a: A, b: B, weight: W): A =
+  a * (1.0 - weight) + b * weight
 
-func lerp*(self: var Vec2, other: Vec2, weight: float32) =
-  self = self.lerped(other, weight)
+func lerp*[A, B: SomeVec2, W](a: var A, b: B, weight: W) =
+  a = a.lerped(b, weight)
 
-func slid*(self, normal: Vec2): Vec2 =
-  assert(normal.isNormalized, "The other vector must be normalized.")
-  self - normal * self.dot(normal)
+func slid*[A, B: SomeVec2](a: A, b: B): A =
+  assert(b.isNormalized, "The other vector must be normalized.")
+  a - b * a.dot(b)
 
-func slide*(self: var Vec2, normal: Vec2) =
-  self = self.slid(normal)
+func slide*[A, B: SomeVec2](a: var A, b: B) =
+  a = a.slid(b)
 
-func reflected*(self, normal: Vec2): Vec2 =
-  assert(normal.isNormalized, "The other vector must be normalized.")
-  normal * self.dot(normal) * 2.0 - self
+func reflected*[A, B: SomeVec2](a: A, b: B): A =
+  assert(b.isNormalized, "The other vector must be normalized.")
+  b * a.dot(b) * 2.0 - a
 
-func reflect*(self: var Vec2, normal: Vec2) =
-  self = self.reflected(normal)
+func reflect*[A, B: SomeVec2](a: var A, b: B) =
+  a = a.reflected(b)
 
-func bounced*(self, normal: Vec2): Vec2 =
-  -self.reflected(normal)
+func bounced*[A, B: SomeVec2](a: A, b: B): A =
+  -a.reflected(b)
 
-func bounce*(self: var Vec2, normal: Vec2) =
-  self = self.bounced(normal)
+func bounce*[A, B: SomeVec2](a: var A, b: B) =
+  a = a.bounced(b)
 
-func projected*(self, other: Vec2): Vec2 =
-  other * (self.dot(other) / other.lengthSquared)
+func projected*[A, B: SomeVec2](a: A, b: B) =
+  b * (a.dot(b) / b.lengthSquared)
 
-func project*(self: var Vec2, other: Vec2): Vec2 =
-  self = self.projected(other)
+func project*[A, B: SomeVec2](a: var A, b: B) =
+  a = a.projected(b)
 
-func angleTo*(self, other: Vec2): float32 =
-  arctan2(self.cross(other), self.dot(other))
+func angleTo*[A, B: SomeVec2](a: A, b: B): auto =
+  arctan2(a.cross(b), a.dot(b))
 
-func directionTo*(self, other: Vec2): Vec2 =
-  (other - self).normalized
+func directionTo*[A, B: SomeVec2](a: A, b: B): auto =
+  (b - a).normalized
 
-func limit*(self: var Vec2, limit: float32) =
-  let length = self.length
+func limit*[T: SomeVec2, L](s: var T, limit: L) =
+  let length = s.length
   if length > 0.0 and limit < length:
-    self /= length
-    self *= limit
+    s /= length
+    s *= limit
 
-func limited*(self: Vec2, limit: float32): Vec2 =
-  result = self
+func limited*[T: SomeVec2, L](s: T, limit: L): T =
+  result = s
   result.limit(limit)
 
 {.pop.}
+
+# template x*(s: Vec2): untyped = s[0]
+# template `x=`*(s: Vec2, v: untyped): untyped = s[0] = v
+# template width*(s: Vec2): untyped = s[0]
+# template `width=`*(s: Vec2, v: untyped): untyped = s[0] = v
+
+# template y*(s: Vec2): untyped = s[1]
+# template `y=`*(s: Vec2, v: untyped): untyped = s[1] = v
+# template height*(s: Vec2): untyped = s[1]
+# template `height=`*(s: Vec2, v: untyped): untyped = s[1] = v

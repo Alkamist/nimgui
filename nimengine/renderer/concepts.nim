@@ -14,7 +14,7 @@ type
     self.x is SomeFloat
     self.y is SomeFloat
 
-  SomeRect* = concept self
+  SomeRect2* = concept self
     self.x is SomeFloat
     self.y is SomeFloat
     self.width is SomeFloat

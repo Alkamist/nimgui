@@ -7,14 +7,12 @@ import ./renderer/indexbuffer
 import ./renderer/vertexbuffer
 import ./renderer/shader
 import ./renderer/texture
-import ./renderer/textureatlas
 import ./renderer/renderbatch2d
 
 export indexbuffer
 export vertexBuffer
 export shader
 export texture
-export textureatlas
 export renderbatch2d
 
 const defaultVertexShader2d = """
@@ -89,7 +87,7 @@ proc setViewport*(self: Renderer, x, y, width, height: float) =
     glViewport(x.GLsizei, y.GLsizei,
                width.GLsizei, height.GLsizei)
 
-proc setViewport*(self: Renderer, rect: SomeRect) =
+proc setViewport*(self: Renderer, rect: SomeRect2) =
   self.setViewport(rect.x, rect.y, rect.width, rect.height)
 
 proc setClipRect*(self: Renderer, x, y, width, height: float) =
@@ -97,7 +95,7 @@ proc setClipRect*(self: Renderer, x, y, width, height: float) =
     glScissor(x.GLsizei, y.GLsizei,
               width.GLsizei, height.GLsizei)
 
-proc setClipRect*(self: Renderer, rect: SomeRect) =
+proc setClipRect*(self: Renderer, rect: SomeRect2) =
   self.setClipRect(rect.x, rect.y, rect.width, rect.height)
 
 proc clear*(self: Renderer) =

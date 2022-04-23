@@ -1,20 +1,15 @@
 import std/math
-import std/strutils
+export math
 
 {.push inline.}
 
-func prettyFloat*(f: float32): string =
-  result = f.formatFloat(ffDecimal, 4)
-  if result[0] != '-':
-    result.insert(" ", 0)
-
-func snap*(value, step: float32): float32 =
+func snap*[V, S: SomeNumber](value: V, step: S): V =
   if step != 0.0:
     (value / step + 0.5).floor * step
   else:
     value
 
-func `~=`*(a, b: float32): bool =
+func `~=`*[A, B: SomeNumber](a: A, b: B): bool =
   const epsilon = 0.000001
   (a - b).abs <= epsilon
 

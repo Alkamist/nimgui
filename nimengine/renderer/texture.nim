@@ -48,7 +48,7 @@ proc setWrapR*(self: Texture, mode: WrapMode) =
   self.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, mode.GLint)
 
-proc upload*(self: var Texture, image: SomeImage) =
+proc upload*(self: Texture, image: SomeImage) =
   self.width = image.width
   self.height = image.height
   self.select()

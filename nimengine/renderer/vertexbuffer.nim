@@ -57,7 +57,7 @@ proc unselect*(self: VertexBuffer) =
 
 # This currently does not check to see if the data you are uploading
 # matches the layout provided.
-proc upload*[T](self: var VertexBuffer, data: openArray[T]) =
+proc upload*[T](self: VertexBuffer, data: openArray[T]) =
   if data.len == 0: return
   self.len = data.len
   self.select()
@@ -88,7 +88,7 @@ proc uploadLayout(self: VertexBuffer) =
 proc layout*(self: VertexBuffer): seq[VertexAttributeKind] =
   self.m_layout
 
-proc setLayout*(self: var VertexBuffer, layout: openArray[VertexAttributeKind]) =
+proc setLayout*(self: VertexBuffer, layout: openArray[VertexAttributeKind]) =
   self.m_layout = newSeq[VertexAttributeKind](layout.len)
   for i, attribute in layout:
     self.m_layout[i] = attribute

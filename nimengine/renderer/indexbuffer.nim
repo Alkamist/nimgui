@@ -30,7 +30,7 @@ proc select*(self: IndexBuffer) =
 proc unselect*(self: IndexBuffer) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-proc upload*[T: IndexType](self: var IndexBuffer, data: openArray[T]) =
+proc upload*[T: IndexType](self: IndexBuffer, data: openArray[T]) =
   if data.len == 0: return
   if self.kind != T.toIndexKind:
     raise newException(IOError, "Index self kind does not match data.")

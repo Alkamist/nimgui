@@ -1,7 +1,7 @@
 import nimengine/window
-import nimengine/gmath
+# import nimengine/gmath
 import nimengine/renderer
 
 export window
-export gmath
+# export gmath
 export renderer

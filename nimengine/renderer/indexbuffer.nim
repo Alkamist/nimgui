@@ -1,4 +1,5 @@
 import pkg/opengl
+export opengl
 
 type
   IndexType* = uint8 | uint16 | uint32
@@ -24,19 +25,19 @@ proc toGlEnum*(kind: IndexKind): GLenum =
   of IndexKind.UInt16: cGL_UNSIGNED_SHORT
   of IndexKind.UInt32: GL_UNSIGNED_INT
 
-proc select*(self: IndexBuffer) =
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.id)
+proc select*(buffer: IndexBuffer) =
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id)
 
-proc unselect*(self: IndexBuffer) =
+proc unselect*(buffer: IndexBuffer) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-proc upload*[T: IndexType](self: IndexBuffer, data: openArray[T]) =
+proc upload*[T: IndexType](buffer: IndexBuffer, data: openArray[T]) =
   if data.len == 0: return
-  if self.kind != T.toIndexKind:
-    raise newException(IOError, "Index self kind does not match data.")
+  if buffer.kind != T.toIndexKind:
+    raise newException(IOError, "Index buffer kind does not match data.")
 
-  self.len = data.len
-  self.select()
+  buffer.len = data.len
+  buffer.select()
   glBufferData(
     target = GL_ELEMENT_ARRAY_BUFFER,
     size = data.len * sizeof(T),
@@ -44,8 +45,8 @@ proc upload*[T: IndexType](self: IndexBuffer, data: openArray[T]) =
     usage = GL_STATIC_DRAW,
   )
 
-proc `=destroy`*(self: var type IndexBuffer()[]) =
-  glDeleteBuffers(1, self.id.addr)
+proc `=destroy`*(buffer: var type IndexBuffer()[]) =
+  glDeleteBuffers(1, buffer.id.addr)
 
 proc newIndexBuffer*(kind: IndexKind): IndexBuffer =
   result = IndexBuffer(kind: kind)

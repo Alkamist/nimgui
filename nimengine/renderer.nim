@@ -1,7 +1,6 @@
 import pkg/opengl
 export opengl
 
-import ./renderer/concepts
 import ./renderer/openglcontext
 import ./renderer/indexbuffer
 import ./renderer/vertexbuffer
@@ -69,34 +68,20 @@ proc newRenderer*(handle: pointer): Renderer =
   opengl.loadExtensions()
   result.defaultShader2d = newShader(defaultVertexShader2d, defaultFragmentShader2d)
   result.defaultTexture = newTexture()
-  let defaultTextureImage = (
-    width: 1,
-    height: 1,
-    data: [(r: 255'u8, g: 255'u8, b: 255'u8, a: 255'u8)],
-  )
-  result.defaultTexture.upload(defaultTextureImage)
+  result.defaultTexture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
 
 proc setBackgroundColor*(self: Renderer, r, g, b, a: float) =
   glClearColor(r.GLfloat, g.GLfloat, b.GLfloat, a.GLfloat)
-
-proc setBackgroundColor*(self: Renderer, color: SomeColor) =
-  self.setBackgroundColor(color.r, color.g, color.b, color.a)
 
 proc setViewport*(self: Renderer, x, y, width, height: float) =
   if width >= 0 and height >= 0:
     glViewport(x.GLsizei, y.GLsizei,
                width.GLsizei, height.GLsizei)
 
-proc setViewport*(self: Renderer, rect: SomeRect2) =
-  self.setViewport(rect.x, rect.y, rect.width, rect.height)
-
 proc setClipRect*(self: Renderer, x, y, width, height: float) =
   if width >= 0 and height >= 0:
     glScissor(x.GLsizei, y.GLsizei,
               width.GLsizei, height.GLsizei)
-
-proc setClipRect*(self: Renderer, rect: SomeRect2) =
-  self.setClipRect(rect.x, rect.y, rect.width, rect.height)
 
 proc clear*(self: Renderer) =
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)

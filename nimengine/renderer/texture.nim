@@ -1,5 +1,5 @@
 import pkg/opengl
-import ./concepts
+export opengl
 
 type
   MinifyFilter* {.pure.} = enum
@@ -25,51 +25,51 @@ type
     id*: GLuint
     width*, height*: int
 
-proc select*(self: Texture) =
-  glBindTexture(GL_TEXTURE_2D, self.id)
+proc select*(texture: Texture) =
+  glBindTexture(GL_TEXTURE_2D, texture.id)
 
-proc setMinifyFilter*(self: Texture, filter: MinifyFilter) =
-  self.select()
+proc setMinifyFilter*(texture: Texture, filter: MinifyFilter) =
+  texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter.GLint)
 
-proc setMagnifyFilter*(self: Texture, filter: MagnifyFilter) =
-  self.select()
+proc setMagnifyFilter*(texture: Texture, filter: MagnifyFilter) =
+  texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter.GLint)
 
-proc setWrapS*(self: Texture, mode: WrapMode) =
-  self.select()
+proc setWrapS*(texture: Texture, mode: WrapMode) =
+  texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode.GLint)
 
-proc setWrapT*(self: Texture, mode: WrapMode) =
-  self.select()
+proc setWrapT*(texture: Texture, mode: WrapMode) =
+  texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode.GLint)
 
-proc setWrapR*(self: Texture, mode: WrapMode) =
-  self.select()
+proc setWrapR*(texture: Texture, mode: WrapMode) =
+  texture.select()
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, mode.GLint)
 
-proc upload*(self: Texture, image: SomeImage) =
-  self.width = image.width
-  self.height = image.height
-  self.select()
+proc upload*(texture: Texture, width, height: int, data: openArray[uint8]) =
+  texture.width = width
+  texture.height = height
+  texture.select()
   glTexImage2D(
     target = GL_TEXTURE_2D,
     level = 0,
     internalformat = GL_RGBA.GLint,
-    width = image.width.GLsizei,
-    height = image.height.GLsizei,
+    width = width.GLsizei,
+    height = height.GLsizei,
     border = 0,
     format = GL_RGBA,
     `type` = GL_UNSIGNED_BYTE,
-    pixels = image.data[0].unsafeAddr,
+    pixels = data[0].unsafeAddr,
   )
 
-proc generateMipmap*(self: Texture) =
-  self.select()
+proc generateMipmap*(texture: Texture) =
+  texture.select()
   glGenerateMipmap(GL_TEXTURE_2D)
 
-proc `=destroy`*(self: var type Texture()[]) =
-  glDeleteTextures(1, self.id.addr)
+proc `=destroy`*(texture: var type Texture()[]) =
+  glDeleteTextures(1, texture.id.addr)
 
 proc newTexture*(): Texture =
   result = Texture()

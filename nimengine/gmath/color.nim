@@ -1,48 +1,44 @@
 type
-  Color* = object
-    components*: array[4, float32]
+  Color = tuple[r, g, b, a: float]
+
+func rgba*(r, g, b, a: float): Color =
+  (r: r, g: g, b: b, a: a)
+
+type
+  SomeColor* = concept s
+    s.r
+    s.g
+    s.b
+    s.a
 
 {.push inline.}
 
-template r*(a: Color): untyped = a.components[0]
-template g*(a: Color): untyped = a.components[1]
-template b*(a: Color): untyped = a.components[2]
-template a*(a: Color): untyped = a.components[3]
+func lerp*[T: SomeColor](a: var T, b: T, weight: float) =
+  a.r += (weight * (b.r - a.r))
+  a.g += (weight * (b.g - a.g))
+  a.b += (weight * (b.b - a.b))
+  a.a += (weight * (b.a - a.a))
 
-template `r=`*(a: Color, v: float32): untyped = a.components[0] = v
-template `g=`*(a: Color, v: float32): untyped = a.components[1] = v
-template `b=`*(a: Color, v: float32): untyped = a.components[2] = v
-template `a=`*(a: Color, v: float32): untyped = a.components[3] = v
+func lerped*[T: SomeColor](a, b: T, weight: float): SomeColor =
+  result = a
+  result.lerp(b, weight)
 
-func rgba*(r, g, b, a: float32): Color =
-  Color(components: [r, g, b, a])
+func darken*[T: SomeColor](s: var T, amount: float) =
+  s.r *= 1.0 - amount
+  s.g *= 1.0 - amount
+  s.b *= 1.0 - amount
 
-func lerp*(self: var Color, to: Color, weight: float32) =
-  self.r += (weight * (to.r - self.r))
-  self.g += (weight * (to.g - self.g))
-  self.b += (weight * (to.b - self.b))
-  self.a += (weight * (to.a - self.a))
-
-func lerped*(self, to: Color, weight: float32): Color =
-  result = self
-  result.lerp(to, weight)
-
-func darken*(self: var Color, amount: float32) =
-  self.r *= 1.0f - amount
-  self.g *= 1.0f - amount
-  self.b *= 1.0f - amount
-
-func darkened*(self: Color, amount: float32): Color =
-  result = self
+func darkened*[T: SomeColor](s: T, amount: float): SomeColor =
+  result = s
   result.darken(amount)
 
-func lighten*(self: var Color, amount: float32) =
-  self.r += (1.0f - self.r) * amount
-  self.g += (1.0f - self.g) * amount
-  self.b += (1.0f - self.b) * amount
+func lighten*[T: SomeColor](s: var T, amount: float) =
+  s.r += (1.0 - s.r) * amount
+  s.g += (1.0 - s.g) * amount
+  s.b += (1.0 - s.b) * amount
 
-func lightened*(self: Color, amount: float32): Color =
-  result = self
+func lightened*[T: SomeColor](s: T, amount: float): SomeColor =
+  result = s
   result.lighten(amount)
 
 {.pop.}

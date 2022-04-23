@@ -118,10 +118,10 @@ func normalized*[T: SomeVec2](s: T): T =
   result = s
   result.normalize()
 
-func lerped*[A, B: SomeVec2, W](a: A, b: B, weight: W): A =
+func lerped*[A, B: SomeVec2](a: A, b: B, weight: float): A =
   a * (1.0 - weight) + b * weight
 
-func lerp*[A, B: SomeVec2, W](a: var A, b: B, weight: W) =
+func lerp*[A, B: SomeVec2](a: var A, b: B, weight: float) =
   a = a.lerped(b, weight)
 
 func slid*[A, B: SomeVec2](a: A, b: B): A =
@@ -167,13 +167,3 @@ func limited*[T: SomeVec2, L](s: T, limit: L): T =
   result.limit(limit)
 
 {.pop.}
-
-# template x*(s: Vec2): untyped = s[0]
-# template `x=`*(s: Vec2, v: untyped): untyped = s[0] = v
-# template width*(s: Vec2): untyped = s[0]
-# template `width=`*(s: Vec2, v: untyped): untyped = s[0] = v
-
-# template y*(s: Vec2): untyped = s[1]
-# template `y=`*(s: Vec2, v: untyped): untyped = s[1] = v
-# template height*(s: Vec2): untyped = s[1]
-# template `height=`*(s: Vec2, v: untyped): untyped = s[1] = v

@@ -11,8 +11,8 @@ when defined(windows):
       hglrc: HGLRC
       startHglrc: HGLRC
 
-  proc `=destroy`*(self: var type OpenGlContext()[]) =
-    wglDeleteContext(self.hglrc)
+  proc `=destroy`*(ctx: var type OpenGlContext()[]) =
+    wglDeleteContext(ctx.hglrc)
 
   proc newOpenGlContext*(handle: pointer): OpenGlContext =
     let hwnd = cast[HWND](handle)
@@ -54,21 +54,21 @@ when defined(windows):
 
     ReleaseDC(hwnd, dc)
 
-  # proc delete*(self: OpenGlContext) =
-  #   wglDeleteContext(self.hglrc)
+  # proc delete*(ctx: OpenGlContext) =
+  #   wglDeleteContext(ctx.hglrc)
 
-  proc select*(self: OpenGlContext) =
-    self.startHdc = wglGetCurrentDC()
-    self.startHglrc = wglGetCurrentContext()
-    let dc = GetDC(self.handle)
-    wglMakeCurrent(dc, self.hglrc)
+  proc select*(ctx: OpenGlContext) =
+    ctx.startHdc = wglGetCurrentDC()
+    ctx.startHglrc = wglGetCurrentContext()
+    let dc = GetDC(ctx.handle)
+    wglMakeCurrent(dc, ctx.hglrc)
 
-  proc unselect*(self: OpenGlContext) =
-    ReleaseDC(self.handle, self.hdc)
-    wglMakeCurrent(self.startHdc, self.startHglrc)
+  proc unselect*(ctx: OpenGlContext) =
+    ReleaseDC(ctx.handle, ctx.hdc)
+    wglMakeCurrent(ctx.startHdc, ctx.startHglrc)
 
-  proc swapBuffers*(self: OpenGlContext) =
-    SwapBuffers(self.hdc)
+  proc swapBuffers*(ctx: OpenGlContext) =
+    SwapBuffers(ctx.hdc)
 
   proc getProcAddressWgl(procname: cstring): pointer =
     let p = wglGetProcAddress(procname)
@@ -77,5 +77,5 @@ when defined(windows):
     else:
       GetProcAddress(hmodule, procname)
 
-  proc getProcAddress*(self: OpenGlContext): pointer =
+  proc getProcAddress*(ctx: OpenGlContext): pointer =
     getProcAddressWgl

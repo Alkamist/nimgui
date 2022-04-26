@@ -6,13 +6,15 @@ import ./renderer/indexbuffer
 import ./renderer/vertexbuffer
 import ./renderer/shader
 import ./renderer/texture
-import ./renderer/renderbatch2d
+# import ./renderer/renderbatch2d
+import ./renderer/drawlist
 
 export indexbuffer
 export vertexBuffer
 export shader
 export texture
-export renderbatch2d
+# export renderbatch2d
+export drawlist
 
 const defaultVertexShader2d = """
 #version 300 es
@@ -58,6 +60,8 @@ type
     onRender3d*: proc()
     defaultShader2d*: Shader
     defaultTexture*: Texture
+    drawListVertexBuffer*: VertexBuffer
+    drawListIndexBuffer*: IndexBuffer
     # This needs to be last so it is destroyed after the default shader
     # and texture with --gc:arc and --gc:orc.
     openGlContext*: OpenGlContext
@@ -69,28 +73,32 @@ proc newRenderer*(handle: pointer): Renderer =
   result.defaultShader2d = newShader(defaultVertexShader2d, defaultFragmentShader2d)
   result.defaultTexture = newTexture()
   result.defaultTexture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
+  result.drawListVertexBuffer = newVertexBuffer([VertexAttributeKind.Float2,
+                                                 VertexAttributeKind.Float2,
+                                                 VertexAttributeKind.Float4])
+  result.drawListIndexBuffer = newIndexBuffer(uint32.toIndexKind)
 
-proc setBackgroundColor*(self: Renderer, r, g, b, a: float) =
+proc setBackgroundColor*(renderer: Renderer, r, g, b, a: float) =
   glClearColor(r.GLfloat, g.GLfloat, b.GLfloat, a.GLfloat)
 
-proc setViewport*(self: Renderer, x, y, width, height: float) =
+proc setViewport*(renderer: Renderer, x, y, width, height: float) =
   if width >= 0 and height >= 0:
     glViewport(x.GLsizei, y.GLsizei,
                width.GLsizei, height.GLsizei)
 
-proc setClipRect*(self: Renderer, x, y, width, height: float) =
+proc setClipRect*(renderer: Renderer, x, y, width, height: float) =
   if width >= 0 and height >= 0:
     glScissor(x.GLsizei, y.GLsizei,
               width.GLsizei, height.GLsizei)
 
-proc clear*(self: Renderer) =
+proc clear*(renderer: Renderer) =
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-proc drawTriangles*(self: Renderer,
+proc drawTriangles*(renderer: Renderer,
                     vertexBuffer: VertexBuffer,
                     indexBuffer: IndexBuffer,
                     shader: Shader,
-                    texture = self.defaultTexture) =
+                    texture = renderer.defaultTexture) =
   if vertexBuffer.len == 0 or vertexBuffer.len == 0:
     return
   shader.select()
@@ -104,14 +112,22 @@ proc drawTriangles*(self: Renderer,
     nil,
   )
 
-proc drawRenderBatch2d*(self: Renderer,
-                        batch: RenderBatch2d,
-                        texture = self.defaultTexture,
-                        shader = self.defaultShader2d) =
-  self.drawTriangles(batch.vertexBuffer, batch.indexBuffer, shader, texture)
+# proc drawRenderBatch2d*(renderer: Renderer,
+#                         batch: RenderBatch2d,
+#                         texture = renderer.defaultTexture,
+#                         shader = renderer.defaultShader2d) =
+#   renderer.drawTriangles(batch.vertexBuffer, batch.indexBuffer, shader, texture)
 
-proc render*(self: Renderer, width, height: int) =
-  self.openGlContext.select()
+proc drawDrawList*(renderer: Renderer,
+                   list: DrawList,
+                   texture = renderer.defaultTexture,
+                   shader = renderer.defaultShader2d) =
+  renderer.drawListVertexBuffer.upload(list.vertexData)
+  renderer.drawListIndexBuffer.upload(list.indexData)
+  renderer.drawTriangles(renderer.drawListVertexBuffer, renderer.drawListIndexBuffer, shader, texture)
+
+proc render*(renderer: Renderer, width, height: int) =
+  renderer.openGlContext.select()
 
   glEnable(GL_BLEND)
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -120,24 +136,23 @@ proc render*(self: Renderer, width, height: int) =
   glEnableClientState(GL_VERTEX_ARRAY)
   glEnableClientState(GL_TEXTURE_COORD_ARRAY)
   glEnableClientState(GL_COLOR_ARRAY)
-  # glActiveTexture(GL_TEXTURE0)
 
   let w = width.float
   let h = height.float
-  self.setViewport(0, 0, w, h)
-  self.setClipRect(0, 0, w, h)
+  renderer.setViewport(0, 0, w, h)
+  renderer.setClipRect(0, 0, w, h)
 
-  self.clear()
+  renderer.clear()
 
-  if self.onRender2d != nil:
+  if renderer.onRender2d != nil:
     glDisable(GL_CULL_FACE)
     glDisable(GL_DEPTH_TEST)
-    self.defaultShader2d.setUniform("ProjMtx", orthoProjection(0, w, h, 0))
-    self.onRender2d()
+    renderer.defaultShader2d.setUniform("ProjMtx", orthoProjection(0, w, h, 0))
+    renderer.onRender2d()
 
-  if self.onRender3d != nil:
+  if renderer.onRender3d != nil:
     glEnable(GL_CULL_FACE)
     glEnable(GL_DEPTH_TEST)
-    self.onRender3d()
+    renderer.onRender3d()
 
-  self.openGlContext.swapBuffers()
+  renderer.openGlContext.swapBuffers()

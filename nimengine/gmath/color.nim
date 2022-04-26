@@ -1,5 +1,5 @@
 type
-  Color = tuple[r, g, b, a: float]
+  Color* = tuple[r, g, b, a: float]
 
 func rgba*(r, g, b, a: float): Color =
   (r: r, g: g, b: b, a: a)

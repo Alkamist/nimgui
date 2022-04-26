@@ -1,5 +1,5 @@
 type
-  Rect2 = tuple[x, y, width, height: float]
+  Rect2* = tuple[x, y, width, height: float]
 
 func rect2*(x, y, width, height: float): Rect2 =
   (x: x, y: y, width: width, height: height)

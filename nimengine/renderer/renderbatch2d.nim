@@ -2,7 +2,8 @@ import ./vertexbuffer
 import ./indexbuffer
 
 type
-  Rect = tuple[x, y, width, height: float]
+  Vec2 = tuple[x, y: float]
+  Rect2 = tuple[x, y, width, height: float]
   Color = tuple[r, g, b, a: float]
 
   Index2d* = uint32
@@ -31,7 +32,7 @@ proc vertex2d*(x, y, u, v, r, g, b, a: float): Vertex2d =
     r: r.float32, g: g.float32, b: b.float32, a: a.float32,
   )
 
-proc expanded(rect: Rect, x, y: float): Rect =
+proc expanded(rect: Rect2, x, y: float): Rect2 =
   (
     rect.x - x,
     rect.y - y,
@@ -39,7 +40,7 @@ proc expanded(rect: Rect, x, y: float): Rect =
     rect.height + y * 2.0,
   )
 
-proc lrbt(rect: Rect): tuple[left, right, bottom, top: float] =
+proc lrbt(rect: Rect2): tuple[left, right, bottom, top: float] =
   (rect.x, rect.x + rect.width, rect.y, rect.y + rect.height)
 
 proc newRenderBatch2d*(): RenderBatch2d =
@@ -97,7 +98,7 @@ proc addQuad*(batch: RenderBatch2d, a, b, c, d: Vertex2d) =
   batch.indexWrite += indicesPerQuad
 
 proc fillRect*(batch: RenderBatch2d,
-               rect, uvRect: Rect,
+               rect, uvRect: Rect2,
                color: Color) =
   let bounds = rect.lrbt
   let uvBounds = uvRect.lrbt
@@ -113,7 +114,7 @@ proc fillRect*(batch: RenderBatch2d,
   )
 
 proc strokeRect*(batch: RenderBatch2d,
-                 rect, uvRect: Rect,
+                 rect, uvRect: Rect2,
                  color: Color,
                  thickness: float) =
   let outer = rect.lrbt

@@ -64,7 +64,7 @@ defineBinaryEqualOperator(`*=`)
 defineBinaryEqualOperator(`/=`)
 
 defineComparativeOperator(`~=`)
-defineComparativeOperator(`==`)
+# defineComparativeOperator(`==`)
 
 func setAll*[T: SomeVec2, V](s: var T, value: V) =
   s.x = typeof(s.x)(value)

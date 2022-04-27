@@ -6,14 +6,12 @@ import ./renderer/indexbuffer
 import ./renderer/vertexbuffer
 import ./renderer/shader
 import ./renderer/texture
-# import ./renderer/renderbatch2d
 import ./renderer/drawlist
 
 export indexbuffer
 export vertexBuffer
 export shader
 export texture
-# export renderbatch2d
 export drawlist
 
 const defaultVertexShader2d = """
@@ -111,12 +109,6 @@ proc drawTriangles*(renderer: Renderer,
     indexBuffer.kind.toGlEnum,
     nil,
   )
-
-# proc drawRenderBatch2d*(renderer: Renderer,
-#                         batch: RenderBatch2d,
-#                         texture = renderer.defaultTexture,
-#                         shader = renderer.defaultShader2d) =
-#   renderer.drawTriangles(batch.vertexBuffer, batch.indexBuffer, shader, texture)
 
 proc drawDrawList*(renderer: Renderer,
                    list: DrawList,

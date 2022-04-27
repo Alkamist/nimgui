@@ -1,24 +1,33 @@
 import ../gmath
 
-func normals*(convexPoly: openArray[Vec2]): seq[Vec2] =
+func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
-  result = newSeq[Vec2](convexPoly.len)
-  for i in 0 ..< convexPoly.len:
+  result = newSeq[Vec2](poly.len)
+  for i in 0 ..< result.len:
     let nextPointIndex =
-      if i == convexPoly.len - 1:
+      if i == result.len - 1:
         0
       else:
         i + 1
 
-    let point = convexPoly[i]
-    let nextPoint = convexPoly[nextPointIndex]
+    let point = poly[i]
+    let nextPoint = poly[nextPointIndex]
 
     result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
 
-func expanded*(convexPoly: openArray[Vec2], amount: float): seq[Vec2] =
+# func openNormals(poly: openArray[Vec2]): seq[Vec2] =
+#   ## Assumes clockwise winding of polygon.
+#   result = newSeq[Vec2](poly.len - 1)
+#   for i in 0 ..< result.len:
+#     let point = poly[i]
+#     let nextPoint = poly[i + 1]
+
+#     result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
+
+func expanded(convexPoly: openArray[Vec2], amount: float): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
   result = newSeq[Vec2](convexPoly.len)
-  let normals = convexPoly.normals
+  let normals = convexPoly.closedNormals
   for i in 0 ..< convexPoly.len:
     let previousNormalIndex =
       if i == 0:
@@ -77,87 +86,87 @@ func addVertex*(list: DrawList, position: Vec2, color: Color) =
   )
   inc list.vertexWrite
 
-func addIndex*(list: DrawList, index: Index) =
-  list.indexData[list.indexWrite] = index
+func addIndex*(list: DrawList, index: int) =
+  list.indexData[list.indexWrite] = (list.vertexWrite + index).Index
   inc list.indexWrite
 
-func addConvexPolyFilled*(list: DrawList, points: openArray[Vec2], color: Color) =
+func addConvexPolyFilledNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color) =
   ## Assumes clockwise winding of polygon.
-
   if points.len < 3:
     return
 
-  # With anti-alias fringes.
-  if list.antiAliasIsEnabled:
-    let indexCount = (points.len - 2) * 3 + points.len * 6
-    let vertexCount = points.len * 2
-    list.reserve(vertexCount, indexCount)
+  let indexCount = (points.len - 2) * 3
+  let vertexCount = points.len
+  list.reserve(vertexCount, indexCount)
 
-    # Add the first anti-alias fringe.
-    let firstFringeInner0 = list.vertexWrite
-    let firstFringeInner1 = list.vertexWrite + 2
-    let firstFringeOuter0 = list.vertexWrite + 1
-    let firstFringeOuter1 = list.vertexWrite + 3
+  # Add indices.
+  for i in 2 ..< points.len:
+    list.addIndex(0)
+    list.addIndex(i)
+    list.addIndex(i - 1)
 
-    list.addIndex(firstFringeInner0.Index)
-    list.addIndex(firstFringeOuter0.Index)
-    list.addIndex(firstFringeOuter1.Index)
-    list.addIndex(firstFringeOuter1.Index)
-    list.addIndex(firstFringeInner1.Index)
-    list.addIndex(firstFringeInner0.Index)
+  # Add vertices.
+  for i in 0 ..< vertexCount:
+    list.addVertex(points[i], color)
 
-    # Add indices.
-    for i in countup(4, vertexCount - 1, 2):
-      let innerShape0 = list.vertexWrite
-      let innerShape1 = list.vertexWrite + i - 2
-      let innerShape2 = list.vertexWrite + i
+func addConvexPolyFilledAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color) =
+  ## Assumes clockwise winding of polygon.
+  if points.len < 3:
+    return
 
-      list.addIndex(innerShape0.Index)
-      list.addIndex(innerShape1.Index)
-      list.addIndex(innerShape2.Index)
+  let indexCount = (points.len - 2) * 3 + points.len * 6
+  let vertexCount = points.len * 2
+  list.reserve(vertexCount, indexCount)
 
-      let aaFringe1 = list.vertexWrite + i - 1
-      let aaFringe2 = list.vertexWrite + i + 1
+  # Add the first anti-alias fringe.
+  let firstFringeInner0 = 0
+  let firstFringeInner1 = 2
+  let firstFringeOuter0 = 1
+  let firstFringeOuter1 = 3
 
-      list.addIndex(innerShape1.Index)
-      list.addIndex(aaFringe1.Index)
-      list.addIndex(aaFringe2.Index)
-      list.addIndex(aaFringe2.Index)
-      list.addIndex(innerShape2.Index)
-      list.addIndex(innerShape1.Index)
+  list.addIndex(firstFringeInner0)
+  list.addIndex(firstFringeOuter1)
+  list.addIndex(firstFringeOuter0)
+  list.addIndex(firstFringeOuter1)
+  list.addIndex(firstFringeInner0)
+  list.addIndex(firstFringeInner1)
 
-    # Add the final anti-alias fringe.
-    let finalFringeInner0 = list.vertexWrite + vertexCount - 2
-    let finalFringeInner1 = list.vertexWrite
-    let finalFringeOuter0 = list.vertexWrite + vertexCount - 1
-    let finalFringeOuter1 = list.vertexWrite + 1
+  # Add indices.
+  for i in countup(4, vertexCount - 1, 2):
+    let innerShape0 = 0
+    let innerShape1 = i - 2
+    let innerShape2 = i
 
-    list.addIndex(finalFringeInner0.Index)
-    list.addIndex(finalFringeOuter0.Index)
-    list.addIndex(finalFringeOuter1.Index)
-    list.addIndex(finalFringeOuter1.Index)
-    list.addIndex(finalFringeInner1.Index)
-    list.addIndex(finalFringeInner0.Index)
+    list.addIndex(innerShape0)
+    list.addIndex(innerShape2)
+    list.addIndex(innerShape1)
 
-    # Add vertices.
-    let aaColor = rgba(color.r, color.g, color.b, 0)
-    let aaPoints = points.expanded(list.antiAliasSize)
-    for i in 0 ..< points.len:
-      list.addVertex(points[i], color)
-      list.addVertex(aaPoints[i], aaColor)
+    let aaFringe1 = i - 1
+    let aaFringe2 = i + 1
 
-  # No anti-alias fringes.
-  else:
-    let indexCount = (points.len - 2) * 3
-    let vertexCount = points.len
-    list.reserve(vertexCount, indexCount)
+    list.addIndex(innerShape1)
+    list.addIndex(aaFringe2)
+    list.addIndex(aaFringe1)
+    list.addIndex(aaFringe2)
+    list.addIndex(innerShape1)
+    list.addIndex(innerShape2)
 
-    # Add indices.
-    for i in 2 ..< points.len:
-      list.addIndex(list.vertexWrite.Index)
-      list.addIndex((list.vertexWrite + i - 1).Index)
-      list.addIndex((list.vertexWrite + i).Index)
+  # Add the final anti-alias fringe.
+  let finalFringeInner0 = vertexCount - 2
+  let finalFringeInner1 = 0
+  let finalFringeOuter0 = vertexCount - 1
+  let finalFringeOuter1 = 1
 
-    # Add vertices.
-    for i in 0 ..< vertexCount:
-      list.addVertex(points[i], color)
+  list.addIndex(finalFringeInner0)
+  list.addIndex(finalFringeOuter1)
+  list.addIndex(finalFringeOuter0)
+  list.addIndex(finalFringeOuter1)
+  list.addIndex(finalFringeInner0)
+  list.addIndex(finalFringeInner1)
+
+  # Add vertices.
+  let aaColor = rgba(color.r, color.g, color.b, 0)
+  let aaPoints = points.expanded(list.antiAliasSize)
+  for i in 0 ..< points.len:
+    list.addVertex(points[i], color)
+    list.addVertex(aaPoints[i], aaColor)

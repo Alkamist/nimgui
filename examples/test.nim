@@ -16,15 +16,23 @@ func generateCircle(position: Vec2, radius: float, pointCount: int): seq[Vec2] =
 window.renderer.onRender2d = proc() =
   list.reset()
 
-  let w = window.width / 10.0
-  let h = window.height / 10.0
+  # let points = [
+  #   vec2(50, 50),
+  #   vec2(150, 400),
+  #   vec2(250, 50),
+  #   vec2(350, 500),
+  # ]
+  # list.addPolyLine(points, rgba(0, 1, 0, 1), 5)
 
-  for i in 0 ..< 10:
-    for j in 0 ..< 10:
+  let w = window.width / 4.0
+  let h = window.height / 4.0
+
+  for i in 0 ..< 4:
+    for j in 0 ..< 4:
       let position = vec2(i.float * w + 0.5 * w, j.float * h + 0.5 * h)
       let diameter = min(w * 0.9, h * 0.9)
-      let points = generateCircle(position, 0.5 * diameter, 64)
-      list.addConvexPolyFilled(points, rgba(0, 1, 0, 1))
+      let points = generateCircle(position, 0.5 * diameter, 8)
+      list.addConvexPolyFilledAntiAlias(points, rgba(0, 1, 0, 1))
 
   window.renderer.drawDrawList(list)
 

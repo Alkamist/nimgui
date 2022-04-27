@@ -15,31 +15,14 @@ func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
 
     result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
 
-# func openNormals(poly: openArray[Vec2]): seq[Vec2] =
-#   ## Assumes clockwise winding of polygon.
-#   result = newSeq[Vec2](poly.len - 1)
-#   for i in 0 ..< result.len:
-#     let point = poly[i]
-#     let nextPoint = poly[i + 1]
-
-#     result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
-
-func expanded(convexPoly: openArray[Vec2], amount: float): seq[Vec2] =
+func openNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
-  result = newSeq[Vec2](convexPoly.len)
-  let normals = convexPoly.closedNormals
-  for i in 0 ..< convexPoly.len:
-    let previousNormalIndex =
-      if i == 0:
-        convexPoly.len - 1
-      else:
-        i - 1
+  result = newSeq[Vec2](poly.len - 1)
+  for i in 0 ..< result.len:
+    let point = poly[i]
+    let nextPoint = poly[i + 1]
 
-    let previousNormal = normals[previousNormalIndex]
-    let normal = normals[i]
-
-    let expander = previousNormal.lerped(normal, 0.5).normalized
-    result[i] = convexPoly[i] + expander * amount
+    result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
 
 type
   Index* = uint32
@@ -166,7 +149,16 @@ func addConvexPolyFilledAntiAlias*(list: DrawList, points: openArray[Vec2], colo
 
   # Add vertices.
   let aaColor = rgba(color.r, color.g, color.b, 0)
-  let aaPoints = points.expanded(list.antiAliasSize)
+  let normals = points.closedNormals
+
   for i in 0 ..< points.len:
+    let previousNormalIndex = if i == 0: points.len - 1 else: i - 1
+
+    let previousNormal = normals[previousNormalIndex]
+    let normal = normals[i]
+
+    let expander = previousNormal.lerped(normal, 0.5).normalized
+    let aaPoint = points[i] + expander * list.antiAliasSize
+
     list.addVertex(points[i], color)
-    list.addVertex(aaPoints[i], aaColor)
+    list.addVertex(aaPoint, aaColor)

@@ -43,7 +43,7 @@ type
 
 func newDrawList*(): DrawList =
   DrawList(
-    antiAliasSize: 1.0,
+    antiAliasSize: 0.5,
     antiAliasIsEnabled: true,
   )
 
@@ -98,7 +98,6 @@ func addPolyLineOpenNoAntiAlias*(list: DrawList, points: openArray[Vec2], color:
     list.addIndex(i)
 
   # Add vertices.
-  let thickness = thickness.max(1.0)
   let halfThickness = 0.5 * thickness
   let normals = points.openNormals
 
@@ -155,7 +154,6 @@ func addPolyLineClosedNoAntiAlias*(list: DrawList, points: openArray[Vec2], colo
   list.addIndex(1)
 
   # Add vertices.
-  let thickness = thickness.max(1.0)
   let halfThickness = 0.5 * thickness
   let normals = points.closedNormals
 
@@ -225,7 +223,6 @@ func addPolyLineClosedAntiAlias*(list: DrawList, points: openArray[Vec2], color:
   list.addIndex(1)
 
   # Add vertices.
-  let thickness = thickness.max(1.0)
   let halfThickness = thickness * 0.5
   let normals = points.closedNormals
   let aaColor = rgba(color.r, color.g, color.b, 0)

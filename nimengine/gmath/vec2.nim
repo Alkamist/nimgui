@@ -166,6 +166,14 @@ func limited*[T: SomeVec2, L](s: T, limit: L): T =
   result = s
   result.limit(limit)
 
+func round*[T: SomeVec2](s: var T) =
+  s.x = s.x.round()
+  s.y = s.y.round()
+
+func rounded*[T: SomeVec2](s: T): T =
+  result = s
+  result.round()
+
 func snap*[T: SomeVec2, S](s: var T, step: S) =
   s.x = s.x.snap(step)
   s.y = s.y.snap(step)

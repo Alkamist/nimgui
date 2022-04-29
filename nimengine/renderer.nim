@@ -8,6 +8,7 @@ import ./renderer/shader
 import ./renderer/texture
 import ./renderer/drawlist
 
+export openglcontext
 export indexbuffer
 export vertexBuffer
 export shader
@@ -67,7 +68,6 @@ type
 proc newRenderer*(handle: pointer): Renderer =
   result = Renderer()
   result.openGlContext = newOpenGlContext(handle)
-  opengl.loadExtensions()
   result.defaultShader2d = newShader(defaultVertexShader2d, defaultFragmentShader2d)
   result.defaultTexture = newTexture()
   result.defaultTexture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])

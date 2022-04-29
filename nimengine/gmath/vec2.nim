@@ -166,4 +166,12 @@ func limited*[T: SomeVec2, L](s: T, limit: L): T =
   result = s
   result.limit(limit)
 
+func snap*[T: SomeVec2, S](s: var T, step: S) =
+  s.x = s.x.snap(step)
+  s.y = s.y.snap(step)
+
+func snapped*[T: SomeVec2, S](s: T, step: S): T =
+  result = s
+  result.snap(step)
+
 {.pop.}

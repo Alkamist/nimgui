@@ -73,7 +73,7 @@ func addIndex*(list: DrawList, index: int) =
   list.indexData[list.indexWrite] = (list.vertexWrite + index).Index
   inc list.indexWrite
 
-func addPolyLineNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color, thickness = 1.0) =
+func addPolyLineOpenNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color, thickness = 1.0) =
   if points.len < 2:
     return
 
@@ -122,7 +122,59 @@ func addPolyLineNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Col
   list.addVertex(aEnd, color)
   list.addVertex(bEnd, color)
 
-func addConvexPolyFilledNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color) =
+func addPolyLineClosedNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color, thickness = 1.0) =
+  if points.len < 2:
+    return
+
+  let indexCount = points.len * 6
+  let vertexCount = points.len * 2
+  list.reserve(vertexCount, indexCount)
+
+  # Add indices.
+  for i in countup(3, vertexCount - 1, 2):
+    list.addIndex(i - 3)
+    list.addIndex(i - 2)
+    list.addIndex(i - 1)
+    list.addIndex(i - 1)
+    list.addIndex(i - 2)
+    list.addIndex(i)
+
+  # Add the closing indices.
+  list.addIndex(vertexCount - 2)
+  list.addIndex(vertexCount - 1)
+  list.addIndex(0)
+  list.addIndex(0)
+  list.addIndex(vertexCount - 1)
+  list.addIndex(1)
+
+  # Add vertices.
+  let thickness = thickness.max(1.0)
+  let halfThickness = 0.5 * thickness
+  let normals = points.closedNormals
+
+  for i in 0 ..< normals.len:
+    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
+    let previousNormal = normals[previousNormalIndex]
+    let normal = normals[i]
+
+    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let theta = previousNormal.angleTo(expanderNormal)
+    let expanderLength = halfThickness / cos(theta)
+    let expander = expanderNormal * expanderLength
+
+    let a = points[i] + expander
+    let b = points[i] - expander
+
+    list.addVertex(a, color)
+    list.addVertex(b, color)
+
+func addPolyLine*(list: DrawList, points: openArray[Vec2], color: Color, thickness = 1.0, closed = false) =
+  if closed:
+    list.addPolyLineClosedNoAntiAlias(points, color, thickness)
+  else:
+    list.addPolyLineOpenNoAntiAlias(points, color, thickness)
+
+func addConvexPolyNoAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color) =
   ## Assumes clockwise winding of polygon.
   if points.len < 3:
     return
@@ -141,7 +193,7 @@ func addConvexPolyFilledNoAntiAlias*(list: DrawList, points: openArray[Vec2], co
   for i in 0 ..< vertexCount:
     list.addVertex(points[i], color)
 
-func addConvexPolyFilledAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color) =
+func addConvexPolyAntiAlias*(list: DrawList, points: openArray[Vec2], color: Color) =
   ## Assumes clockwise winding of polygon.
   if points.len < 3:
     return
@@ -201,7 +253,7 @@ func addConvexPolyFilledAntiAlias*(list: DrawList, points: openArray[Vec2], colo
   let normals = points.closedNormals
 
   for i in 0 ..< points.len:
-    let previousNormalIndex = if i == 0: points.len - 1 else: i - 1
+    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
 
     let previousNormal = normals[previousNormalIndex]
     let normal = normals[i]
@@ -211,3 +263,6 @@ func addConvexPolyFilledAntiAlias*(list: DrawList, points: openArray[Vec2], colo
 
     list.addVertex(points[i], color)
     list.addVertex(aaPoint, aaColor)
+
+func addConvexPoly*(list: DrawList, points: openArray[Vec2], color: Color) =
+  list.addConvexPolyNoAntiAlias(points, color)

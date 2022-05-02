@@ -158,7 +158,7 @@ func justReleased*(input: Input, button: MouseButton): bool =
 
 func update*(input: Input) =
   input.text = ""
+  input.previousKeyStates = input.keyStates
+  input.previousMouseButtonStates = input.mouseButtonStates
   input.previousMouseX = input.mouseX
   input.previousMouseY = input.mouseY
-  input.previousMouseButtonStates = input.mouseButtonStates
-  input.previousKeyStates = input.keyStates

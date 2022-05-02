@@ -14,7 +14,7 @@ type
     x*, y*: float
     width*, height*: float
 
-method update*(widget: Widget) {.base, locks: "unknown".} = discard
+method update*(widget: Widget) {.base.} = discard
 method draw*(widget: Widget) {.base.} = discard
 
 func absoluteX*(widget: Widget): float =

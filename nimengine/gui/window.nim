@@ -12,18 +12,18 @@ method update*(window: WindowWidget) =
   let input = window.input
 
   if window.mouseIsInside and
-     input.justPressed(MouseButton.Left):
+     input.isPressed(MouseButton.Left):
     window.isGrabbed = true
 
   if window.isGrabbed and
-     input.justReleased(MouseButton.Left):
+     not input.isPressed(MouseButton.Left):
     window.isGrabbed = false
 
   if window.isGrabbed:
     window.x += input.mouseXChange
     window.y -= input.mouseYChange
 
-  window.updateWidgets()
+  window.updateChildren()
 
 method draw*(window: WindowWidget) =
   let canvas = window.canvas
@@ -35,4 +35,4 @@ method draw*(window: WindowWidget) =
   canvas.fillRect(x, y, window.width, window.height, color)
   canvas.strokeRect(x, y, window.width, window.height, color.lightened(0.5), 1.0)
 
-  window.drawWidgets()
+  window.drawChildren()

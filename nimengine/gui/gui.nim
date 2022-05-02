@@ -11,8 +11,8 @@ func newGui*(input: Input): Gui =
   )
 
 method update*(gui: Gui) =
-  gui.updateWidgets()
+  gui.updateChildren()
 
 method draw*(gui: Gui) =
   gui.canvas.reset()
-  gui.drawWidgets()
+  gui.drawChildren()

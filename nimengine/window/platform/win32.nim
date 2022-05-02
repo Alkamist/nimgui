@@ -139,6 +139,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     let (w, h) = getClientWidthAndHeight(hwnd)
     window.width = w.float
     window.height = h.float
+    window.input.windowHeight = h.float
     window.previousWidth = w.float
     window.previousHeight = h.float
     window.platform = WindowPlatformData(handle: hwnd)

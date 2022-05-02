@@ -8,14 +8,12 @@ export gmath
 
 type
   Widget* = ref object of RootObj
-    canvas*: Canvas
-    input*: Input
     parent*: Widget
     x*, y*: float
     width*, height*: float
 
-method update*(widget: Widget) {.base.} = discard
-method draw*(widget: Widget) {.base.} = discard
+method update*(widget: Widget, input: Input) {.base.} = discard
+method draw*(widget: Widget, canvas: Canvas) {.base.} = discard
 
 func absoluteX*(widget: Widget): float =
   if widget.parent.isNil: widget.x
@@ -49,8 +47,5 @@ func relativePointIsInside*(widget: Widget, x, y: float): bool =
       x <= widget.parent.width and y <= widget.parent.height
   isInsideParent and x >= left and x <= right and y >= bottom and y <= top
 
-func mouseIsInside*(widget: Widget): bool =
-  widget.absolutePointIsInside(
-    widget.input.mouseX,
-    widget.canvas.height - widget.input.mouseY,
-  )
+func mouseIsInside*(widget: Widget, input: Input): bool =
+  widget.absolutePointIsInside(input.mouseX, input.mouseYInverted)

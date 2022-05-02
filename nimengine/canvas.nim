@@ -33,7 +33,6 @@ type
     r*, g*, b*, a*: float32
 
   Canvas* = ref object
-    width*, height*: float
     vertexData*: seq[Vertex]
     vertexWrite*: int
     indexData*: seq[Index]

@@ -2,6 +2,7 @@ import ./widget
 
 type
   ButtonWidget* = ref object of Widget
+    isHovered*: bool
     isPressed*: bool
     wasPressed*: bool
     onPressed*: proc()
@@ -10,25 +11,22 @@ type
 func newButtonWidget*(): ButtonWidget =
   ButtonWidget()
 
-method update*(button: ButtonWidget) =
-  let input = button.input
-
+method update*(button: ButtonWidget, input: Input) =
   button.wasPressed = button.isPressed
 
-  if button.mouseIsInside and
-     input.justPressed(MouseButton.Left):
+  button.isHovered = button.mouseIsInside(input)
+
+  if button.isHovered and input.justPressed(MouseButton.Left):
     button.isPressed = true
     if button.onPressed != nil:
       button.onPressed()
 
-  if button.isPressed and
-     input.justReleased(MouseButton.Left):
+  if button.isPressed and input.justReleased(MouseButton.Left):
     button.isPressed = false
     if button.onReleased != nil:
       button.onReleased()
 
-method draw*(button: ButtonWidget) =
-  let canvas = button.canvas
+method draw*(button: ButtonWidget, canvas: Canvas) =
   let x = button.absoluteX
   let y = button.absoluteY
 
@@ -40,7 +38,7 @@ method draw*(button: ButtonWidget) =
 
   if button.isPressed:
     drawButton(color.darkened(0.4))
-  elif button.mouseIsInside:
+  elif button.isHovered:
     drawButton(color.lightened(0.3))
   else:
     drawButton(color)

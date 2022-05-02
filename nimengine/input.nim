@@ -128,6 +128,7 @@ type
     text*: string
     keyStates*: array[KeyboardKey, bool]
     previousKeyStates*: array[KeyboardKey, bool]
+    windowHeight*: float
 
 func newInput*(): Input =
   Input()
@@ -137,6 +138,9 @@ func mouseXChange*(input: Input): float =
 
 func mouseYChange*(input: Input): float =
   input.mouseY - input.previousMouseY
+
+func mouseYInverted*(input: Input): float =
+  input.windowHeight - input.mouseY
 
 func isPressed*(input: Input, key: KeyboardKey): bool =
   input.keyStates[key]

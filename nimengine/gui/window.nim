@@ -3,30 +3,25 @@ import ./container
 
 type
   WindowWidget* = ref object of ContainerWidget
-    isGrabbed: bool
+    isGrabbed*: bool
 
 func newWindowWidget*(): WindowWidget =
   WindowWidget()
 
-method update*(window: WindowWidget) =
-  let input = window.input
-
-  if window.mouseIsInside and
-     input.isPressed(MouseButton.Left):
+method update*(window: WindowWidget, input: Input) =
+  if window.mouseIsInside(input) and input.justPressed(MouseButton.Left):
     window.isGrabbed = true
 
-  if window.isGrabbed and
-     not input.isPressed(MouseButton.Left):
+  if window.isGrabbed and input.justReleased(MouseButton.Left):
     window.isGrabbed = false
 
   if window.isGrabbed:
     window.x += input.mouseXChange
     window.y -= input.mouseYChange
 
-  window.updateChildren()
+  window.updateChildren(input)
 
-method draw*(window: WindowWidget) =
-  let canvas = window.canvas
+method draw*(window: WindowWidget, canvas: Canvas) =
   let x = window.absoluteX
   let y = window.absoluteY
 
@@ -35,4 +30,4 @@ method draw*(window: WindowWidget) =
   canvas.fillRect(x, y, window.width, window.height, color)
   canvas.strokeRect(x, y, window.width, window.height, color.lightened(0.5), 1.0)
 
-  window.drawChildren()
+  window.drawChildren(canvas)

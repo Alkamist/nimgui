@@ -89,6 +89,7 @@ proc processResize*(window: Window, width, height: float) =
   window.height = height
   window.widthChange = window.width - window.previousWidth
   window.heightChange = window.height - window.previousHeight
+  window.input.windowHeight = window.height
 
   if window.onResize != nil:
     window.onResize()

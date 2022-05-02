@@ -5,8 +5,6 @@ type
     children*: seq[Widget]
 
 func addChild*(container: ContainerWidget, widget: Widget) =
-  widget.canvas = container.canvas
-  widget.input = container.input
   widget.parent = container
   container.children.add(widget)
 
@@ -14,14 +12,12 @@ func removeChild*(container: ContainerWidget, widget: Widget) =
   for i in 0 ..< container.children.len:
     if container.children[i] == widget:
       container.children.del(i)
-  widget.canvas = nil
-  widget.input = nil
   widget.parent = nil
 
-func updateChildren*(container: ContainerWidget) =
+func updateChildren*(container: ContainerWidget, input: Input) =
   for i in 0 ..< container.children.len:
-    container.children[i].update()
+    container.children[i].update(input)
 
-func drawChildren*(container: ContainerWidget) =
+func drawChildren*(container: ContainerWidget, canvas: Canvas) =
   for i in 0 ..< container.children.len:
-    container.children[i].draw()
+    container.children[i].draw(canvas)

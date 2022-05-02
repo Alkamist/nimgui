@@ -10,12 +10,6 @@ when defined(windows):
   import ./platform/win32
   export win32
 
-func isPressed*(window: Window, key: KeyboardKey): bool =
-  window.keyStates[key]
-
-func isPressed*(window: Window, button: MouseButton): bool =
-  window.mouseButtonStates[button]
-
 func aspectRatio*(window: Window): float =
   window.width / window.height
 
@@ -43,6 +37,7 @@ proc update*(window: Window) =
     if window.renderer != nil:
       window.renderer.render(window.width.int, window.height.int)
 
+    window.input.update()
     window.postUpdate()
     window.previousTime = window.time
 

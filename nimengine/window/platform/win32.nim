@@ -81,7 +81,7 @@ proc newWindow*(title = "Window",
                 x, y = 0,
                 width = 1024, height = 768,
                 parentHandle: pointer = nil): Window =
-  result = Window()
+  result = Window(input: newInput())
 
   if windowCount == 0:
     var windowClass = WNDCLASSEX(
@@ -195,8 +195,8 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     if window.cursorIsConfined:
       let dx = x - window.platform.lastCursorPosX.int
       let dy = y - window.platform.lastCursorPosY.int
-      window.processMouseMove(window.mouseX + dx.float,
-                              window.mouseY + dy.float)
+      window.processMouseMove(window.input.mouseX + dx.float,
+                              window.input.mouseY + dy.float)
     else:
       window.processMouseMove(x.float, y.float)
 

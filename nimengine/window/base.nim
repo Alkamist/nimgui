@@ -1,15 +1,16 @@
 import ./types
 
 proc processMouseMove*(window: Window, x, y: float) =
-  if window.mouseX == x and window.mouseY == y:
+  let input = window.input
+  if input.mouseX == x and input.mouseY == y:
     return
 
-  window.previousMouseX = window.mouseX
-  window.previousMouseY = window.mouseY
-  window.mouseX = x
-  window.mouseY = y
-  window.mouseXChange = window.mouseX - window.previousMouseX
-  window.mouseYChange = window.mouseY - window.previousMouseY
+  input.previousMouseX = input.mouseX
+  input.previousMouseY = input.mouseY
+  input.mouseX = x
+  input.mouseY = y
+  input.mouseXChange = input.mouseX - input.previousMouseX
+  input.mouseYChange = input.mouseY - input.previousMouseY
 
   if window.onMouseMove != nil:
     window.onMouseMove()
@@ -25,37 +26,43 @@ proc processMouseExit*(window: Window) =
     window.onMouseExit()
 
 proc processMouseWheel*(window: Window, x, y: float) =
-  window.mouseWheelX = x
-  window.mouseWheelY = y
+  let input = window.input
+  input.mouseWheelX = x
+  input.mouseWheelY = y
   if window.onMouseWheel != nil:
     window.onMouseWheel()
 
 proc processMousePress*(window: Window, button: MouseButton) =
-  window.mousePress = button
-  window.mouseButtonStates[button] = true
+  let input = window.input
+  input.mousePress = button
+  input.mouseButtonStates[button] = true
   if window.onMousePress != nil:
     window.onMousePress()
 
 proc processMouseRelease*(window: Window, button: MouseButton) =
-  window.mouseRelease = button
-  window.mouseButtonStates[button] = false
+  let input = window.input
+  input.mouseRelease = button
+  input.mouseButtonStates[button] = false
   if window.onMouseRelease != nil:
     window.onMouseRelease()
 
 proc processKeyPress*(window: Window, key: KeyboardKey) =
-  window.keyPress = key
-  window.keyStates[key] = true
+  let input = window.input
+  input.keyPress = key
+  input.keyStates[key] = true
   if window.onKeyPress != nil:
     window.onKeyPress()
 
 proc processKeyRelease*(window: Window, key: KeyboardKey) =
-  window.keyRelease = key
-  window.keyStates[key] = false
+  let input = window.input
+  input.keyRelease = key
+  input.keyStates[key] = false
   if window.onKeyRelease != nil:
     window.onKeyRelease()
 
 proc processCharacter*(window: Window, character: string) =
-  window.character = character
+  let input = window.input
+  input.character = character
   if window.onCharacter != nil:
     window.onCharacter()
 

@@ -1,19 +1,20 @@
 import pkg/opengl
 export opengl
 
+import ./canvas
+export canvas
+
 import ./renderer/openglcontext
 import ./renderer/indexbuffer
 import ./renderer/vertexbuffer
 import ./renderer/shader
 import ./renderer/texture
-import ./renderer/drawlist
 
 export openglcontext
 export indexbuffer
 export vertexBuffer
 export shader
 export texture
-export drawlist
 
 const defaultVertexShader2d = """
 #version 300 es
@@ -59,8 +60,8 @@ type
     onRender3d*: proc()
     defaultShader2d*: Shader
     defaultTexture*: Texture
-    drawListVertexBuffer*: VertexBuffer
-    drawListIndexBuffer*: IndexBuffer
+    canvasVertexBuffer*: VertexBuffer
+    canvasIndexBuffer*: IndexBuffer
     # This needs to be last so it is destroyed after the default shader
     # and texture with --gc:arc and --gc:orc.
     openGlContext*: OpenGlContext
@@ -71,10 +72,10 @@ proc newRenderer*(handle: pointer): Renderer =
   result.defaultShader2d = newShader(defaultVertexShader2d, defaultFragmentShader2d)
   result.defaultTexture = newTexture()
   result.defaultTexture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
-  result.drawListVertexBuffer = newVertexBuffer([VertexAttributeKind.Float2,
-                                                 VertexAttributeKind.Float2,
-                                                 VertexAttributeKind.Float4])
-  result.drawListIndexBuffer = newIndexBuffer(uint32.toIndexKind)
+  result.canvasVertexBuffer = newVertexBuffer([VertexAttributeKind.Float2,
+                                               VertexAttributeKind.Float2,
+                                               VertexAttributeKind.Float4])
+  result.canvasIndexBuffer = newIndexBuffer(uint32.toIndexKind)
 
 proc setBackgroundColor*(renderer: Renderer, r, g, b, a: float) =
   glClearColor(r.GLfloat, g.GLfloat, b.GLfloat, a.GLfloat)
@@ -110,13 +111,13 @@ proc drawTriangles*(renderer: Renderer,
     nil,
   )
 
-proc drawDrawList*(renderer: Renderer,
-                   list: DrawList,
-                   texture = renderer.defaultTexture,
-                   shader = renderer.defaultShader2d) =
-  renderer.drawListVertexBuffer.upload(list.vertexData)
-  renderer.drawListIndexBuffer.upload(list.indexData)
-  renderer.drawTriangles(renderer.drawListVertexBuffer, renderer.drawListIndexBuffer, shader, texture)
+proc draw*(renderer: Renderer,
+           canvas: Canvas,
+           texture = renderer.defaultTexture,
+           shader = renderer.defaultShader2d) =
+  renderer.canvasVertexBuffer.upload(canvas.vertexData)
+  renderer.canvasIndexBuffer.upload(canvas.indexData)
+  renderer.drawTriangles(renderer.canvasVertexBuffer, renderer.canvasIndexBuffer, shader, texture)
 
 proc render*(renderer: Renderer, width, height: int) =
   renderer.openGlContext.select()

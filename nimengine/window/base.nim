@@ -4,14 +4,8 @@ proc processMouseMove*(window: Window, x, y: float) =
   let input = window.input
   if input.mouseX == x and input.mouseY == y:
     return
-
-  input.previousMouseX = input.mouseX
-  input.previousMouseY = input.mouseY
   input.mouseX = x
   input.mouseY = y
-  input.mouseXChange = input.mouseX - input.previousMouseX
-  input.mouseYChange = input.mouseY - input.previousMouseY
-
   if window.onMouseMove != nil:
     window.onMouseMove()
 
@@ -34,35 +28,35 @@ proc processMouseWheel*(window: Window, x, y: float) =
 
 proc processMousePress*(window: Window, button: MouseButton) =
   let input = window.input
-  input.mousePress = button
+  input.lastMousePress = button
   input.mouseButtonStates[button] = true
   if window.onMousePress != nil:
     window.onMousePress()
 
 proc processMouseRelease*(window: Window, button: MouseButton) =
   let input = window.input
-  input.mouseRelease = button
+  input.lastMouseRelease = button
   input.mouseButtonStates[button] = false
   if window.onMouseRelease != nil:
     window.onMouseRelease()
 
 proc processKeyPress*(window: Window, key: KeyboardKey) =
   let input = window.input
-  input.keyPress = key
+  input.lastKeyPress = key
   input.keyStates[key] = true
   if window.onKeyPress != nil:
     window.onKeyPress()
 
 proc processKeyRelease*(window: Window, key: KeyboardKey) =
   let input = window.input
-  input.keyRelease = key
+  input.lastKeyRelease = key
   input.keyStates[key] = false
   if window.onKeyRelease != nil:
     window.onKeyRelease()
 
 proc processCharacter*(window: Window, character: string) =
   let input = window.input
-  input.character = character
+  input.text &= character
   if window.onCharacter != nil:
     window.onCharacter()
 

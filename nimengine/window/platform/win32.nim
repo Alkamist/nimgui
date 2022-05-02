@@ -62,10 +62,11 @@ proc unpinCursorFromCenter*(window: Window) =
                             window.platform.restoreCursorPosY)
     window.cursorIsPinnedToCenter = false
 
-proc postUpdate*(window: Window) =
+proc preUpdate*(window: Window) =
   if not window.isChild:
     pollEvents(window.platform.handle)
 
+proc postUpdate*(window: Window) =
   if window.cursorIsPinnedToCenter:
     let (width, height) = getClientWidthAndHeight(window.platform.handle)
     if window.platform.lastCursorPosX != width / 2 or

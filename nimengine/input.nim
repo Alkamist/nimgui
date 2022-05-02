@@ -116,26 +116,27 @@ type
     PadPeriod
 
   Input* = ref object
-    mousePress*: MouseButton
-    mouseRelease*: MouseButton
+    lastMousePress*: MouseButton
+    lastMouseRelease*: MouseButton
     mouseX*, mouseY*: float
     previousMouseX*, previousMouseY*: float
-    mouseXChange*, mouseYChange*: float
     mouseWheelX*, mouseWheelY*: float
     mouseButtonStates*: array[MouseButton, bool]
     previousMouseButtonStates*: array[MouseButton, bool]
-
-    keyPress*: KeyboardKey
-    keyRelease*: KeyboardKey
-    character*: string
+    lastKeyPress*: KeyboardKey
+    lastKeyRelease*: KeyboardKey
+    text*: string
     keyStates*: array[KeyboardKey, bool]
     previousKeyStates*: array[KeyboardKey, bool]
 
 func newInput*(): Input =
   Input()
 
-func setPressed*(input: Input, key: KeyboardKey, isPressed: bool) =
-  input.keyStates[key] = isPressed
+func mouseXChange*(input: Input): float =
+  input.mouseX - input.previousMouseX
+
+func mouseYChange*(input: Input): float =
+  input.mouseY - input.previousMouseY
 
 func isPressed*(input: Input, key: KeyboardKey): bool =
   input.keyStates[key]
@@ -145,9 +146,6 @@ func justPressed*(input: Input, key: KeyboardKey): bool =
 
 func justReleased*(input: Input, key: KeyboardKey): bool =
   input.previousKeyStates[key] and not input.keyStates[key]
-
-func setPressed*(input: Input, button: MouseButton, isPressed: bool) =
-  input.mouseButtonStates[button] = isPressed
 
 func isPressed*(input: Input, button: MouseButton): bool =
   input.mouseButtonStates[button]
@@ -159,5 +157,8 @@ func justReleased*(input: Input, button: MouseButton): bool =
   input.previousMouseButtonStates[button] and not input.mouseButtonStates[button]
 
 func update*(input: Input) =
+  input.text = ""
+  input.previousMouseX = input.mouseX
+  input.previousMouseY = input.mouseY
   input.previousMouseButtonStates = input.mouseButtonStates
   input.previousKeyStates = input.keyStates

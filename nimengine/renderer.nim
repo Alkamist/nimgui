@@ -115,6 +115,9 @@ proc draw*(renderer: Renderer,
            canvas: Canvas,
            texture = renderer.defaultTexture,
            shader = renderer.defaultShader2d) =
+  if canvas.vertexData.len == 0 or
+     canvas.indexData.len == 0:
+    return
   renderer.canvasVertexBuffer.upload(canvas.vertexData)
   renderer.canvasIndexBuffer.upload(canvas.indexData)
   renderer.drawTriangles(renderer.canvasVertexBuffer, renderer.canvasIndexBuffer, shader, texture)

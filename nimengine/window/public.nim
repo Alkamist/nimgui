@@ -31,13 +31,15 @@ proc update*(window: Window) =
     window.time = cpuTime()
     window.delta = window.time - window.previousTime
 
+    window.input.update()
+    window.preUpdate()
+
     if window.onUpdate != nil:
       window.onUpdate()
 
     if window.renderer != nil:
       window.renderer.render(window.width.int, window.height.int)
 
-    window.input.update()
     window.postUpdate()
     window.previousTime = window.time
 

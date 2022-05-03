@@ -31,11 +31,10 @@ method draw*(button: ButtonWidget, canvas: Canvas) =
   let x = button.absoluteX
   let y = button.absoluteY
 
-  if button.isPressed:
-    canvas.fillRect(x, y, button.width, button.height, theme.colors.buttonPressed)
-  elif button.isHovered:
-    canvas.fillRect(x, y, button.width, button.height, theme.colors.buttonHovered)
-  else:
-    canvas.fillRect(x, y, button.width, button.height, theme.colors.button)
+  let buttonColor =
+    if button.isPressed: theme.colors.buttonPressed
+    elif button.isHovered: theme.colors.buttonHovered
+    else: theme.colors.button
 
+  canvas.fillRect(x, y, button.width, button.height, buttonColor)
   canvas.strokeRect(x, y, button.width, button.height, theme.colors.border, 1.0)

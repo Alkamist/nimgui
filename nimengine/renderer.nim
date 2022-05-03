@@ -29,7 +29,7 @@ void main()
 {
   Frag_UV = UV;
   Frag_Color = Color;
-  gl_Position = ProjMtx * vec4(Position.xy + 0.5, 0, 1);
+  gl_Position = ProjMtx * vec4(Position.x, Position.y + 0.5, 0, 1);
 }
 """
 

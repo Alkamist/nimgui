@@ -1,12 +1,15 @@
 import ./widget
 import ./container
 
+const resizeHandleSize = 24.0
+
 type
   WindowWidget* = ref object of ContainerWidget
     isMovable*: bool
     isResizable*: bool
     isBeingMoved: bool
     isBeingResized: bool
+    resizeHandleIsHovered: bool
 
 func newWindowWidget*(theme: Theme): WindowWidget =
   WindowWidget(
@@ -16,7 +19,6 @@ func newWindowWidget*(theme: Theme): WindowWidget =
   )
 
 method update*(window: WindowWidget, input: Input) =
-  const resizeHandleSize = 24
   let theme = window.theme
   let mouseX = input.mouseX
   let mouseY = input.mouseY
@@ -65,8 +67,9 @@ method update*(window: WindowWidget, input: Input) =
     mouseX >= resizeLeft and mouseX <= resizeRight and
     mouseY >= resizeTop and mouseY <= resizeBottom
 
-  if window.isResizable and mouseIsInsideResizeHandle and
-    input.justPressed(MouseButton.Left):
+  window.resizeHandleIsHovered = window.isResizable and mouseIsInsideResizeHandle
+
+  if window.resizeHandleIsHovered and input.justPressed(MouseButton.Left):
     window.isBeingResized = true
 
   if window.isBeingResized and input.justReleased(MouseButton.Left):
@@ -83,10 +86,33 @@ method draw*(window: WindowWidget, canvas: Canvas) =
   let x = window.absoluteX
   let y = window.absoluteY
 
+  # Backgrounds:
   canvas.fillRect(x, y, window.width, window.height, theme.colors.windowBackground)
-  canvas.strokeRect(x, y, window.width, window.height, theme.colors.border, 1.0)
-
   canvas.fillRect(x, y, window.width, theme.titleBarHeight, theme.colors.titleBackground)
+
+  # Resize Handle:
+  let left = x
+  let right = left + window.width
+  let top = y
+  let bottom = top + window.height
+  let resizeInset = 3.0
+  let resizeLeft = right - resizeHandleSize + resizeInset
+  let resizeRight = right - resizeInset
+  let resizeBottom = bottom - resizeInset
+  let resizeTop = bottom - resizeHandleSize + resizeInset
+  let resizeHandlePoints = [
+    vec2(resizeLeft, resizeBottom),
+    vec2(resizeRight, resizeTop),
+    vec2(resizeRight, resizeBottom),
+  ]
+  let resizeHandleColor =
+    if window.isBeingResized: theme.colors.buttonPressed
+    elif window.resizeHandleIsHovered: theme.colors.buttonHovered
+    else: theme.colors.button
+  canvas.addConvexPoly(resizeHandlePoints, resizeHandleColor, 0.5)
+
+  # Borders:
+  canvas.strokeRect(x, y, window.width, window.height, theme.colors.border, 1.0)
   canvas.strokeRect(x, y, window.width, theme.titleBarHeight, theme.colors.border, 1.0)
 
   window.drawChildren(canvas)

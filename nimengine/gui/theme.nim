@@ -34,6 +34,6 @@ func defaultTheme*(): Theme =
       titleText: rgba(0.9, 0.9, 0.9, 1),
       button: rgba(0.3, 0.3, 0.3, 1),
       buttonHovered: rgba(0.37, 0.37, 0.37, 1),
-      buttonPressed: rgba(0.17, 0.17, 0.17, 1),
+      buttonPressed: rgba(0.14, 0.14, 0.14, 1),
     ),
   )

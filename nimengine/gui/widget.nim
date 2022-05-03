@@ -1,3 +1,6 @@
+import ./theme
+export theme
+
 import ../input
 import ../canvas
 import ../gmath
@@ -8,6 +11,7 @@ export gmath
 
 type
   Widget* = ref object of RootObj
+    theme*: Theme
     parent*: Widget
     x*, y*: float
     width*, height*: float
@@ -26,26 +30,14 @@ func absoluteY*(widget: Widget): float =
 func absolutePointIsInside*(widget: Widget, x, y: float): bool =
   let left = widget.absoluteX
   let right = left + widget.width
-  let bottom = widget.absoluteY
-  let top = bottom + widget.height
+  let top = widget.absoluteY
+  let bottom = top + widget.height
   let isInsideParent =
     if widget.parent.isNil:
       true
     else:
       widget.parent.absolutePointIsInside(x, y)
-  isInsideParent and x >= left and x <= right and y >= bottom and y <= top
-
-func relativePointIsInside*(widget: Widget, x, y: float): bool =
-  let left = widget.x
-  let right = left + widget.width
-  let bottom = widget.y
-  let top = bottom + widget.height
-  let isInsideParent =
-    if widget.parent.isNil:
-      true
-    else:
-      x <= widget.parent.width and y <= widget.parent.height
-  isInsideParent and x >= left and x <= right and y >= bottom and y <= top
+  isInsideParent and x >= left and x <= right and y >= top and y <= bottom
 
 func mouseIsInside*(widget: Widget, input: Input): bool =
-  widget.absolutePointIsInside(input.mouseX, input.mouseYInverted)
+  widget.absolutePointIsInside(input.mouseX, input.mouseY)

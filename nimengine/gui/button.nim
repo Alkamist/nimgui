@@ -8,8 +8,8 @@ type
     onPressed*: proc()
     onReleased*: proc()
 
-func newButtonWidget*(): ButtonWidget =
-  ButtonWidget()
+func newButtonWidget*(theme: Theme): ButtonWidget =
+  ButtonWidget(theme: theme)
 
 method update*(button: ButtonWidget, input: Input) =
   button.wasPressed = button.isPressed
@@ -27,18 +27,15 @@ method update*(button: ButtonWidget, input: Input) =
       button.onReleased()
 
 method draw*(button: ButtonWidget, canvas: Canvas) =
+  let theme = button.theme
   let x = button.absoluteX
   let y = button.absoluteY
 
-  let color = rgba(0.5, 0.5, 0.5, 1)
-
-  template drawButton(c: Color): untyped =
-    canvas.fillRect(x, y, button.width, button.height, c)
-    canvas.strokeRect(x, y, button.width, button.height, c.lightened(0.5), 1.0)
-
   if button.isPressed:
-    drawButton(color.darkened(0.4))
+    canvas.fillRect(x, y, button.width, button.height, theme.colors.buttonPressed)
   elif button.isHovered:
-    drawButton(color.lightened(0.3))
+    canvas.fillRect(x, y, button.width, button.height, theme.colors.buttonHovered)
   else:
-    drawButton(color)
+    canvas.fillRect(x, y, button.width, button.height, theme.colors.button)
+
+  canvas.strokeRect(x, y, button.width, button.height, theme.colors.border, 1.0)

@@ -16,7 +16,7 @@ export vertexBuffer
 export shader
 export texture
 
-const defaultVertexShader2d = """
+const defaultGuiVertexShader = """
 #version 300 es
 precision highp float;
 layout (location = 0) in vec2 Position;
@@ -33,7 +33,7 @@ void main()
 }
 """
 
-const defaultFragmentShader2d = """
+const defaultGuiFragmentShader = """
 #version 300 es
 precision mediump float;
 uniform sampler2D Texture;
@@ -56,10 +56,11 @@ proc orthoProjection(left, right, top, bottom: float32): array[4, array[4, float
 
 type
   Renderer* = ref object
+    onRenderGui*: proc()
     onRender2d*: proc()
     onRender3d*: proc()
-    defaultShader2d*: Shader
-    defaultTexture*: Texture
+    defaultGuiShader*: Shader
+    defaultGuiTexture*: Texture
     canvasVertexBuffer*: VertexBuffer
     canvasIndexBuffer*: IndexBuffer
     # This needs to be last so it is destroyed after the default shader
@@ -69,9 +70,9 @@ type
 proc newRenderer*(handle: pointer): Renderer =
   result = Renderer()
   result.openGlContext = newOpenGlContext(handle)
-  result.defaultShader2d = newShader(defaultVertexShader2d, defaultFragmentShader2d)
-  result.defaultTexture = newTexture()
-  result.defaultTexture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
+  result.defaultGuiShader = newShader(defaultGuiVertexShader, defaultGuiFragmentShader)
+  result.defaultGuiTexture = newTexture()
+  result.defaultGuiTexture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
   result.canvasVertexBuffer = newVertexBuffer([VertexAttributeKind.Float2,
                                                VertexAttributeKind.Float2,
                                                VertexAttributeKind.Float4])
@@ -97,7 +98,7 @@ proc drawTriangles*(renderer: Renderer,
                     vertexBuffer: VertexBuffer,
                     indexBuffer: IndexBuffer,
                     shader: Shader,
-                    texture = renderer.defaultTexture) =
+                    texture = renderer.defaultGuiTexture) =
   if vertexBuffer.len == 0 or vertexBuffer.len == 0:
     return
   shader.select()
@@ -113,8 +114,8 @@ proc drawTriangles*(renderer: Renderer,
 
 proc draw*(renderer: Renderer,
            canvas: Canvas,
-           texture = renderer.defaultTexture,
-           shader = renderer.defaultShader2d) =
+           texture = renderer.defaultGuiTexture,
+           shader = renderer.defaultGuiShader) =
   if canvas.vertexData.len == 0 or
      canvas.indexData.len == 0:
     return
@@ -140,15 +141,18 @@ proc render*(renderer: Renderer, width, height: int) =
 
   renderer.clear()
 
-  if renderer.onRender2d != nil:
-    glDisable(GL_CULL_FACE)
-    glDisable(GL_DEPTH_TEST)
-    renderer.defaultShader2d.setUniform("ProjMtx", orthoProjection(0, w, h, 0))
-    renderer.onRender2d()
-
   if renderer.onRender3d != nil:
     glEnable(GL_CULL_FACE)
     glEnable(GL_DEPTH_TEST)
     renderer.onRender3d()
+
+  if renderer.onRender2d != nil:
+    glDisable(GL_CULL_FACE)
+    glDisable(GL_DEPTH_TEST)
+    renderer.onRender2d()
+
+  if renderer.onRenderGui != nil:
+    renderer.defaultGuiShader.setUniform("ProjMtx", orthoProjection(0, w, 0, h))
+    renderer.onRenderGui()
 
   renderer.openGlContext.swapBuffers()

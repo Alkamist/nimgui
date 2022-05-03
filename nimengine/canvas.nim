@@ -32,30 +32,68 @@ type
     u*, v*: float32
     r*, g*, b*, a*: float32
 
+  DrawCall* = object
+    clipRect*: Rect2
+    indexOffset*: int
+    indexCount*: int
+
   Canvas* = ref object
+    width*, height*: float
+    drawCalls*: seq[DrawCall]
     vertexData*: seq[Vertex]
     vertexWrite*: int
     indexData*: seq[Index]
     indexWrite*: int
     whitePixelUv*: Vec2
+    clipRectStack: seq[Rect2]
 
-func newCanvas*(): Canvas =
-  Canvas()
+func newCanvas*(width, height: float): Canvas =
+  Canvas(width: width, height: height)
+
+func addDrawCall(canvas: Canvas) =
+  if canvas.clipRectStack.len == 0:
+    return
+
+  let indexOffset = canvas.indexData.len
+
+  canvas.drawCalls.add(DrawCall(
+    clipRect: canvas.clipRectStack[canvas.clipRectStack.len - 1],
+    indexOffset: indexOffset,
+    indexCount: 0,
+  ))
+
+func pushClipRect*(canvas: Canvas, clipRect: Rect2) =
+  canvas.clipRectStack.add(clipRect)
+  canvas.addDrawCall()
+
+func pushClipRect*(canvas: Canvas, x, y, width, height: float) =
+  canvas.pushClipRect(rect2(x, y, width, height))
+
+func popClipRect*(canvas: Canvas) =
+  canvas.clipRectStack.del(canvas.clipRectStack.len - 1)
+  canvas.addDrawCall()
 
 func reset*(canvas: Canvas) =
   canvas.vertexWrite = 0
   canvas.indexWrite = 0
   canvas.vertexData.setLen(0)
   canvas.indexData.setLen(0)
+  canvas.clipRectStack.setLen(0)
+  canvas.drawCalls.setLen(0)
+  canvas.pushClipRect(0, 0, canvas.width, canvas.height)
 
 func reserve*(canvas: Canvas, vertexCount, indexCount: int) =
   assert(canvas.indexData.len + indexCount <= Index.high.int)
+  if canvas.drawCalls.len > 0:
+    canvas.drawCalls[canvas.drawCalls.len - 1].indexCount += indexCount
   canvas.vertexData.setLen(canvas.vertexData.len + vertexCount)
   canvas.indexData.setLen(canvas.indexData.len + indexCount)
 
 func unreserve*(canvas: Canvas, vertexCount, indexCount: int) =
   canvas.vertexWrite -= vertexCount
   canvas.indexWrite -= indexCount
+  if canvas.drawCalls.len > 0:
+    canvas.drawCalls[canvas.drawCalls.len - 1].indexCount -= indexCount
   canvas.vertexData.setLen((canvas.vertexData.len - vertexCount).max(0))
   canvas.indexData.setLen((canvas.indexData.len - indexCount).max(0))
 

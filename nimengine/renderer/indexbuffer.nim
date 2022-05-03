@@ -21,6 +21,12 @@ proc toIndexKind*(T: type IndexType): IndexKind =
   elif T is uint16: IndexKind.UInt16
   elif T is uint32: IndexKind.UInt32
 
+proc indexSize*(kind: IndexKind): int =
+  case kind:
+  of IndexKind.UInt8: 1
+  of IndexKind.UInt16: 2
+  of IndexKind.UInt32: 4
+
 proc toGlEnum*(kind: IndexKind): GLenum =
   case kind:
   of IndexKind.UInt8: cGL_UNSIGNED_BYTE

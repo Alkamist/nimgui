@@ -128,6 +128,8 @@ method draw*(window: WindowWidget, canvas: Canvas) =
   let x = window.absoluteX
   let y = window.absoluteY
 
+  canvas.pushClipRect(x, y, window.width, window.height)
+
   # Backgrounds:
   let titleBarColor =
     if window.isBeingMoved: window.colors.titleBarPressed
@@ -135,6 +137,8 @@ method draw*(window: WindowWidget, canvas: Canvas) =
     else: window.colors.titleBar
   canvas.fillRect(x, y, window.width, window.height, window.colors.background)
   canvas.fillRect(x, y, window.width, window.titleBarHeight, titleBarColor)
+
+  window.drawChildren(canvas)
 
   # Resize Handle:
   let left = x
@@ -160,4 +164,4 @@ method draw*(window: WindowWidget, canvas: Canvas) =
   # Border:
   canvas.strokeRect(x, y, window.width, window.height, window.colors.border, 1.0)
 
-  window.drawChildren(canvas)
+  canvas.popClipRect()

@@ -118,12 +118,28 @@ proc draw*(renderer: Renderer,
            canvas: Canvas,
            texture = renderer.defaultGuiTexture,
            shader = renderer.defaultGuiShader) =
-  if canvas.vertexData.len == 0 or
-     canvas.indexData.len == 0:
+  if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
     return
   renderer.canvasVertexBuffer.upload(BufferUsage.StreamDraw, canvas.vertexData)
   renderer.canvasIndexBuffer.upload(BufferUsage.StreamDraw, canvas.indexData)
-  renderer.drawTriangles(renderer.canvasVertexBuffer, renderer.canvasIndexBuffer, shader, texture)
+  shader.select()
+  texture.select()
+  renderer.canvasVertexBuffer.select()
+  renderer.canvasIndexBuffer.select()
+  for drawCall in canvas.drawCalls:
+    if drawCall.indexCount == 0:
+      continue
+    let cx = drawCall.clipRect.x - 1.0
+    let cy = canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height) - 1.0
+    let cw = drawCall.clipRect.width + 1.0
+    let ch = drawCall.clipRect.height + 1.0
+    renderer.setClipRect(cx, cy, cw, ch)
+    glDrawElements(
+      GL_TRIANGLES,
+      drawCall.indexCount.GLsizei,
+      renderer.canvasIndexBuffer.kind.toGlEnum,
+      cast[pointer](drawCall.indexOffset * renderer.canvasIndexBuffer.kind.indexSize),
+    )
 
 proc render*(renderer: Renderer, width, height: int) =
   renderer.openGlContext.select()

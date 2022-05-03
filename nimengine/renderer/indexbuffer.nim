@@ -1,6 +1,8 @@
 import pkg/opengl
 export opengl
 
+import ./common
+
 type
   IndexType* = uint8 | uint16 | uint32
 
@@ -31,18 +33,28 @@ proc select*(buffer: IndexBuffer) =
 proc unselect*(buffer: IndexBuffer) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
-proc upload*[T: IndexType](buffer: IndexBuffer, data: openArray[T]) =
+proc reset*(buffer: IndexBuffer) =
+  buffer.len = 0
+
+proc upload*[T: IndexType](buffer: IndexBuffer, usage: BufferUsage, data: openArray[T]) =
   if data.len == 0: return
   if buffer.kind != T.toIndexKind:
     raise newException(IOError, "Index buffer kind does not match data.")
 
-  buffer.len = data.len
   buffer.select()
-  glBufferData(
+  if buffer.len < data.len:
+    buffer.len = data.len
+    glBufferData(
+      target = GL_ELEMENT_ARRAY_BUFFER,
+      size = data.len * sizeof(T),
+      data = nil,
+      usage = usage.toGlEnum,
+    )
+  glBufferSubData(
     target = GL_ELEMENT_ARRAY_BUFFER,
+    offset = 0,
     size = data.len * sizeof(T),
     data = data[0].unsafeAddr,
-    usage = GL_STATIC_DRAW,
   )
 
 proc `=destroy`*(buffer: var type IndexBuffer()[]) =

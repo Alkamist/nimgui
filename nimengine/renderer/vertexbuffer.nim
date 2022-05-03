@@ -1,6 +1,8 @@
 import pkg/opengl
 export opengl
 
+import ./common
+
 type
   VertexAttributeKind* {.pure.} = enum
     Float, Float2, Float3, Float4,
@@ -56,17 +58,27 @@ proc select*(buffer: VertexBuffer) =
 proc unselect*(buffer: VertexBuffer) =
   glBindBuffer(GL_ARRAY_BUFFER, 0)
 
+proc reset*(buffer: VertexBuffer) =
+  buffer.len = 0
+
 # This currently does not check to see if the data you are uploading
 # matches the layout provided.
-proc upload*[T](buffer: VertexBuffer, data: openArray[T]) =
+proc upload*[T](buffer: VertexBuffer, usage: BufferUsage, data: openArray[T]) =
   if data.len == 0: return
-  buffer.len = data.len
   buffer.select()
-  glBufferData(
+  if buffer.len < data.len:
+    buffer.len = data.len
+    glBufferData(
+      target = GL_ARRAY_BUFFER,
+      size = data.len * sizeof(T),
+      data = nil,
+      usage = usage.toGlEnum,
+    )
+  glBufferSubData(
     target = GL_ARRAY_BUFFER,
-    size = data.len * T.sizeof,
+    offset = 0,
+    size = data.len * sizeof(T),
     data = data[0].unsafeAddr,
-    usage = GL_STATIC_DRAW,
   )
 
 proc uploadLayout(buffer: VertexBuffer) =

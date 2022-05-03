@@ -4,12 +4,14 @@ export opengl
 import ./canvas
 export canvas
 
+import ./renderer/common
 import ./renderer/openglcontext
 import ./renderer/indexbuffer
 import ./renderer/vertexbuffer
 import ./renderer/shader
 import ./renderer/texture
 
+export common
 export openglcontext
 export indexbuffer
 export vertexBuffer
@@ -119,8 +121,8 @@ proc draw*(renderer: Renderer,
   if canvas.vertexData.len == 0 or
      canvas.indexData.len == 0:
     return
-  renderer.canvasVertexBuffer.upload(canvas.vertexData)
-  renderer.canvasIndexBuffer.upload(canvas.indexData)
+  renderer.canvasVertexBuffer.upload(BufferUsage.StreamDraw, canvas.vertexData)
+  renderer.canvasIndexBuffer.upload(BufferUsage.StreamDraw, canvas.indexData)
   renderer.drawTriangles(renderer.canvasVertexBuffer, renderer.canvasIndexBuffer, shader, texture)
 
 proc render*(renderer: Renderer, width, height: int) =

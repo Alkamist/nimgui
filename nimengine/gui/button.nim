@@ -1,15 +1,29 @@
+import ./theme
 import ./widget
 
 type
+  ButtonColors* = object
+    background*: Color
+    hovered*: Color
+    pressed*: Color
+
   ButtonWidget* = ref object of Widget
+    colors*: ButtonColors
     isHovered*: bool
     isPressed*: bool
     wasPressed*: bool
     onPressed*: proc()
     onReleased*: proc()
 
-func newButtonWidget*(theme: Theme): ButtonWidget =
-  ButtonWidget(theme: theme)
+func defaultButtonColors(): ButtonColors =
+  ButtonColors(
+    background: defaultColors.primary,
+    hovered: defaultColors.primary.lightened(0.2),
+    pressed: defaultColors.primary.darkened(0.5),
+  )
+
+func newButtonWidget*(): ButtonWidget =
+  ButtonWidget(colors: defaultButtonColors())
 
 method update*(button: ButtonWidget, input: Input) =
   button.wasPressed = button.isPressed
@@ -27,14 +41,12 @@ method update*(button: ButtonWidget, input: Input) =
       button.onReleased()
 
 method draw*(button: ButtonWidget, canvas: Canvas) =
-  let theme = button.theme
   let x = button.absoluteX
   let y = button.absoluteY
 
   let buttonColor =
-    if button.isPressed: theme.colors.buttonPressed
-    elif button.isHovered: theme.colors.buttonHovered
-    else: theme.colors.button
+    if button.isPressed: button.colors.pressed
+    elif button.isHovered: button.colors.hovered
+    else: button.colors.background
 
   canvas.fillRect(x, y, button.width, button.height, buttonColor)
-  canvas.strokeRect(x, y, button.width, button.height, theme.colors.border, 1.0)

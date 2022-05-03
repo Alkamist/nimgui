@@ -1,6 +1,3 @@
-import ./theme
-export theme
-
 import ../input
 import ../canvas
 import ../gmath
@@ -11,7 +8,6 @@ export gmath
 
 type
   Widget* = ref object of RootObj
-    theme*: Theme
     parent*: Widget
     x*, y*: float
     width*, height*: float

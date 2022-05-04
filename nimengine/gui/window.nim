@@ -1,6 +1,5 @@
 import ./theme
 import ./widget
-import ./container
 
 type
   WindowColors* = object
@@ -13,7 +12,7 @@ type
     resizeHandleHovered*: Color
     resizeHandlePressed*: Color
 
-  WindowWidget* = ref object of ContainerWidget
+  WindowWidget* = ref object of Widget
     colors*: WindowColors
     titleBarHeight*: float
     resizeHandleSize*: float
@@ -21,8 +20,8 @@ type
     minHeight*: float
     isMovable*: bool
     isResizable*: bool
-    isBeingMoved: bool
-    isBeingResized: bool
+    isBeingMoved*: bool
+    isBeingResized*: bool
     resizeHandleIsHovered: bool
     titleBarIsHovered: bool
     resizeStartX: float
@@ -53,25 +52,31 @@ func newWindowWidget*(): WindowWidget =
     minHeight: 60,
   )
 
+method requestFocus*(window: WindowWidget, input: Input): bool =
+  input.justPressed(MouseButton.Left) and window.mouseIsInside(input)
+
+method releaseFocus*(window: WindowWidget, input: Input): bool =
+  input.justPressed(MouseButton.Left) and not window.mouseIsInside(input)
+
 method update*(window: WindowWidget, input: Input) =
   let mouseX = input.mouseX
   let mouseY = input.mouseY
   let absoluteX = window.absoluteX
   let absoluteY = window.absoluteY
   let mouseIsInsideParent =
-    if window.parent.isNil: true
+    if window.parent == nil: true
     else:
       window.parent.absolutePointIsInside(mouseX, mouseY)
-
   let left = absoluteX
   let right = left + window.width
   let top = absoluteY
   let bottom = top + window.height
-
-  # Moving:
-
   let titleTop = top
   let titleBottom = titleTop + window.titleBarHeight
+  let resizeLeft = right - window.resizeHandleSize
+  let resizeRight = right
+  let resizeBottom = bottom
+  let resizeTop = bottom - window.resizeHandleSize
 
   window.titleBarIsHovered =
     window.isMovable and
@@ -80,32 +85,26 @@ method update*(window: WindowWidget, input: Input) =
     mouseX >= left and mouseX <= right and
     mouseY >= titleTop and mouseY <= titleBottom
 
-  if window.titleBarIsHovered and
-     input.justPressed(MouseButton.Left):
-    window.isBeingMoved = true
-
-  if window.isBeingMoved and input.justReleased(MouseButton.Left):
-    window.isBeingMoved = false
-
-  if window.isBeingMoved:
-    window.x += input.mouseXChange
-    window.y += input.mouseYChange
-
-  # Resizing:
-
-  let resizeLeft = right - window.resizeHandleSize
-  let resizeRight = right
-  let resizeBottom = bottom
-  let resizeTop = bottom - window.resizeHandleSize
-
-  let mouseIsInsideResizeHandle =
+  window.resizeHandleIsHovered =
+    window.isResizable and
     mouseIsInsideParent and
     mouseX >= resizeLeft and mouseX <= resizeRight and
     mouseY >= resizeTop and mouseY <= resizeBottom
 
-  window.resizeHandleIsHovered =
-    window.isResizable and mouseIsInsideResizeHandle
+  # Press title bar.
+  if window.titleBarIsHovered and input.justPressed(MouseButton.Left):
+    window.isBeingMoved = true
 
+  # Release title bar.
+  if window.isBeingMoved and input.justReleased(MouseButton.Left):
+    window.isBeingMoved = false
+
+  # Move window.
+  if window.isBeingMoved:
+    window.x += input.mouseXChange
+    window.y += input.mouseYChange
+
+  # Press resize handle.
   if window.resizeHandleIsHovered and input.justPressed(MouseButton.Left):
     window.isBeingResized = true
     window.resizeStartX = mouseX
@@ -113,9 +112,11 @@ method update*(window: WindowWidget, input: Input) =
     window.resizeStartWidth = window.width
     window.resizeStartHeight = window.height
 
+  # Release resize handle.
   if window.isBeingResized and input.justReleased(MouseButton.Left):
     window.isBeingResized = false
 
+  # Resize window.
   if window.isBeingResized:
     let resizeWidth = window.resizeStartWidth + (mouseX - window.resizeStartX)
     let resizeHeight = window.resizeStartHeight + (mouseY - window.resizeStartY)

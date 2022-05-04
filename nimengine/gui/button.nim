@@ -16,11 +16,10 @@ type
     onReleased*: proc()
 
 func defaultButtonColors(): ButtonColors =
-  let c = defaultColors.primary.lightened(0.1)
   ButtonColors(
-    background: c,
-    hovered: c.lightened(0.2),
-    pressed: c.darkened(0.5),
+    background: defaultColors.button,
+    hovered: defaultColors.buttonHovered,
+    pressed: defaultColors.buttonPressed,
   )
 
 func newButtonWidget*(): ButtonWidget =

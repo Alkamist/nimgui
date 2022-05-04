@@ -4,10 +4,8 @@ import ./widget
 type
   WindowColors* = object
     background*: Color
-    border*: Color
     titleBar*: Color
-    titleBarHovered*: Color
-    titleBarPressed*: Color
+    border*: Color
     resizeHandle*: Color
     resizeHandleHovered*: Color
     resizeHandlePressed*: Color
@@ -31,14 +29,12 @@ type
 
 func defaultWindowColors(): WindowColors =
   WindowColors(
-    background: defaultColors.background,
+    background: defaultColors.main,
+    titleBar: defaultColors.dark,
     border: defaultColors.border,
-    titleBar: defaultColors.primary,
-    titleBarHovered: defaultColors.primary.lightened(0.2),
-    titleBarPressed: defaultColors.primary.darkened(0.5),
-    resizeHandle: defaultColors.primary,
-    resizeHandleHovered: defaultColors.primary.lightened(0.2),
-    resizeHandlePressed: defaultColors.primary.darkened(0.5),
+    resizeHandle: defaultColors.button,
+    resizeHandleHovered: defaultColors.buttonHovered,
+    resizeHandlePressed: defaultColors.buttonPressed,
   )
 
 func newWindowWidget*(): WindowWidget =
@@ -128,22 +124,18 @@ method draw*(window: WindowWidget, canvas: Canvas) =
 
   canvas.pushClipRect(x, y, window.width, window.height)
 
-  # Backgrounds:
-  let titleBarColor =
-    if window.isBeingMoved: window.colors.titleBarPressed
-    elif window.titleBarIsHovered: window.colors.titleBarHovered
-    else: window.colors.titleBar
+  # Background and title bar.
   canvas.fillRect(x, y, window.width, window.height, window.colors.background)
-  canvas.fillRect(x, y, window.width, window.titleBarHeight, titleBarColor)
+  canvas.fillRect(x, y, window.width, window.titleBarHeight, window.colors.titleBar)
 
   window.drawChildren(canvas)
 
-  # Resize Handle:
+  # Resize Handle.
   let left = x
   let right = left + window.width
   let top = y
   let bottom = top + window.height
-  let resizeInset = 3.0
+  let resizeInset = 4.0
   let resizeLeft = right - window.resizeHandleSize + resizeInset
   let resizeRight = right - resizeInset
   let resizeBottom = bottom - resizeInset

@@ -2,46 +2,35 @@ import pkg/nimengine
 
 let window = newWindow()
 window.enableRenderer()
-# window.renderer.setBackgroundColor(18 / 255, 19 / 255, 23 / 255, 1)
-window.renderer.setBackgroundColor(128 / 255, 128 / 255, 128 / 255, 1)
+window.renderer.setBackgroundColor(54 / 255, 57 / 255, 63 / 255, 1)
 
 let canvas = newCanvas(window.width, window.height)
-
-let guiButton = newButtonWidget()
-guiButton.x = 50
-guiButton.y = 50
-guiButton.width = 200
-guiButton.height = 40
-guiButton.onPressed = proc() = echo "Pressed 1"
-guiButton.onReleased = proc() = echo "Released 1"
-
-let guiWindow = newWindowWidget()
-guiWindow.x = 200
-guiWindow.y = 200
-guiWindow.width = 500
-guiWindow.height = 300
-guiWindow.addChild(guiButton)
-
-let guiButton2 = newButtonWidget()
-guiButton2.x = 50
-guiButton2.y = 50
-guiButton2.width = 200
-guiButton2.height = 40
-guiButton2.onPressed = proc() = echo "Pressed 2"
-guiButton2.onReleased = proc() = echo "Released 2"
-
-let guiWindow2 = newWindowWidget()
-guiWindow2.x = 500
-guiWindow2.y = 300
-guiWindow2.width = 500
-guiWindow2.height = 300
-guiWindow2.addChild(guiButton2)
 
 let gui = newWidget()
 gui.width = window.width
 gui.height = window.height
-gui.addChild(guiWindow)
-gui.addChild(guiWindow2)
+
+for i in 0 ..< 50:
+  let b = newButtonWidget()
+  b.x = 20
+  b.y = 40
+  b.width = 50
+  b.height = 50
+  closureScope:
+    let windowNumber = i + 1
+    b.onPressed = proc() =
+      echo "Pressed " & $windowNumber
+    b.onReleased = proc() =
+      echo "Released " & $windowNumber
+
+  let w = newWindowWidget()
+  w.x = i.float * 10.0
+  w.y = i.float * 10.0
+  w.width = 300
+  w.height = 200
+  w.addChild(b)
+
+  gui.addChild(w)
 
 window.onResize = proc() =
   canvas.width = window.width

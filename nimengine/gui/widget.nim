@@ -56,7 +56,7 @@ func absolutePointIsInsideWidgetAndAllParents(widget: Widget, x, y: float): bool
       widget.parent.absolutePointIsInsideWidgetAndAllParents(x, y)
   isInsideParent and widget.absolutePointIsInside(x, y)
 
-func absolutePointOverWidget(widget: Widget, x, y: float): Widget =
+func widgetThatAbsolutePointIsOver(widget: Widget, x, y: float): Widget =
   if widget.focus != nil and
      widget.focus.absolutePointIsInsideWidgetAndAllParents(x, y):
     return widget.focus
@@ -85,7 +85,7 @@ func removeChild*(widget, child: Widget) =
   child.parent = nil
 
 func updateChildren*(widget: Widget, input: Input) =
-  widget.mouseOver = widget.absolutePointOverWidget(input.mouseX, input.mouseY)
+  widget.mouseOver = widget.widgetThatAbsolutePointIsOver(input.mouseX, input.mouseY)
 
   let focusRequestedFocus =
     widget.focus != nil and

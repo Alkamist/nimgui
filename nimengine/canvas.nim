@@ -55,12 +55,21 @@ func addDrawCall(canvas: Canvas) =
     return
 
   let indexOffset = canvas.indexData.len
+  let previousDrawCallIsEmpty =
+    canvas.drawCalls.len > 0 and
+    canvas.drawCalls[canvas.drawCalls.len - 1].indexCount > 0
 
-  canvas.drawCalls.add(DrawCall(
-    clipRect: canvas.clipRectStack[canvas.clipRectStack.len - 1],
-    indexOffset: indexOffset,
-    indexCount: 0,
-  ))
+  # Avoid allocating new draw calls if the previous one is empty.
+  # There could still be an empty draw call at the end of the list though.
+  if canvas.drawCalls.len == 0 or previousDrawCallIsEmpty:
+    canvas.drawCalls.add(DrawCall(
+      clipRect: canvas.clipRectStack[canvas.clipRectStack.len - 1],
+      indexOffset: indexOffset,
+      indexCount: 0,
+    ))
+  else:
+    canvas.drawCalls[canvas.drawCalls.len - 1].clipRect = canvas.clipRectStack[canvas.clipRectStack.len - 1]
+    canvas.drawCalls[canvas.drawCalls.len - 1].indexOffset = indexOffset
 
 func pushClipRect*(canvas: Canvas, clipRect: Rect2) =
   canvas.clipRectStack.add(clipRect)
@@ -288,7 +297,7 @@ func addPolyLine*(canvas: Canvas, points: openArray[Vec2], color: Color, thickne
     if closed:
       canvas.addPolyLineClosedFeather(points, color, thickness, feather)
     # else:
-    #   canvas.addPolyLineOpenAntiAlias(points, color, thickness)
+    #   canvas.addPolyLineOpenFeather(points, color, thickness, feather)
   else:
     if closed:
       canvas.addPolyLineClosedNoFeather(points, color, thickness)

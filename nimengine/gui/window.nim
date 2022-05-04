@@ -53,20 +53,17 @@ func newWindowWidget*(): WindowWidget =
   )
 
 method requestFocus*(window: WindowWidget, input: Input): bool =
-  input.justPressed(MouseButton.Left) and window.mouseIsInside(input)
+  input.justPressed(MouseButton.Left) and window.mouseIsOver(input)
 
 method releaseFocus*(window: WindowWidget, input: Input): bool =
-  input.justPressed(MouseButton.Left) and not window.mouseIsInside(input)
+  input.justPressed(MouseButton.Left) and not window.mouseIsOver(input)
 
 method update*(window: WindowWidget, input: Input) =
   let mouseX = input.mouseX
   let mouseY = input.mouseY
   let absoluteX = window.absoluteX
   let absoluteY = window.absoluteY
-  let mouseIsInsideParent =
-    if window.parent == nil: true
-    else:
-      window.parent.absolutePointIsInside(mouseX, mouseY)
+  let mouseIsOver = window.mouseIsOver(input)
   let left = absoluteX
   let right = left + window.width
   let top = absoluteY
@@ -81,13 +78,13 @@ method update*(window: WindowWidget, input: Input) =
   window.titleBarIsHovered =
     window.isMovable and
     (not window.isBeingResized) and
-    mouseIsInsideParent and
+    mouseIsOver and
     mouseX >= left and mouseX <= right and
     mouseY >= titleTop and mouseY <= titleBottom
 
   window.resizeHandleIsHovered =
     window.isResizable and
-    mouseIsInsideParent and
+    mouseIsOver and
     mouseX >= resizeLeft and mouseX <= resizeRight and
     mouseY >= resizeTop and mouseY <= resizeBottom
 

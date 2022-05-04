@@ -29,7 +29,7 @@ func newButtonWidget*(): ButtonWidget =
 method update*(button: ButtonWidget, input: Input) =
   button.wasPressed = button.isPressed
 
-  button.isHovered = button.mouseIsInside(input)
+  button.isHovered = button.mouseIsOver(input)
 
   if button.isHovered and input.justPressed(MouseButton.Left):
     button.isPressed = true

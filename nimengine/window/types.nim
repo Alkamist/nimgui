@@ -33,7 +33,6 @@ type
     cursorIsPinnedToCenter*: bool
     cursorIsHidden*: bool
 
-    onUpdate*: proc()
     onClose*: proc()
     onFocus*: proc()
     onLoseFocus*: proc()

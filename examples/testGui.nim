@@ -1,16 +1,16 @@
 import pkg/nimengine
 
 let window = newWindow()
-window.enableRenderer()
-window.renderer.setBackgroundColor(54 / 255, 57 / 255, 63 / 255, 1)
 
-let canvas = newCanvas(window.width, window.height)
+let openGlContext = newOpenGlContext(cast[pointer](window.platform.handle))
+openGlContext.select()
+
+let canvas = newCanvas()
+let canvasRenderer = newCanvasRenderer()
 
 let gui = newWidget()
-gui.width = window.width
-gui.height = window.height
 
-for i in 0 ..< 50:
+for i in 0 ..< 2:
   let b = newButtonWidget()
   b.x = 20
   b.y = 40
@@ -32,19 +32,23 @@ for i in 0 ..< 50:
 
   gui.addChild(w)
 
-window.onResize = proc() =
-  canvas.width = window.width
-  canvas.height = window.height
-  gui.width = window.width
-  gui.height = window.height
+proc render() =
+  glViewport(0.GLsizei, 0.GLsizei, window.width.GLsizei, window.height.GLsizei)
+  glScissor(0.GLint, 0.GLint, window.width.GLsizei, window.height.GLsizei)
+  glClearColor(0.1, 0.1, 0.1, 1.0)
+  glClear(GL_COLOR_BUFFER_BIT)
 
-window.onUpdate = proc() =
-  gui.update(window.input)
-
-window.renderer.onRenderGui = proc() =
-  canvas.reset()
+  canvas.beginFrame(window.width, window.height)
   gui.draw(canvas)
-  window.renderer.draw(canvas)
+  canvasRenderer.render(canvas)
+
+  openGlContext.swapBuffers()
+
+window.onResize = render
 
 while not window.isClosed:
-  window.update()
+  window.pollEvents()
+  gui.width = window.width
+  gui.height = window.height
+  gui.update(window.input)
+  render()

@@ -1,51 +1,45 @@
 import pkg/nimengine
 
 let window = newWindow()
-window.enableRenderer()
-window.renderer.setBackgroundColor(0.01, 0.01, 0.01, 1.0)
+
+let openGlContext = newOpenGlContext(cast[pointer](window.platform.handle))
+openGlContext.select()
 
 let canvas = newCanvas()
+let canvasRenderer = newCanvasRenderer()
 
 func generateCircle(position: Vec2, radius: float, pointCount: int): seq[Vec2] =
   result = newSeq[Vec2](pointCount)
   let spacing = 2 * Pi / pointCount.float
   for i in 0 ..< pointCount:
     let phi = i.float * spacing
-    result[i] = vec2(cos(-phi), sin(-phi)) * radius + position
+    result[i] = vec2(cos(-phi), sin(phi)) * radius + position
 
-window.renderer.onRender2d = proc() =
-  canvas.reset()
+var position = vec2(0, 0)
 
-  let w = window.width / 2.0
-  let h = window.height / 2.0
+proc render() =
+  glViewport(0.GLsizei, 0.GLsizei, window.width.GLsizei, window.height.GLsizei)
+  glScissor(0.GLint, 0.GLint, window.width.GLsizei, window.height.GLsizei)
+  glClearColor(0.1, 0.1, 0.1, 1.0)
+  glClear(GL_COLOR_BUFFER_BIT)
 
-  for i in 0 ..< 2:
-    for j in 0 ..< 2:
-      let position = vec2(i.float * w, j.float * h)
-      let left = (position.x + w * 0.05).round
-      let right = (position.x + w * 0.95).round
-      let bottom = (position.y + h * 0.05).round
-      let top = (position.y + h * 0.95).round
-      let points = [
-        vec2(left, bottom),
-        vec2(left, top),
-        vec2(right, top),
-        vec2(right, bottom),
-      ]
-      let color = rgba(0.3, 0.3, 0.3, 1)
-      canvas.addConvexPoly(points, color)
-      canvas.addPolyLine(points, color.lightened(0.5), 1.0, 0.5, true)
+  canvas.beginFrame(window.width, window.height)
 
-  for i in 0 ..< 2:
-    for j in 0 ..< 2:
-      let position = vec2(i.float * w + 0.5 * w, j.float * h + 0.5 * h)
-      let diameter = min(w * 0.6, h * 0.6)
-      let points = generateCircle(position, diameter * 0.5, 3)
-      let color = rgba(0.2, 0.3, 0.5, 1)
-      canvas.addConvexPoly(points, color)
-      canvas.addPolyLine(points, color.lightened(0.5), 1.0, 0.5, true)
+  let points = generateCircle(position, 200, 16)
+  canvas.addConvexPoly(points, rgbaU(255, 0, 0, 255))
+  # canvas.addPolyLine(points, rgbaU(255, 255, 255, 255), 1.0, 0, true)
 
-  window.renderer.draw(canvas)
+  canvasRenderer.render(canvas)
+
+  openGlContext.swapBuffers()
+
+window.onResize = render
 
 while not window.isClosed:
-  window.update()
+  window.pollEvents()
+
+  if window.input.isPressed(MouseButton.Left):
+    position.x = window.input.mouseX
+    position.y = window.input.mouseY
+
+  render()

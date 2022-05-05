@@ -25,6 +25,7 @@ proc pollEvents*(window: Window) =
     if window.previousTime <= 0.0:
       window.previousTime = cpuTime()
 
+    window.input.update()
     window.previousTime = window.time
     window.time = cpuTime()
     window.delta = window.time - window.previousTime

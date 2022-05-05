@@ -56,9 +56,17 @@ type
     texture*: Texture
     vertexBuffer*: VertexBuffer
     indexBuffer*: IndexBuffer
+    vao: GLuint
+
+proc `=destroy`*(renderer: var type CanvasRenderer()[]) =
+  glDeleteVertexArrays(1, renderer.vao.addr)
 
 proc newCanvasRenderer*(): CanvasRenderer =
   result = CanvasRenderer()
+
+  glGenVertexArrays(1, result.vao.addr)
+  glBindVertexArray(result.vao)
+
   result.shader = newShader(canvasVertexShader, canvasFragmentShader)
   result.texture = newTexture()
   result.texture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
@@ -77,12 +85,8 @@ proc render*(renderer: CanvasRenderer,
   glEnable(GL_BLEND)
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
   glEnable(GL_SCISSOR_TEST)
-  glEnable(GL_TEXTURE_2D)
   glDisable(GL_CULL_FACE)
   glDisable(GL_DEPTH_TEST)
-  glEnableClientState(GL_VERTEX_ARRAY)
-  glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-  glEnableClientState(GL_COLOR_ARRAY)
 
   glViewport(0.GLsizei, 0.GLsizei, canvas.width.GLsizei, canvas.height.GLsizei)
 
@@ -99,7 +103,7 @@ proc render*(renderer: CanvasRenderer,
       continue
 
     glScissor(
-      (drawCall.clipRect.x - 1.0).GLint,
+      drawCall.clipRect.x.GLint,
       (canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height) - 1.0).GLint,
       (drawCall.clipRect.width + 1.0).GLsizei,
       (drawCall.clipRect.height + 1.0).GLsizei,

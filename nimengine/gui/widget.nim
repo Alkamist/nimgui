@@ -1,5 +1,5 @@
 import ../input
-import ../canvas
+import ../gfx/canvas
 import ../gmath
 
 export input

@@ -2,6 +2,7 @@ import pkg/opengl
 export opengl
 
 import ./common
+export common
 
 type
   IndexType* = uint8 | uint16 | uint32

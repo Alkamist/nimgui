@@ -2,6 +2,7 @@ import pkg/opengl
 export opengl
 
 import ./common
+export common
 
 type
   VertexAttributeKind* {.pure.} = enum

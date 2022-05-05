@@ -93,6 +93,3 @@ proc processResize*(window: Window, width, height: float) =
 
   if window.onResize != nil:
     window.onResize()
-
-  if window.renderer != nil:
-    window.renderer.render(window.width.int, window.height.int)

@@ -1,8 +1,5 @@
 import std/times
 
-import ../renderer
-export renderer
-
 import ./types
 export types
 
@@ -23,28 +20,13 @@ proc enableCursor*(window: Window) =
   window.unpinCursorFromCenter()
   window.showCursor()
 
-proc update*(window: Window) =
+proc pollEvents*(window: Window) =
   if not window.isClosed:
     if window.previousTime <= 0.0:
       window.previousTime = cpuTime()
 
+    window.previousTime = window.time
     window.time = cpuTime()
     window.delta = window.time - window.previousTime
 
-    window.input.update()
-    window.preUpdate()
-
-    if window.onUpdate != nil:
-      window.onUpdate()
-
-    if window.renderer != nil:
-      window.renderer.render(window.width.int, window.height.int)
-
-    window.postUpdate()
-    window.previousTime = window.time
-
-proc enableRenderer*(window: Window) =
-  window.renderer = newRenderer(cast[pointer](window.platform.handle))
-
-proc disableRenderer*(window: Window) =
-  window.renderer = nil
+    window.pollEventsPlatform()

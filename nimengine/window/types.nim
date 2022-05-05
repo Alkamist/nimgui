@@ -1,7 +1,4 @@
-import ../renderer
 import ../input
-
-export renderer
 export input
 
 when defined(windows):
@@ -54,4 +51,3 @@ type
 
     input*: Input
     platform*: WindowPlatformData
-    renderer*: Renderer

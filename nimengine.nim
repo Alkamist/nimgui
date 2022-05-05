@@ -1,9 +1,9 @@
 import nimengine/window
 import nimengine/gmath
-import nimengine/renderer
-import nimengine/gui
+import nimengine/gfx
+# import nimengine/gui
 
 export window
 export gmath
-export renderer
-export gui
+export gfx
+# export gui

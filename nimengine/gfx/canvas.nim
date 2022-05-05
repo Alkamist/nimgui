@@ -1,4 +1,4 @@
-import ./gmath
+import ../gmath
 
 func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
@@ -13,7 +13,7 @@ func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
     let point = poly[i]
     let nextPoint = poly[nextPointIndex]
 
-    result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
+    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
 
 func openNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
@@ -22,7 +22,7 @@ func openNormals(poly: openArray[Vec2]): seq[Vec2] =
     let point = poly[i]
     let nextPoint = poly[i + 1]
 
-    result[i] = (nextPoint - point).rotated(0.5 * Pi).normalized
+    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
 
 type
   Index* = uint32
@@ -47,8 +47,8 @@ type
     whitePixelUv*: Vec2
     clipRectStack: seq[Rect2]
 
-func newCanvas*(width, height: float): Canvas =
-  Canvas(width: width, height: height)
+func newCanvas*(): Canvas =
+  Canvas()
 
 func addDrawCall(canvas: Canvas) =
   if canvas.clipRectStack.len == 0:
@@ -82,7 +82,9 @@ func popClipRect*(canvas: Canvas) =
   canvas.clipRectStack.del(canvas.clipRectStack.len - 1)
   canvas.addDrawCall()
 
-func reset*(canvas: Canvas) =
+func beginFrame*(canvas: Canvas, width, height: float) =
+  canvas.width = width
+  canvas.height = height
   canvas.vertexWrite = 0
   canvas.indexWrite = 0
   canvas.vertexData.setLen(0)
@@ -324,8 +326,21 @@ func addConvexPolyNoFeather(canvas: Canvas, points: openArray[Vec2], color: Colo
     canvas.addIndex(i - 1)
 
   # Add vertices.
+  let normals = points.closedNormals
+
   for i in 0 ..< vertexCount:
-    canvas.addVertex(points[i], color)
+    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
+    let previousNormal = normals[previousNormalIndex]
+    let normal = normals[i]
+
+    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let theta = previousNormal.angleTo(expanderNormal)
+    let expander = expanderNormal * 0.5 / cos(theta)
+
+    # The polygon needs to be expanded slightly to be
+    # inclusive of all pixels when rendered and match up
+    # with addPolyLine.
+    canvas.addVertex(points[i] + expander, color)
 
 func addConvexPolyFeather(canvas: Canvas, points: openArray[Vec2], color: Color, feather: float) =
   ## Assumes clockwise winding of polygon.
@@ -394,10 +409,12 @@ func addConvexPolyFeather(canvas: Canvas, points: openArray[Vec2], color: Color,
 
     let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
     let theta = previousNormal.angleTo(expanderNormal)
-    let featherLength = feather / cos(theta)
-    let featherPoint = points[i] + expanderNormal * featherLength
+    let cosTheta = cos(theta)
+    let point = points[i] + expanderNormal * 0.5 / cosTheta
+    let featherLength = feather / cosTheta
+    let featherPoint = point + expanderNormal * featherLength
 
-    canvas.addVertex(points[i], color)
+    canvas.addVertex(point, color)
     canvas.addVertex(featherPoint, featherColor)
 
 func addConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color, feather = 0.0) =

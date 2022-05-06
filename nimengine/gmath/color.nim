@@ -1,10 +1,10 @@
 type
   Color* = tuple[r, g, b, a: float]
 
-func rgba*(r, g, b, a: float): Color =
-  (r: r, g: g, b: b, a: a)
+func rgb*(r, g, b: float): Color =
+  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: 1.0)
 
-func rgbaU*(r, g, b, a: uint8): Color =
+func rgba*(r, g, b, a: float): Color =
   (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: a.float / 255)
 
 type

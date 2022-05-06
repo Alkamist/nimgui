@@ -1,11 +1,13 @@
 import pkg/opengl
 
+import ./gfx
 import ./canvas
 import ./indexbuffer
 import ./vertexbuffer
 import ./shader
 import ./texture
 
+export gfx
 export canvas
 export indexbuffer
 export vertexBuffer
@@ -64,6 +66,7 @@ proc `=destroy`*(renderer: var type CanvasRenderer()[]) =
 proc newCanvasRenderer*(): CanvasRenderer =
   result = CanvasRenderer()
 
+  # Stop OpenGl from crashing on later versions.
   glGenVertexArrays(1, result.vao.addr)
   glBindVertexArray(result.vao)
 
@@ -82,13 +85,10 @@ proc render*(renderer: CanvasRenderer,
   if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
     return
 
-  glEnable(GL_BLEND)
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-  glEnable(GL_SCISSOR_TEST)
-  glDisable(GL_CULL_FACE)
-  glDisable(GL_DEPTH_TEST)
-
-  glViewport(0.GLsizei, 0.GLsizei, canvas.width.GLsizei, canvas.height.GLsizei)
+  gfx.enableBlend()
+  gfx.enableClipping()
+  gfx.disableFaceCulling()
+  gfx.disableDepthTesting()
 
   shader.select()
   renderer.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
@@ -102,16 +102,15 @@ proc render*(renderer: CanvasRenderer,
     if drawCall.indexCount == 0:
       continue
 
-    glScissor(
-      drawCall.clipRect.x.GLint,
-      (canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height) - 1.0).GLint,
-      (drawCall.clipRect.width + 1.0).GLsizei,
-      (drawCall.clipRect.height + 1.0).GLsizei,
+    gfx.setClipRect(
+      drawCall.clipRect.x,
+      canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height) - 1.0,
+      drawCall.clipRect.width + 1.0,
+      drawCall.clipRect.height + 1.0,
     )
 
-    glDrawElements(
-      GL_TRIANGLES,
-      drawCall.indexCount.GLsizei,
-      renderer.indexBuffer.kind.toGlEnum,
-      cast[pointer](drawCall.indexOffset * renderer.indexBuffer.kind.indexSize),
+    gfx.drawTriangles(
+      drawCall.indexCount,
+      renderer.indexBuffer.kind,
+      drawCall.indexOffset,
     )

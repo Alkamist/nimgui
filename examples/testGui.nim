@@ -2,8 +2,10 @@ import pkg/nimengine
 
 let window = newWindow()
 
-let openGlContext = newOpenGlContext(cast[pointer](window.platform.handle))
+let openGlContext = newOpenGlContext(window.platform.handle)
 openGlContext.select()
+
+gfx.setBackgroundColor(rgb(32, 32, 32))
 
 let canvas = newCanvas()
 let canvasRenderer = newCanvasRenderer()
@@ -31,10 +33,9 @@ for i in 0 ..< 10:
   gui.children.add(w)
 
 proc render() =
-  glViewport(0.GLsizei, 0.GLsizei, window.width.GLsizei, window.height.GLsizei)
-  glScissor(0.GLint, 0.GLint, window.width.GLsizei, window.height.GLsizei)
-  glClearColor(0.1, 0.1, 0.1, 1.0)
-  glClear(GL_COLOR_BUFFER_BIT)
+  gfx.setViewport(0, 0, window.width, window.height)
+  gfx.setClipRect(0, 0, window.width, window.height)
+  gfx.clearBackground()
 
   canvas.beginFrame(window.width, window.height)
   gui.draw()

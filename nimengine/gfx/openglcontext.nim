@@ -144,6 +144,9 @@ when defined(windows):
 
     ReleaseDC(hwnd, dc)
 
+  proc newOpenGlContext*(handle: HWND): OpenGlContext =
+    newOpenGlContext(cast[pointer](handle))
+
   proc select*(ctx: OpenGlContext) =
     ctx.startHdc = wglGetCurrentDC()
     ctx.startHglrc = wglGetCurrentContext()

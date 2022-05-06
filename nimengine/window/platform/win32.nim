@@ -138,7 +138,6 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     let (w, h) = getClientWidthAndHeight(hwnd)
     window.width = w.float
     window.height = h.float
-    window.input.windowHeight = h.float
     window.previousWidth = w.float
     window.previousHeight = h.float
     window.platform = WindowPlatformData(handle: hwnd)
@@ -229,12 +228,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     let scanCode = LOBYTE(HIWORD(lParam))
     let isRight = (HIWORD(lParam) and KF_EXTENDED) == KF_EXTENDED
     let key = case scanCode:
-      of 42: KeyboardKey.LeftShift
-      of 54: KeyboardKey.RightShift
+      of 42: leftShift
+      of 54: rightShift
       of 29:
-        if isRight: KeyboardKey.RightControl else: KeyboardKey.LeftControl
+        if isRight: rightControl else: leftControl
       of 56:
-        if isRight: KeyboardKey.RightAlt else: KeyboardKey.LeftAlt
+        if isRight: rightAlt else: leftAlt
       else: toKeyboardKey(wParam.int)
     window.processKeyPress(key)
 
@@ -242,12 +241,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     let scanCode = LOBYTE(HIWORD(lParam))
     let isRight = (HIWORD(lParam) and KF_EXTENDED) == KF_EXTENDED
     let key = case scanCode:
-      of 42: KeyboardKey.LeftShift
-      of 54: KeyboardKey.RightShift
+      of 42: leftShift
+      of 54: rightShift
       of 29:
-        if isRight: KeyboardKey.RightControl else: KeyboardKey.LeftControl
+        if isRight: rightControl else: leftControl
       of 56:
-        if isRight: KeyboardKey.RightAlt else: KeyboardKey.LeftAlt
+        if isRight: rightAlt else: leftAlt
       else: toKeyboardKey(wParam.int)
     window.processKeyRelease(key)
 

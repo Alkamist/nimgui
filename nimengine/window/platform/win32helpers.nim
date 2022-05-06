@@ -1,3 +1,5 @@
+{.experimental: "overloadableEnums".}
+
 import std/options
 import winim/lean as win32
 import ../types
@@ -34,114 +36,114 @@ proc pollEvents*(hwnd: HWND) =
 func toMouseButton*(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
   of WM_LBUTTONDOWN, WM_LBUTTONUP, WM_LBUTTONDBLCLK:
-    MouseButton.Left
+    left
   of WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MBUTTONDBLCLK:
-    MouseButton.Middle
+    middle
   of WM_RBUTTONDOWN, WM_RBUTTONUP, WM_RBUTTONDBLCLK:
-    MouseButton.Right
+    right
   of WM_XBUTTONDOWN, WM_XBUTTONUP, WM_XBUTTONDBLCLK:
     if HIWORD(wParam) == 1:
-      MouseButton.Extra1
+      extra1
     else:
-      MouseButton.Extra2
+      extra2
   else:
-    MouseButton.Unknown
+    unknown
 
 func toKeyboardKey*(scanCode: int): KeyboardKey =
   case scanCode:
-  of 8: KeyboardKey.Backspace
-  of 9: KeyboardKey.Tab
-  of 13: KeyboardKey.Enter
-  of 19: KeyboardKey.Pause
-  of 20: KeyboardKey.CapsLock
-  of 27: KeyboardKey.Escape
-  of 32: KeyboardKey.Space
-  of 33: KeyboardKey.PageUp
-  of 34: KeyboardKey.PageDown
-  of 35: KeyboardKey.End
-  of 36: KeyboardKey.Home
-  of 37: KeyboardKey.LeftArrow
-  of 38: KeyboardKey.UpArrow
-  of 39: KeyboardKey.RightArrow
-  of 40: KeyboardKey.DownArrow
-  of 45: KeyboardKey.Insert
-  of 46: KeyboardKey.Delete
-  of 48: KeyboardKey.Key0
-  of 49: KeyboardKey.Key1
-  of 50: KeyboardKey.Key2
-  of 51: KeyboardKey.Key3
-  of 52: KeyboardKey.Key4
-  of 53: KeyboardKey.Key5
-  of 54: KeyboardKey.Key6
-  of 55: KeyboardKey.Key7
-  of 56: KeyboardKey.Key8
-  of 57: KeyboardKey.Key9
-  of 65: KeyboardKey.A
-  of 66: KeyboardKey.B
-  of 67: KeyboardKey.C
-  of 68: KeyboardKey.D
-  of 69: KeyboardKey.E
-  of 70: KeyboardKey.F
-  of 71: KeyboardKey.G
-  of 72: KeyboardKey.H
-  of 73: KeyboardKey.I
-  of 74: KeyboardKey.J
-  of 75: KeyboardKey.K
-  of 76: KeyboardKey.L
-  of 77: KeyboardKey.M
-  of 78: KeyboardKey.N
-  of 79: KeyboardKey.O
-  of 80: KeyboardKey.P
-  of 81: KeyboardKey.Q
-  of 82: KeyboardKey.R
-  of 83: KeyboardKey.S
-  of 84: KeyboardKey.T
-  of 85: KeyboardKey.U
-  of 86: KeyboardKey.V
-  of 87: KeyboardKey.W
-  of 88: KeyboardKey.X
-  of 89: KeyboardKey.Y
-  of 90: KeyboardKey.Z
-  of 91: KeyboardKey.LeftMeta
-  of 92: KeyboardKey.RightMeta
-  of 96: KeyboardKey.Pad0
-  of 97: KeyboardKey.Pad1
-  of 98: KeyboardKey.Pad2
-  of 99: KeyboardKey.Pad3
-  of 100: KeyboardKey.Pad4
-  of 101: KeyboardKey.Pad5
-  of 102: KeyboardKey.Pad6
-  of 103: KeyboardKey.Pad7
-  of 104: KeyboardKey.Pad8
-  of 105: KeyboardKey.Pad9
-  of 106: KeyboardKey.PadMultiply
-  of 107: KeyboardKey.PadAdd
-  of 109: KeyboardKey.PadSubtract
-  of 110: KeyboardKey.PadPeriod
-  of 111: KeyboardKey.PadDivide
-  of 112: KeyboardKey.F1
-  of 113: KeyboardKey.F2
-  of 114: KeyboardKey.F3
-  of 115: KeyboardKey.F4
-  of 116: KeyboardKey.F5
-  of 117: KeyboardKey.F6
-  of 118: KeyboardKey.F7
-  of 119: KeyboardKey.F8
-  of 120: KeyboardKey.F9
-  of 121: KeyboardKey.F10
-  of 122: KeyboardKey.F11
-  of 123: KeyboardKey.F12
-  of 144: KeyboardKey.NumLock
-  of 145: KeyboardKey.ScrollLock
-  of 186: KeyboardKey.Semicolon
-  of 187: KeyboardKey.Equal
-  of 188: KeyboardKey.Comma
-  of 189: KeyboardKey.Minus
-  of 190: KeyboardKey.Period
-  of 191: KeyboardKey.Slash
-  of 192: KeyboardKey.Backtick
-  of 219: KeyboardKey.LeftBracket
-  of 220: KeyboardKey.BackSlash
-  of 221: KeyboardKey.RightBracket
-  of 222: KeyboardKey.Quote
-  else: KeyboardKey.Unknown
+  of 8: backspace
+  of 9: tab
+  of 13: enter
+  of 19: pause
+  of 20: capsLock
+  of 27: escape
+  of 32: space
+  of 33: pageUp
+  of 34: pageDown
+  of 35: keyEnd
+  of 36: home
+  of 37: leftArrow
+  of 38: upArrow
+  of 39: rightArrow
+  of 40: downArrow
+  of 45: insert
+  of 46: delete
+  of 48: key0
+  of 49: key1
+  of 50: key2
+  of 51: key3
+  of 52: key4
+  of 53: key5
+  of 54: key6
+  of 55: key7
+  of 56: key8
+  of 57: key9
+  of 65: a
+  of 66: b
+  of 67: c
+  of 68: d
+  of 69: e
+  of 70: f
+  of 71: g
+  of 72: h
+  of 73: i
+  of 74: j
+  of 75: k
+  of 76: l
+  of 77: m
+  of 78: n
+  of 79: o
+  of 80: p
+  of 81: q
+  of 82: r
+  of 83: s
+  of 84: t
+  of 85: u
+  of 86: v
+  of 87: w
+  of 88: x
+  of 89: y
+  of 90: z
+  of 91: leftMeta
+  of 92: rightMeta
+  of 96: pad0
+  of 97: pad1
+  of 98: pad2
+  of 99: pad3
+  of 100: pad4
+  of 101: pad5
+  of 102: pad6
+  of 103: pad7
+  of 104: pad8
+  of 105: pad9
+  of 106: padMultiply
+  of 107: padAdd
+  of 109: padSubtract
+  of 110: padPeriod
+  of 111: padDivide
+  of 112: f1
+  of 113: f2
+  of 114: f3
+  of 115: f4
+  of 116: f5
+  of 117: f6
+  of 118: f7
+  of 119: f8
+  of 120: f9
+  of 121: f10
+  of 122: f11
+  of 123: f12
+  of 144: numLock
+  of 145: scrollLock
+  of 186: semicolon
+  of 187: equal
+  of 188: comma
+  of 189: minus
+  of 190: period
+  of 191: slash
+  of 192: backtick
+  of 219: leftBracket
+  of 220: backSlash
+  of 221: rightBracket
+  of 222: quote
+  else: unknown

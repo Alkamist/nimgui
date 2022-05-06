@@ -30,12 +30,12 @@ method update*(button: ButtonWidget, input: Input) =
 
   button.isHovered = button.mouseIsOver(input)
 
-  if button.isHovered and input.justPressed(MouseButton.Left):
+  if button.isHovered and input.mousePressed[left]:
     button.isPressed = true
     if button.onPressed != nil:
       button.onPressed()
 
-  if button.isPressed and input.justReleased(MouseButton.Left):
+  if button.isPressed and input.mouseReleased[left]:
     button.isPressed = false
     if button.onReleased != nil:
       button.onReleased()

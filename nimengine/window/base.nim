@@ -29,28 +29,28 @@ proc processMouseWheel*(window: Window, x, y: float) =
 proc processMousePress*(window: Window, button: MouseButton) =
   let input = window.input
   input.lastMousePress = button
-  input.mouseButtonStates[button] = true
+  input.mouseDown[button] = true
   if window.onMousePress != nil:
     window.onMousePress()
 
 proc processMouseRelease*(window: Window, button: MouseButton) =
   let input = window.input
   input.lastMouseRelease = button
-  input.mouseButtonStates[button] = false
+  input.mouseDown[button] = false
   if window.onMouseRelease != nil:
     window.onMouseRelease()
 
 proc processKeyPress*(window: Window, key: KeyboardKey) =
   let input = window.input
   input.lastKeyPress = key
-  input.keyStates[key] = true
+  input.keyDown[key] = true
   if window.onKeyPress != nil:
     window.onKeyPress()
 
 proc processKeyRelease*(window: Window, key: KeyboardKey) =
   let input = window.input
   input.lastKeyRelease = key
-  input.keyStates[key] = false
+  input.keyDown[key] = false
   if window.onKeyRelease != nil:
     window.onKeyRelease()
 
@@ -89,7 +89,6 @@ proc processResize*(window: Window, width, height: float) =
   window.height = height
   window.widthChange = window.width - window.previousWidth
   window.heightChange = window.height - window.previousHeight
-  window.input.windowHeight = window.height
 
   if window.onResize != nil:
     window.onResize()

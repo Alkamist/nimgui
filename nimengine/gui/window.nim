@@ -1,3 +1,5 @@
+{.experimental: "overloadableEnums".}
+
 import ./theme
 import ./widget
 
@@ -49,10 +51,10 @@ func newWindowWidget*(): WindowWidget =
   )
 
 method requestFocus*(window: WindowWidget, input: Input): bool =
-  input.justPressed(MouseButton.Left) and window.mouseIsOver(input)
+  input.mousePressed[left] and window.mouseIsOver(input)
 
 method releaseFocus*(window: WindowWidget, input: Input): bool =
-  input.justPressed(MouseButton.Left) and not window.mouseIsOver(input)
+  input.mousePressed[left] and not window.mouseIsOver(input)
 
 method update*(window: WindowWidget, input: Input) =
   let mouseX = input.mouseX
@@ -60,22 +62,22 @@ method update*(window: WindowWidget, input: Input) =
   let absoluteX = window.absoluteX
   let absoluteY = window.absoluteY
   let mouseIsOver = window.mouseIsOver(input)
-  let left = absoluteX
-  let right = left + window.width
-  let top = absoluteY
-  let bottom = top + window.height
-  let titleTop = top
+  let windowLeft = absoluteX
+  let windowRight = windowLeft + window.width
+  let windowTop = absoluteY
+  let windowBottom = windowTop + window.height
+  let titleTop = windowTop
   let titleBottom = titleTop + window.titleBarHeight
-  let resizeLeft = right - window.resizeHandleSize
-  let resizeRight = right
-  let resizeBottom = bottom
-  let resizeTop = bottom - window.resizeHandleSize
+  let resizeLeft = windowRight - window.resizeHandleSize
+  let resizeRight = windowRight
+  let resizeBottom = windowBottom
+  let resizeTop = windowBottom - window.resizeHandleSize
 
   window.titleBarIsHovered =
     window.isMovable and
     (not window.isBeingResized) and
     mouseIsOver and
-    mouseX >= left and mouseX <= right and
+    mouseX >= windowLeft and mouseX <= windowRight and
     mouseY >= titleTop and mouseY <= titleBottom
 
   window.resizeHandleIsHovered =
@@ -85,11 +87,11 @@ method update*(window: WindowWidget, input: Input) =
     mouseY >= resizeTop and mouseY <= resizeBottom
 
   # Press title bar.
-  if window.titleBarIsHovered and input.justPressed(MouseButton.Left):
+  if window.titleBarIsHovered and input.mousePressed[left]:
     window.isBeingMoved = true
 
   # Release title bar.
-  if window.isBeingMoved and input.justReleased(MouseButton.Left):
+  if window.isBeingMoved and input.mouseReleased[left]:
     window.isBeingMoved = false
 
   # Move window.
@@ -98,7 +100,7 @@ method update*(window: WindowWidget, input: Input) =
     window.y += input.mouseYChange
 
   # Press resize handle.
-  if window.resizeHandleIsHovered and input.justPressed(MouseButton.Left):
+  if window.resizeHandleIsHovered and input.mousePressed[left]:
     window.isBeingResized = true
     window.resizeStartX = mouseX
     window.resizeStartY = mouseY
@@ -106,7 +108,7 @@ method update*(window: WindowWidget, input: Input) =
     window.resizeStartHeight = window.height
 
   # Release resize handle.
-  if window.isBeingResized and input.justReleased(MouseButton.Left):
+  if window.isBeingResized and input.mouseReleased[left]:
     window.isBeingResized = false
 
   # Resize window.

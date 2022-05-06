@@ -8,9 +8,9 @@ openGlContext.select()
 let canvas = newCanvas()
 let canvasRenderer = newCanvasRenderer()
 
-let gui = newWidget()
+let gui = newWidget(canvas, window.input)
 
-for i in 0 ..< 2:
+for i in 0 ..< 10:
   let b = newButtonWidget()
   b.x = 20
   b.y = 40
@@ -22,13 +22,13 @@ for i in 0 ..< 2:
       echo "Clicked " & $windowNumber
 
   let w = newWindowWidget()
-  w.x = i.float * 10.0
-  w.y = i.float * 10.0
+  w.x = i.float * 30.0
+  w.y = i.float * 30.0
   w.width = 300
   w.height = 200
-  w.addChild(b)
+  w.children.add(b)
 
-  gui.addChild(w)
+  gui.children.add(w)
 
 proc render() =
   glViewport(0.GLsizei, 0.GLsizei, window.width.GLsizei, window.height.GLsizei)
@@ -37,7 +37,7 @@ proc render() =
   glClear(GL_COLOR_BUFFER_BIT)
 
   canvas.beginFrame(window.width, window.height)
-  gui.draw(canvas)
+  gui.draw()
   canvasRenderer.render(canvas)
 
   openGlContext.swapBuffers()
@@ -46,7 +46,5 @@ window.onResize = render
 
 while not window.isClosed:
   window.pollEvents()
-  gui.width = window.width
-  gui.height = window.height
-  gui.update(window.input)
+  gui.update()
   render()

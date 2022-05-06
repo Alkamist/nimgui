@@ -5,13 +5,11 @@ type
   ButtonColors* = object
     background*: Color
     hovered*: Color
-    pressed*: Color
+    down*: Color
 
   ButtonWidget* = ref object of Widget
     colors*: ButtonColors
-    isHovered*: bool
-    isPressed*: bool
-    wasPressed*: bool
+    isDown*: bool
     onClicked*: proc()
     onPressed*: proc()
     onReleased*: proc()
@@ -20,40 +18,33 @@ func defaultButtonColors(): ButtonColors =
   ButtonColors(
     background: defaultColors.button,
     hovered: defaultColors.buttonHovered,
-    pressed: defaultColors.buttonPressed,
+    down: defaultColors.buttonDown,
   )
 
 func newButtonWidget*(): ButtonWidget =
   ButtonWidget(colors: defaultButtonColors())
 
-method update*(button: ButtonWidget, input: Input) =
-  button.wasPressed = button.isPressed
-
-  button.isHovered = button.mouseIsOver(input)
-
-  if button.isHovered and input.mousePressed[left]:
-    button.isPressed = true
+method update*(button: ButtonWidget) =
+  if button.mouseIsOver and button.mousePressed[left]:
+    button.isDown = true
 
     if button.onPressed != nil:
       button.onPressed()
 
-  if button.isPressed and input.mouseReleased[left]:
-    button.isPressed = false
+  if button.isDown and button.mouseReleased[left]:
+    button.isDown = false
 
     if button.onReleased != nil:
       button.onReleased()
 
-    if button.isHovered:
+    if button.mouseIsOver:
       if button.onClicked != nil:
         button.onClicked()
 
-method draw*(button: ButtonWidget, canvas: Canvas) =
-  let x = button.absoluteX
-  let y = button.absoluteY
-
+method draw*(button: ButtonWidget) =
   let buttonColor =
-    if button.isPressed: button.colors.pressed
-    elif button.isHovered: button.colors.hovered
+    if button.isDown: button.colors.down
+    elif button.mouseIsOver: button.colors.hovered
     else: button.colors.background
 
-  canvas.fillRect(x, y, button.width, button.height, buttonColor)
+  button.fillRect(0, 0, button.width, button.height, buttonColor)

@@ -10,5 +10,5 @@ const defaultColors* = (
   border: border,
   button: button,
   buttonHovered: button.lightened(0.2),
-  buttonPressed: border,
+  buttonDown: border,
 )

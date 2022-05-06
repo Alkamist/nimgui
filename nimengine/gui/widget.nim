@@ -8,113 +8,114 @@ export gmath
 
 type
   Widget* = ref object of RootObj
-    parent*: Widget
-    focus*: Widget
-    mouseOver*: Widget
     children*: seq[Widget]
+    parent*: Widget
+    canvas*: Canvas
+    input*: Input
     x*, y*: float
+    absoluteX*, absoluteY*: float
     width*, height*: float
+    mouseX*, mouseY*: float
+    mouseIsInside*: bool
+    mouseIsOver*: bool
+    mouseOver*: Widget
+    focus*: Widget
 
-func newWidget*(): Widget =
-  Widget()
+func newWidget*(canvas: Canvas, input: Input): Widget =
+  Widget(canvas: canvas, input: input)
 
-func updateChildren*(widget: Widget, input: Input)
-func drawChildren*(widget: Widget, canvas: Canvas)
+func updateChildren*(widget: Widget)
+func drawChildren*(widget: Widget)
 
-method requestFocus*(widget: Widget, input: Input): bool {.base.} = false
-method releaseFocus*(widget: Widget, input: Input): bool {.base.} = false
+method requestFocus*(widget: Widget): bool {.base.} = false
+method releaseFocus*(widget: Widget): bool {.base.} = false
 
-method update*(widget: Widget, input: Input) {.base.} =
-  widget.updateChildren(input)
-
-method draw*(widget: Widget, canvas: Canvas) {.base.} =
-  widget.drawChildren(canvas)
-
-func isFocused*(widget: Widget): bool =
-  widget.parent.focus == widget
-
-func absoluteX*(widget: Widget): float =
-  if widget.parent == nil: widget.x
-  else: widget.parent.absoluteX + widget.x
-
-func absoluteY*(widget: Widget): float =
-  if widget.parent == nil: widget.y
-  else: widget.parent.absoluteY + widget.y
-
-func absolutePointIsInside(widget: Widget, x, y: float): bool =
-  let left = widget.absoluteX
-  let right = left + widget.width
-  let top = widget.absoluteY
-  let bottom = top + widget.height
-  x >= left and x <= right and y >= top and y <= bottom
-
-func absolutePointIsInsideWidgetAndAllParents(widget: Widget, x, y: float): bool =
-  let isInsideParent =
-    if widget.parent == nil:
-      true
-    else:
-      widget.parent.absolutePointIsInsideWidgetAndAllParents(x, y)
-  isInsideParent and widget.absolutePointIsInside(x, y)
-
-func widgetThatAbsolutePointIsOver(widget: Widget, x, y: float): Widget =
-  if widget.focus != nil and
-     widget.focus.absolutePointIsInsideWidgetAndAllParents(x, y):
-    return widget.focus
-
-  for i in countdown(widget.children.len - 1, 0, 1):
-    let child = widget.children[i]
-    if child == widget.focus: continue
-    if child.absolutePointIsInsideWidgetAndAllParents(x, y):
-      return child
-
-func mouseIsOver*(widget: Widget, input: Input): bool =
+method update*(widget: Widget) {.base.} =
   if widget.parent == nil:
-    widget.absolutePointIsInside(input.mouseX, input.mouseY)
-  else:
-    widget.parent.mouseOver == widget and
-    widget.parent.mouseIsOver(input)
+    widget.mouseIsInside = true
+    widget.mouseIsOver = true
+  widget.width = widget.canvas.width
+  widget.height = widget.canvas.height
+  widget.updateChildren()
 
-func addChild*(widget, child: Widget) =
-  child.parent = widget
-  widget.children.add(child)
+method draw*(widget: Widget) {.base.} =
+  widget.drawChildren()
 
-func removeChild*(widget, child: Widget) =
-  for i in 0 ..< widget.children.len:
-    if widget.children[i] == child:
-      widget.children.del(i)
-  child.parent = nil
+template mouseDown*(widget: Widget): untyped = widget.input.mouseDown
+template mousePressed*(widget: Widget): untyped = widget.input.mousePressed
+template mouseReleased*(widget: Widget): untyped = widget.input.mouseReleased
+template keyDown*(widget: Widget): untyped = widget.input.keyDown
+template keyPressed*(widget: Widget): untyped = widget.input.keyPressed
+template keyReleased*(widget: Widget): untyped = widget.input.keyReleased
 
-func updateChildren*(widget: Widget, input: Input) =
-  widget.mouseOver = widget.widgetThatAbsolutePointIsOver(input.mouseX, input.mouseY)
+template mouseXChange*(widget: Widget): untyped = widget.input.mouseXChange
+template mouseYChange*(widget: Widget): untyped = widget.input.mouseYChange
 
-  let focusRequestedFocus =
-    widget.focus != nil and
-    widget.focus.requestFocus(input)
+func pushClipRect*(widget: Widget, x, y, width, height: float) =
+  let x = widget.absoluteX + x
+  let y = widget.absoluteY + y
+  widget.canvas.pushClipRect(x, y, width, height)
 
+template pushClipRect*(widget: Widget): untyped = widget.pushClipRect(0, 0, widget.width, widget.height)
+template popClipRect*(widget: Widget): untyped = widget.canvas.popClipRect()
+
+func fillRect*(widget: Widget, x, y, width, height: float, color: Color, feather = 0.0) =
+  let x = widget.absoluteX + x
+  let y = widget.absoluteY + y
+  widget.canvas.fillRect(x, y, width, height, color, feather)
+
+func strokeRect*(widget: Widget, x, y, width, height: float, color: Color, thickness = 1.0, feather = 0.0) =
+  let x = widget.absoluteX + x
+  let y = widget.absoluteY + y
+  widget.canvas.strokeRect(x, y, width, height, color, thickness, feather)
+
+func updateChildren*(widget: Widget) =
+  var mouseOverIsSet = false
   var focusChanged = false
   var focusIndex = 0
 
-  # Change focus if needed and update children.
-  for i, child in widget.children:
-    if (not focusRequestedFocus) and child.requestFocus(input):
+  widget.mouseOver = nil
+
+  for i in countdown(widget.children.len - 1, 0, 1):
+    let child = widget.children[i]
+
+    child.parent = widget
+    child.input = widget.input
+    child.canvas = widget.canvas
+
+    child.absoluteX = widget.absoluteX + child.x
+    child.absoluteY = widget.absoluteY + child.y
+
+    child.mouseX = widget.input.mouseX - child.absoluteX
+    child.mouseY = widget.input.mouseY - child.absoluteY
+
+    child.mouseIsInside =
+      child.mouseX >= 0 and child.mouseX <= child.width and
+      child.mouseY >= 0 and child.mouseY <= child.height
+
+    if not mouseOverIsSet and child.mouseIsInside and widget.mouseIsOver:
+      widget.mouseOver = child
+      mouseOverIsSet = true
+
+    child.mouseIsOver = child == widget.mouseOver
+
+    if child.mouseIsOver and child.requestFocus():
       widget.focus = child
       focusChanged = true
       focusIndex = i
 
-    if widget.focus == child and child.releaseFocus(input):
+    if widget.focus == child and child.releaseFocus():
       widget.focus = nil
 
-    child.update(input)
-
-  # If the focus is changed, move it to the end of the list
-  # so the widget's children are rendered with more recent
-  # focuses on top.
-  if focusChanged and widget.children.len > 1:
+  if focusChanged:
     let lastIndex = widget.children.len - 1
     for i in focusIndex ..< lastIndex:
       widget.children[i] = widget.children[i + 1]
     widget.children[lastIndex] = widget.focus
 
-func drawChildren*(widget: Widget, canvas: Canvas) =
+  for i in countdown(widget.children.len - 1, 0, 1):
+    widget.children[i].update()
+
+func drawChildren*(widget: Widget) =
   for child in widget.children:
-    child.draw(canvas)
+    child.draw()

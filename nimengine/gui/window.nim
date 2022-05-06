@@ -36,7 +36,7 @@ func defaultWindowColors(): WindowColors =
     border: defaultColors.border,
     resizeHandle: defaultColors.button,
     resizeHandleHovered: defaultColors.buttonHovered,
-    resizeHandlePressed: defaultColors.buttonPressed,
+    resizeHandlePressed: defaultColors.buttonDown,
   )
 
 func newWindowWidget*(): WindowWidget =
@@ -50,98 +50,75 @@ func newWindowWidget*(): WindowWidget =
     minHeight: 60,
   )
 
-method requestFocus*(window: WindowWidget, input: Input): bool =
-  input.mousePressed[left] and window.mouseIsOver(input)
+method requestFocus*(window: WindowWidget): bool =
+  window.mousePressed[left] and window.mouseIsOver
 
-method releaseFocus*(window: WindowWidget, input: Input): bool =
-  input.mousePressed[left] and not window.mouseIsOver(input)
+method releaseFocus*(window: WindowWidget): bool =
+  window.mousePressed[left] and not window.mouseIsOver
 
-method update*(window: WindowWidget, input: Input) =
-  let mouseX = input.mouseX
-  let mouseY = input.mouseY
-  let absoluteX = window.absoluteX
-  let absoluteY = window.absoluteY
-  let mouseIsOver = window.mouseIsOver(input)
-  let windowLeft = absoluteX
-  let windowRight = windowLeft + window.width
-  let windowTop = absoluteY
-  let windowBottom = windowTop + window.height
-  let titleTop = windowTop
-  let titleBottom = titleTop + window.titleBarHeight
-  let resizeLeft = windowRight - window.resizeHandleSize
-  let resizeRight = windowRight
-  let resizeBottom = windowBottom
-  let resizeTop = windowBottom - window.resizeHandleSize
-
+method update*(window: WindowWidget) =
   window.titleBarIsHovered =
     window.isMovable and
     (not window.isBeingResized) and
-    mouseIsOver and
-    mouseX >= windowLeft and mouseX <= windowRight and
-    mouseY >= titleTop and mouseY <= titleBottom
+    window.mouseIsOver and
+    window.mouseX >= 0 and window.mouseX <= window.width and
+    window.mouseY >= 0 and window.mouseY <= window.titleBarHeight
 
   window.resizeHandleIsHovered =
     window.isResizable and
-    mouseIsOver and
-    mouseX >= resizeLeft and mouseX <= resizeRight and
-    mouseY >= resizeTop and mouseY <= resizeBottom
+    window.mouseIsOver and
+    window.mouseX >= (window.width - window.resizeHandleSize) and window.mouseX <= window.width and
+    window.mouseY >= (window.height - window.resizeHandleSize) and window.mouseY <= window.height
 
   # Press title bar.
-  if window.titleBarIsHovered and input.mousePressed[left]:
+  if window.titleBarIsHovered and window.mousePressed[left]:
     window.isBeingMoved = true
 
   # Release title bar.
-  if window.isBeingMoved and input.mouseReleased[left]:
+  if window.isBeingMoved and window.mouseReleased[left]:
     window.isBeingMoved = false
 
   # Move window.
   if window.isBeingMoved:
-    window.x += input.mouseXChange
-    window.y += input.mouseYChange
+    window.x += window.mouseXChange
+    window.y += window.mouseYChange
 
   # Press resize handle.
-  if window.resizeHandleIsHovered and input.mousePressed[left]:
+  if window.resizeHandleIsHovered and window.mousePressed[left]:
     window.isBeingResized = true
-    window.resizeStartX = mouseX
-    window.resizeStartY = mouseY
+    window.resizeStartX = window.mouseX
+    window.resizeStartY = window.mouseY
     window.resizeStartWidth = window.width
     window.resizeStartHeight = window.height
 
   # Release resize handle.
-  if window.isBeingResized and input.mouseReleased[left]:
+  if window.isBeingResized and window.mouseReleased[left]:
     window.isBeingResized = false
 
   # Resize window.
   if window.isBeingResized:
-    let resizeWidth = window.resizeStartWidth + (mouseX - window.resizeStartX)
-    let resizeHeight = window.resizeStartHeight + (mouseY - window.resizeStartY)
+    let resizeWidth = window.resizeStartWidth + (window.mouseX - window.resizeStartX)
+    let resizeHeight = window.resizeStartHeight + (window.mouseY - window.resizeStartY)
     window.width = resizeWidth.max(window.minWidth)
     window.height = resizeHeight.max(window.minHeight)
 
-  window.updateChildren(input)
+  window.updateChildren()
 
-method draw*(window: WindowWidget, canvas: Canvas) =
-  let x = window.absoluteX
-  let y = window.absoluteY
-
-  canvas.pushClipRect(x, y, window.width, window.height)
+method draw*(window: WindowWidget) =
+  window.pushClipRect()
 
   # Background and title bar.
-  canvas.fillRect(x, y, window.width, window.height, window.colors.background)
-  canvas.fillRect(x, y, window.width, window.titleBarHeight, window.colors.titleBar)
+  window.fillRect(0, 0, window.width, window.height, window.colors.background)
+  window.fillRect(0, 0, window.width, window.titleBarHeight, window.colors.titleBar)
 
-  window.drawChildren(canvas)
+  window.drawChildren()
 
   # Resize Handle.
-  let left = x
-  let right = left + window.width
-  let top = y
-  let bottom = top + window.height
   let resizeInset = 4.0
-  let resizeLeft = right - window.resizeHandleSize + resizeInset
-  let resizeRight = right - resizeInset
-  let resizeBottom = bottom - resizeInset
-  let resizeTop = bottom - window.resizeHandleSize + resizeInset
+  let resizeLeft = window.x + window.width - window.resizeHandleSize + resizeInset
+  let resizeRight = window.x + window.width - resizeInset
+  let resizeBottom = window.y + window.height - resizeInset
+  let resizeTop = window.y + window.height - window.resizeHandleSize + resizeInset
   let resizeHandlePoints = [
     vec2(resizeLeft, resizeBottom),
     vec2(resizeRight, resizeTop),
@@ -151,9 +128,9 @@ method draw*(window: WindowWidget, canvas: Canvas) =
     if window.isBeingResized: window.colors.resizeHandlePressed
     elif window.resizeHandleIsHovered: window.colors.resizeHandleHovered
     else: window.colors.resizeHandle
-  canvas.addConvexPoly(resizeHandlePoints, resizeHandleColor, 0.5)
+  window.canvas.addConvexPoly(resizeHandlePoints, resizeHandleColor)
 
   # Border:
-  canvas.strokeRect(x, y, window.width, window.height, window.colors.border, 1.0)
+  window.strokeRect(0, 0, window.width, window.height, window.colors.border, 1.0)
 
-  canvas.popClipRect()
+  window.popClipRect()

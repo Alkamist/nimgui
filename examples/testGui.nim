@@ -2,35 +2,36 @@ import pkg/nimengine
 
 let window = newWindow()
 
-let openGlContext = newOpenGlContext(window.platform.handle)
+let openGlContext = gfx.newOpenGlContext(window.platform.handle)
 openGlContext.select()
 
 gfx.setBackgroundColor(rgb(32, 32, 32))
 
-let canvas = newCanvas()
-let canvasRenderer = newCanvasRenderer()
+let canvas = gfx.newCanvas()
+let canvasRenderer = gfx.newCanvasRenderer()
 
 let gui = newWidget(canvas, window.input)
 
-for i in 0 ..< 10:
-  let b = newButtonWidget()
-  b.x = 20
-  b.y = 40
-  b.width = 50
-  b.height = 50
-  closureScope:
-    let windowNumber = i + 1
-    b.onClicked = proc() =
-      echo "Clicked " & $windowNumber
+let width = window.width / 5.0
+let height = window.height / 5.0
 
-  let w = newWindowWidget()
-  w.x = i.float * 30.0
-  w.y = i.float * 30.0
-  w.width = 300
-  w.height = 200
-  w.children.add(b)
+for i in 0 ..< 5:
+  for j in 0 ..< 5:
+    let b = newButtonWidget()
+    b.x = 20
+    b.y = 40
+    b.width = 100
+    b.height = 80
+    b.onClicked = proc() = echo "Clicked"
 
-  gui.children.add(w)
+    let w = newWindowWidget()
+    w.x = i.float * width
+    w.y = j.float * height
+    w.width = 300
+    w.height = 200
+    w.children.add(b)
+
+    gui.children.add(w)
 
 proc render() =
   gfx.setViewport(0, 0, window.width, window.height)

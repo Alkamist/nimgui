@@ -102,11 +102,16 @@ proc render*(renderer: CanvasRenderer,
     if drawCall.indexCount == 0:
       continue
 
+    # OpenGl clip rects are placed from the bottom left.
+    let crX = drawCall.clipRect.x
+    let crYFlipped = canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height)
+    let crWidth = drawCall.clipRect.width
+    let crHeight = drawCall.clipRect.height
     gfx.setClipRect(
-      drawCall.clipRect.x,
-      canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height) - 1.0,
-      drawCall.clipRect.width + 1.0,
-      drawCall.clipRect.height + 1.0,
+      crX + 0.5,
+      crYFlipped - 0.5,
+      crWidth + 1.0,
+      crHeight + 1.0,
     )
 
     gfx.drawTriangles(

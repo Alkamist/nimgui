@@ -430,25 +430,25 @@ func addConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color, feath
 func fillRect*(canvas: Canvas, x, y, width, height: float, color: Color, feather = 0.0) =
   let left = x
   let right = x + width
-  let bottom = y
-  let top = y + height
+  let top = y
+  let bottom = y + height
   let points = [
-    vec2(left, bottom),
     vec2(left, top),
     vec2(right, top),
     vec2(right, bottom),
+    vec2(left, bottom),
   ]
   canvas.addConvexPoly(points, color, feather)
 
 func strokeRect*(canvas: Canvas, x, y, width, height: float, color: Color, thickness = 1.0, feather = 0.0) =
   let left = x
   let right = x + width
-  let bottom = y
-  let top = y + height
+  let top = y
+  let bottom = y + height
   let points = [
-    vec2(left, bottom),
     vec2(left, top),
     vec2(right, top),
     vec2(right, bottom),
+    vec2(left, bottom),
   ]
   canvas.addPolyLine(points, color, thickness, feather, true)

@@ -43,9 +43,11 @@ proc setBackgroundColor*(color: Color) =
 proc clearBackground*() =
   glClear(GL_COLOR_BUFFER_BIT)
 
+# x and y are the bottom left.
 proc setViewport*(x, y, width, height: float) =
   glViewport(x.GLint, y.GLint, width.GLsizei, height.GLsizei)
 
+# x and y are the bottom left.
 proc setClipRect*(x, y, width, height: float) =
   glScissor(x.GLint, y.GLint, width.GLsizei, height.GLsizei)
 

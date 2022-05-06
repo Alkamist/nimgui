@@ -105,7 +105,10 @@ method update*(window: WindowWidget) =
   window.updateChildren()
 
 method draw*(window: WindowWidget) =
-  window.pushClipRect()
+  # Border:
+  window.strokeRect(0, 0, window.width, window.height, window.colors.border)
+
+  window.pushClipRect(1, 1, window.width - 2, window.height - 2)
 
   # Background and title bar.
   window.fillRect(0, 0, window.width, window.height, window.colors.background)
@@ -115,10 +118,10 @@ method draw*(window: WindowWidget) =
 
   # Resize Handle.
   let resizeInset = 4.0
-  let resizeLeft = window.x + window.width - window.resizeHandleSize + resizeInset
-  let resizeRight = window.x + window.width - resizeInset
-  let resizeBottom = window.y + window.height - resizeInset
-  let resizeTop = window.y + window.height - window.resizeHandleSize + resizeInset
+  let resizeLeft = (window.x + window.width - window.resizeHandleSize + resizeInset).round
+  let resizeRight = (window.x + window.width - resizeInset).round
+  let resizeBottom = (window.y + window.height - resizeInset).round
+  let resizeTop = (window.y + window.height - window.resizeHandleSize + resizeInset).round
   let resizeHandlePoints = [
     vec2(resizeLeft, resizeBottom),
     vec2(resizeRight, resizeTop),
@@ -129,8 +132,5 @@ method draw*(window: WindowWidget) =
     elif window.resizeHandleIsHovered: window.colors.resizeHandleHovered
     else: window.colors.resizeHandle
   window.canvas.addConvexPoly(resizeHandlePoints, resizeHandleColor)
-
-  # Border:
-  window.strokeRect(0, 0, window.width, window.height, window.colors.border, 1.0)
 
   window.popClipRect()

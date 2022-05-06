@@ -30,7 +30,7 @@ func drawChildren*(widget: Widget)
 method requestFocus*(widget: Widget): bool {.base.} = false
 method releaseFocus*(widget: Widget): bool {.base.} = false
 
-method update*(widget: Widget) {.base.} =
+method update*(widget: Widget) {.base, locks: "unknown".} =
   if widget.parent == nil:
     widget.mouseIsInside = true
     widget.mouseIsOver = true
@@ -38,7 +38,7 @@ method update*(widget: Widget) {.base.} =
   widget.height = widget.canvas.height
   widget.updateChildren()
 
-method draw*(widget: Widget) {.base.} =
+method draw*(widget: Widget) {.base, locks: "unknown".} =
   widget.drawChildren()
 
 template mouseDown*(widget: Widget): untyped = widget.input.mouseDown
@@ -52,21 +52,27 @@ template mouseXChange*(widget: Widget): untyped = widget.input.mouseXChange
 template mouseYChange*(widget: Widget): untyped = widget.input.mouseYChange
 
 func pushClipRect*(widget: Widget, x, y, width, height: float) =
-  let x = widget.absoluteX + x
-  let y = widget.absoluteY + y
+  let x = (widget.absoluteX + x).round
+  let y = (widget.absoluteY + y).round
+  let width = width.round
+  let height = height.round
   widget.canvas.pushClipRect(x, y, width, height)
 
 template pushClipRect*(widget: Widget): untyped = widget.pushClipRect(0, 0, widget.width, widget.height)
 template popClipRect*(widget: Widget): untyped = widget.canvas.popClipRect()
 
 func fillRect*(widget: Widget, x, y, width, height: float, color: Color, feather = 0.0) =
-  let x = widget.absoluteX + x
-  let y = widget.absoluteY + y
+  let x = (widget.absoluteX + x).round
+  let y = (widget.absoluteY + y).round
+  let width = width.round
+  let height = height.round
   widget.canvas.fillRect(x, y, width, height, color, feather)
 
 func strokeRect*(widget: Widget, x, y, width, height: float, color: Color, thickness = 1.0, feather = 0.0) =
-  let x = widget.absoluteX + x
-  let y = widget.absoluteY + y
+  let x = (widget.absoluteX + x).round
+  let y = (widget.absoluteY + y).round
+  let width = width.round
+  let height = height.round
   widget.canvas.strokeRect(x, y, width, height, color, thickness, feather)
 
 func updateChildren*(widget: Widget) =

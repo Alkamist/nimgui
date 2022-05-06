@@ -18,10 +18,8 @@ for i in 0 ..< 2:
   b.height = 50
   closureScope:
     let windowNumber = i + 1
-    b.onPressed = proc() =
-      echo "Pressed " & $windowNumber
-    b.onReleased = proc() =
-      echo "Released " & $windowNumber
+    b.onClicked = proc() =
+      echo "Clicked " & $windowNumber
 
   let w = newWindowWidget()
   w.x = i.float * 10.0

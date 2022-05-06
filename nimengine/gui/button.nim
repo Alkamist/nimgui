@@ -12,6 +12,7 @@ type
     isHovered*: bool
     isPressed*: bool
     wasPressed*: bool
+    onClicked*: proc()
     onPressed*: proc()
     onReleased*: proc()
 
@@ -32,13 +33,19 @@ method update*(button: ButtonWidget, input: Input) =
 
   if button.isHovered and input.mousePressed[left]:
     button.isPressed = true
+
     if button.onPressed != nil:
       button.onPressed()
 
   if button.isPressed and input.mouseReleased[left]:
     button.isPressed = false
+
     if button.onReleased != nil:
       button.onReleased()
+
+    if button.isHovered:
+      if button.onClicked != nil:
+        button.onClicked()
 
 method draw*(button: ButtonWidget, canvas: Canvas) =
   let x = button.absoluteX

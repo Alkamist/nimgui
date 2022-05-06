@@ -51,6 +51,8 @@ template keyReleased*(widget: Widget): untyped = widget.input.keyReleased
 template mouseXChange*(widget: Widget): untyped = widget.input.mouseXChange
 template mouseYChange*(widget: Widget): untyped = widget.input.mouseYChange
 
+# I am rounding gui points before rendering because I can't
+# figure out how to get clipping to work correctly otherwise.
 func pushClipRect*(widget: Widget, x, y, width, height: float) =
   let x = (widget.absoluteX + x).round
   let y = (widget.absoluteY + y).round
@@ -82,7 +84,7 @@ func updateChildren*(widget: Widget) =
 
   widget.mouseOver = nil
 
-  for i in countdown(widget.children.len - 1, 0, 1):
+  for i in countup(0, widget.children.len - 1, 1):
     let child = widget.children[i]
 
     child.parent = widget
@@ -113,15 +115,17 @@ func updateChildren*(widget: Widget) =
     if widget.focus == child and child.releaseFocus():
       widget.focus = nil
 
+  # Order children by most recently focused. That way you can
+  # draw them in reverse, which feels like the most natural
+  # way for windows to work.
   if focusChanged:
-    let lastIndex = widget.children.len - 1
-    for i in focusIndex ..< lastIndex:
-      widget.children[i] = widget.children[i + 1]
-    widget.children[lastIndex] = widget.focus
+    for i in countdown(focusIndex, 1, 1):
+      widget.children[i] = widget.children[i - 1]
+    widget.children[0] = widget.focus
 
-  for i in countdown(widget.children.len - 1, 0, 1):
+  for i in countup(0, widget.children.len - 1, 1):
     widget.children[i].update()
 
 func drawChildren*(widget: Widget) =
-  for child in widget.children:
-    child.draw()
+  for i in countdown(widget.children.len - 1, 0, 1):
+    widget.children[i].draw()

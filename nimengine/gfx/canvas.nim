@@ -116,6 +116,14 @@ func addVertex*(canvas: Canvas, position: Vec2, color: Color) =
   )
   inc canvas.vertexWrite
 
+func addVertexUv*(canvas: Canvas, position, uv: Vec2, color: Color) =
+  canvas.vertexData[canvas.vertexWrite] = Vertex(
+    x: position.x, y: position.y,
+    u: uv.x, v: uv.y,
+    r: color.r, g: color.g, b: color.b, a: color.a,
+  )
+  inc canvas.vertexWrite
+
 func addIndex*(canvas: Canvas, index: int) =
   canvas.indexData[canvas.indexWrite] = (canvas.vertexWrite + index).Index
   inc canvas.indexWrite

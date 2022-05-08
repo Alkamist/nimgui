@@ -1,4 +1,7 @@
+{.experimental: "overloadableEnums".}
+
 import ../gmath
+import ../gmath/types
 
 func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
@@ -25,6 +28,16 @@ func openNormals(poly: openArray[Vec2]): seq[Vec2] =
     result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
 
 type
+  HorizontalAlignment* = enum
+    left
+    center
+    right
+
+  VerticalAlignment* = enum
+    bottom
+    center
+    top
+
   Index* = uint32
 
   Vertex* = object
@@ -460,3 +473,11 @@ func strokeRect*(canvas: Canvas, x, y, width, height: float, color: Color, thick
     vec2(left, bottom),
   ]
   canvas.addPolyLine(points, color, thickness, feather, true)
+
+func fillText*(canvas: Canvas,
+               x, y, width, height: float,
+               color: Color,
+               horizontalAlignment: HorizontalAlignment,
+               verticalAlignment: VerticalAlignment,
+               wrapWidth = 0.0) =
+  discard

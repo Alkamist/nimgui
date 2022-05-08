@@ -73,10 +73,8 @@ proc newCanvasRenderer*(): CanvasRenderer =
   result.shader = newShader(canvasVertexShader, canvasFragmentShader)
   result.texture = newTexture()
   result.texture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
-  result.vertexBuffer = newVertexBuffer([VertexAttributeKind.Float2,
-                                         VertexAttributeKind.Float2,
-                                         VertexAttributeKind.Float4])
-  result.indexBuffer = newIndexBuffer(IndexKind.UInt32)
+  result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
+  result.indexBuffer = newIndexBuffer(UInt32)
 
 proc render*(renderer: CanvasRenderer,
              canvas: Canvas,
@@ -94,9 +92,9 @@ proc render*(renderer: CanvasRenderer,
   renderer.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
   texture.select()
   renderer.vertexBuffer.select()
-  renderer.vertexBuffer.upload(BufferUsage.StreamDraw, canvas.vertexData)
+  renderer.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   renderer.indexBuffer.select()
-  renderer.indexBuffer.upload(BufferUsage.StreamDraw, canvas.indexData)
+  renderer.indexBuffer.upload(StreamDraw, canvas.indexData)
 
   for drawCall in canvas.drawCalls:
     if drawCall.indexCount == 0:

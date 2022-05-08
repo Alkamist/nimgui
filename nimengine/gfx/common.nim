@@ -2,7 +2,7 @@ import pkg/opengl
 export opengl
 
 type
-  BufferUsage* {.pure.} = enum
+  BufferUsage* = enum
     StreamDraw
     StreamRead
     StreamCopy
@@ -15,12 +15,12 @@ type
 
 func toGlEnum*(kind: BufferUsage): GLenum =
   case kind:
-  of BufferUsage.StreamDraw: GL_STREAM_DRAW
-  of BufferUsage.StreamRead: GL_STREAM_READ
-  of BufferUsage.StreamCopy: GL_STREAM_COPY
-  of BufferUsage.StaticDraw: GL_STATIC_DRAW
-  of BufferUsage.StaticRead: GL_STATIC_READ
-  of BufferUsage.StaticCopy: GL_STATIC_COPY
-  of BufferUsage.DynamicDraw: GL_DYNAMIC_DRAW
-  of BufferUsage.DynamicRead: GL_DYNAMIC_READ
-  of BufferUsage.DynamicCopy: GL_DYNAMIC_COPY
+  of StreamDraw: GL_STREAM_DRAW
+  of StreamRead: GL_STREAM_READ
+  of StreamCopy: GL_STREAM_COPY
+  of StaticDraw: GL_STATIC_DRAW
+  of StaticRead: GL_STATIC_READ
+  of StaticCopy: GL_STATIC_COPY
+  of DynamicDraw: GL_DYNAMIC_DRAW
+  of DynamicRead: GL_DYNAMIC_READ
+  of DynamicCopy: GL_DYNAMIC_COPY

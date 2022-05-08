@@ -5,12 +5,6 @@ export math
 export utils
 
 type
-  Vec2* = tuple[x, y: float]
-
-func vec2*(x, y: float): Vec2 {.inline.} =
-  (x: x, y: y)
-
-type
   SomeVec2* = concept s
     s.x
     s.y

@@ -1,6 +1,7 @@
 import ../input
 import ../gfx/canvas
 import ../gmath
+import ../gmath/types
 
 export input
 export canvas
@@ -76,6 +77,7 @@ func strokeRect*(widget: Widget, x, y, width, height: float, color: Color, thick
   let width = width.round
   let height = height.round
   widget.canvas.strokeRect(x, y, width, height, color, thickness, feather)
+
 
 func updateChildren*(widget: Widget) =
   var mouseOverIsSet = false

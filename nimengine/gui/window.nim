@@ -2,6 +2,7 @@
 
 import ./theme
 import ./widget
+import ../gmath/types
 
 type
   WindowColors* = object
@@ -51,10 +52,10 @@ func newWindowWidget*(): WindowWidget =
   )
 
 method requestFocus*(window: WindowWidget): bool =
-  window.mousePressed[left] and window.mouseIsOver
+  window.mousePressed[Left] and window.mouseIsOver
 
 method releaseFocus*(window: WindowWidget): bool =
-  window.mousePressed[left] and not window.mouseIsOver
+  window.mousePressed[Left] and not window.mouseIsOver
 
 method update*(window: WindowWidget) =
   window.titleBarIsHovered =
@@ -71,11 +72,11 @@ method update*(window: WindowWidget) =
     window.mouseY >= (window.height - window.resizeHandleSize) and window.mouseY <= window.height
 
   # Press title bar.
-  if window.titleBarIsHovered and window.mousePressed[left]:
+  if window.titleBarIsHovered and window.mousePressed[Left]:
     window.isBeingMoved = true
 
   # Release title bar.
-  if window.isBeingMoved and window.mouseReleased[left]:
+  if window.isBeingMoved and window.mouseReleased[Left]:
     window.isBeingMoved = false
 
   # Move window.
@@ -84,7 +85,7 @@ method update*(window: WindowWidget) =
     window.y += window.mouseYChange
 
   # Press resize handle.
-  if window.resizeHandleIsHovered and window.mousePressed[left]:
+  if window.resizeHandleIsHovered and window.mousePressed[Left]:
     window.isBeingResized = true
     window.resizeStartX = window.mouseX
     window.resizeStartY = window.mouseY
@@ -92,7 +93,7 @@ method update*(window: WindowWidget) =
     window.resizeStartHeight = window.height
 
   # Release resize handle.
-  if window.isBeingResized and window.mouseReleased[left]:
+  if window.isBeingResized and window.mouseReleased[Left]:
     window.isBeingResized = false
 
   # Resize window.

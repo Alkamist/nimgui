@@ -5,7 +5,7 @@ import ./common
 export common
 
 type
-  VertexAttributeKind* {.pure.} = enum
+  VertexAttributeKind* = enum
     Float, Float2, Float3, Float4,
     Mat3, Mat4,
     Int, Int2, Int3, Int4,
@@ -18,34 +18,34 @@ type
 
 func toGlEnum*(kind: VertexAttributeKind): GLenum =
   case kind:
-  of VertexAttributeKind.Float: cGL_FLOAT
-  of VertexAttributeKind.Float2: cGL_FLOAT
-  of VertexAttributeKind.Float3: cGL_FLOAT
-  of VertexAttributeKind.Float4: cGL_FLOAT
-  of VertexAttributeKind.Mat3: cGL_FLOAT
-  of VertexAttributeKind.Mat4: cGL_FLOAT
-  of VertexAttributeKind.Int: cGL_INT
-  of VertexAttributeKind.Int2: cGL_INT
-  of VertexAttributeKind.Int3: cGL_INT
-  of VertexAttributeKind.Int4: cGL_INT
-  of VertexAttributeKind.Bool: GL_BOOL
+  of Float: cGL_FLOAT
+  of Float2: cGL_FLOAT
+  of Float3: cGL_FLOAT
+  of Float4: cGL_FLOAT
+  of Mat3: cGL_FLOAT
+  of Mat4: cGL_FLOAT
+  of Int: cGL_INT
+  of Int2: cGL_INT
+  of Int3: cGL_INT
+  of Int4: cGL_INT
+  of Bool: GL_BOOL
 
 func valueCount*(kind: VertexAttributeKind): int =
   case kind:
-  of VertexAttributeKind.Float: 1
-  of VertexAttributeKind.Float2: 2
-  of VertexAttributeKind.Float3: 3
-  of VertexAttributeKind.Float4: 4
-  of VertexAttributeKind.Mat3: 9
-  of VertexAttributeKind.Mat4: 16
-  of VertexAttributeKind.Int: 1
-  of VertexAttributeKind.Int2: 2
-  of VertexAttributeKind.Int3: 3
-  of VertexAttributeKind.Int4: 4
-  of VertexAttributeKind.Bool: 1
+  of Float: 1
+  of Float2: 2
+  of Float3: 3
+  of Float4: 4
+  of Mat3: 9
+  of Mat4: 16
+  of Int: 1
+  of Int2: 2
+  of Int3: 3
+  of Int4: 4
+  of Bool: 1
 
 func byteCount*(kind: VertexAttributeKind): int =
-  if kind == VertexAttributeKind.Bool:
+  if kind == Bool:
     return 1
   kind.valueCount * 4
 

@@ -1,4 +1,4 @@
-import test2
+import test3
 import nimengine
 
 const vertexSrc = """
@@ -32,6 +32,7 @@ let openGlContext = newOpenGlContext(window.platform.handle)
 openGlContext.select()
 
 gfx.enableBlend()
+gfx.setBackgroundColor(0.2, 0, 0, 1)
 
 let shader = newShader(vertexSrc, fragmentSrc)
 shader.select()
@@ -55,13 +56,7 @@ indexBuffer.upload(BufferUsage.StaticDraw, [
 
 let texture = newTexture()
 texture.select()
-texture.upload(imageWidth, imageHeight, testImage)
-# texture.upload(2, 2, [
-#   255'u8, 0, 0, 255,
-#   0, 255, 0, 255,
-#   0, 0, 255, 255,
-#   0, 0, 0, 255,
-# ])
+texture.upload(128, 128, atlas)
 
 proc render() =
   gfx.setViewport(0, 0, window.width, window.height)

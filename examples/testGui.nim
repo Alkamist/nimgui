@@ -1,4 +1,5 @@
 import pkg/nimengine
+import pkg/nimengine/gmath/types
 
 let window = newWindow()
 

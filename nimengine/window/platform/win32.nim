@@ -228,12 +228,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     let scanCode = LOBYTE(HIWORD(lParam))
     let isRight = (HIWORD(lParam) and KF_EXTENDED) == KF_EXTENDED
     let key = case scanCode:
-      of 42: leftShift
-      of 54: rightShift
+      of 42: LeftShift
+      of 54: RightShift
       of 29:
-        if isRight: rightControl else: leftControl
+        if isRight: RightControl else: LeftControl
       of 56:
-        if isRight: rightAlt else: leftAlt
+        if isRight: RightAlt else: LeftAlt
       else: toKeyboardKey(wParam.int)
     window.processKeyPress(key)
 
@@ -241,12 +241,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     let scanCode = LOBYTE(HIWORD(lParam))
     let isRight = (HIWORD(lParam) and KF_EXTENDED) == KF_EXTENDED
     let key = case scanCode:
-      of 42: leftShift
-      of 54: rightShift
+      of 42: LeftShift
+      of 54: RightShift
       of 29:
-        if isRight: rightControl else: leftControl
+        if isRight: RightControl else: LeftControl
       of 56:
-        if isRight: rightAlt else: leftAlt
+        if isRight: RightAlt else: LeftAlt
       else: toKeyboardKey(wParam.int)
     window.processKeyRelease(key)
 

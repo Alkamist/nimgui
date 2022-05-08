@@ -1,8 +1,10 @@
+{.experimental: "overloadableEnums".}
+
 import pkg/opengl
 export opengl
 
 type
-  MinifyFilter* {.pure.} = enum
+  MinifyFilter* = enum
     Nearest = GL_NEAREST,
     Linear = GL_LINEAR,
     NearestMipmapNearest = GL_NEAREST_MIPMAP_NEAREST,
@@ -10,11 +12,11 @@ type
     NearestMipmapLinear = GL_NEAREST_MIPMAP_LINEAR,
     LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR,
 
-  MagnifyFilter* {.pure.} = enum
+  MagnifyFilter* = enum
     Nearest = GL_NEAREST,
     Linear = GL_LINEAR,
 
-  WrapMode* {.pure.} = enum
+  WrapMode* = enum
     Repeat = GL_REPEAT,
     ClampToBorder = GL_CLAMP_TO_BORDER,
     ClampToEdge = GL_CLAMP_TO_EDGE,
@@ -74,7 +76,7 @@ proc `=destroy`*(texture: var type Texture()[]) =
 proc newTexture*(): Texture =
   result = Texture()
   glGenTextures(1, result.id.addr)
-  result.setMinifyFilter(MinifyFilter.Nearest)
-  result.setMagnifyFilter(MagnifyFilter.Nearest)
-  result.setWrapS(WrapMode.Repeat)
-  result.setWrapT(WrapMode.Repeat)
+  result.setMinifyFilter(Nearest)
+  result.setMagnifyFilter(Nearest)
+  result.setWrapS(Repeat)
+  result.setWrapT(Repeat)

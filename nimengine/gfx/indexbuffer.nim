@@ -7,7 +7,7 @@ export common
 type
   IndexType* = uint8 | uint16 | uint32
 
-  IndexKind* {.pure.} = enum
+  IndexKind* = enum
     UInt8
     UInt16
     UInt32
@@ -18,21 +18,21 @@ type
     id*: GLuint
 
 proc toIndexKind*(T: type IndexType): IndexKind =
-  when T is uint8: IndexKind.UInt8
-  elif T is uint16: IndexKind.UInt16
-  elif T is uint32: IndexKind.UInt32
+  when T is uint8: UInt8
+  elif T is uint16: UInt16
+  elif T is uint32: UInt32
 
 proc indexSize*(kind: IndexKind): int =
   case kind:
-  of IndexKind.UInt8: 1
-  of IndexKind.UInt16: 2
-  of IndexKind.UInt32: 4
+  of UInt8: 1
+  of UInt16: 2
+  of UInt32: 4
 
 proc toGlEnum*(kind: IndexKind): GLenum =
   case kind:
-  of IndexKind.UInt8: cGL_UNSIGNED_BYTE
-  of IndexKind.UInt16: cGL_UNSIGNED_SHORT
-  of IndexKind.UInt32: GL_UNSIGNED_INT
+  of UInt8: cGL_UNSIGNED_BYTE
+  of UInt16: cGL_UNSIGNED_SHORT
+  of UInt32: GL_UNSIGNED_INT
 
 proc select*(buffer: IndexBuffer) =
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer.id)

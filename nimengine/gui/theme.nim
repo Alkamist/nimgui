@@ -1,4 +1,5 @@
 import ../gmath
+import ../gmath/types
 
 const main = rgb(54, 57, 63)
 const button = main.lightened(0.15)

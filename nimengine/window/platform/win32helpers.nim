@@ -36,114 +36,114 @@ proc pollEvents*(hwnd: HWND) =
 func toMouseButton*(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
   of WM_LBUTTONDOWN, WM_LBUTTONUP, WM_LBUTTONDBLCLK:
-    left
+    Left
   of WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MBUTTONDBLCLK:
-    middle
+    Middle
   of WM_RBUTTONDOWN, WM_RBUTTONUP, WM_RBUTTONDBLCLK:
-    right
+    Right
   of WM_XBUTTONDOWN, WM_XBUTTONUP, WM_XBUTTONDBLCLK:
     if HIWORD(wParam) == 1:
-      extra1
+      Extra1
     else:
-      extra2
+      Extra2
   else:
-    unknown
+    Unknown
 
 func toKeyboardKey*(scanCode: int): KeyboardKey =
   case scanCode:
-  of 8: backspace
-  of 9: tab
-  of 13: enter
-  of 19: pause
-  of 20: capsLock
-  of 27: escape
-  of 32: space
-  of 33: pageUp
-  of 34: pageDown
-  of 35: keyEnd
-  of 36: home
-  of 37: leftArrow
-  of 38: upArrow
-  of 39: rightArrow
-  of 40: downArrow
-  of 45: insert
-  of 46: delete
-  of 48: key0
-  of 49: key1
-  of 50: key2
-  of 51: key3
-  of 52: key4
-  of 53: key5
-  of 54: key6
-  of 55: key7
-  of 56: key8
-  of 57: key9
-  of 65: a
-  of 66: b
-  of 67: c
-  of 68: d
-  of 69: e
-  of 70: f
-  of 71: g
-  of 72: h
-  of 73: i
-  of 74: j
-  of 75: k
-  of 76: l
-  of 77: m
-  of 78: n
-  of 79: o
-  of 80: p
-  of 81: q
-  of 82: r
-  of 83: s
-  of 84: t
-  of 85: u
-  of 86: v
-  of 87: w
-  of 88: x
-  of 89: y
-  of 90: z
-  of 91: leftMeta
-  of 92: rightMeta
-  of 96: pad0
-  of 97: pad1
-  of 98: pad2
-  of 99: pad3
-  of 100: pad4
-  of 101: pad5
-  of 102: pad6
-  of 103: pad7
-  of 104: pad8
-  of 105: pad9
-  of 106: padMultiply
-  of 107: padAdd
-  of 109: padSubtract
-  of 110: padPeriod
-  of 111: padDivide
-  of 112: f1
-  of 113: f2
-  of 114: f3
-  of 115: f4
-  of 116: f5
-  of 117: f6
-  of 118: f7
-  of 119: f8
-  of 120: f9
-  of 121: f10
-  of 122: f11
-  of 123: f12
-  of 144: numLock
-  of 145: scrollLock
-  of 186: semicolon
-  of 187: equal
-  of 188: comma
-  of 189: minus
-  of 190: period
-  of 191: slash
-  of 192: backtick
-  of 219: leftBracket
-  of 220: backSlash
-  of 221: rightBracket
-  of 222: quote
-  else: unknown
+  of 8: Backspace
+  of 9: Tab
+  of 13: Enter
+  of 19: Pause
+  of 20: CapsLock
+  of 27: Escape
+  of 32: Space
+  of 33: PageUp
+  of 34: PageDown
+  of 35: End
+  of 36: Home
+  of 37: LeftArrow
+  of 38: UpArrow
+  of 39: RightArrow
+  of 40: DownArrow
+  of 45: Insert
+  of 46: KeyboardKey.Delete
+  of 48: Key0
+  of 49: Key1
+  of 50: Key2
+  of 51: Key3
+  of 52: Key4
+  of 53: Key5
+  of 54: Key6
+  of 55: Key7
+  of 56: Key8
+  of 57: Key9
+  of 65: A
+  of 66: B
+  of 67: C
+  of 68: D
+  of 69: E
+  of 70: F
+  of 71: G
+  of 72: H
+  of 73: I
+  of 74: J
+  of 75: K
+  of 76: L
+  of 77: M
+  of 78: N
+  of 79: O
+  of 80: P
+  of 81: Q
+  of 82: R
+  of 83: S
+  of 84: T
+  of 85: U
+  of 86: V
+  of 87: W
+  of 88: X
+  of 89: Y
+  of 90: Z
+  of 91: LeftMeta
+  of 92: RightMeta
+  of 96: Pad0
+  of 97: Pad1
+  of 98: Pad2
+  of 99: Pad3
+  of 100: Pad4
+  of 101: Pad5
+  of 102: Pad6
+  of 103: Pad7
+  of 104: Pad8
+  of 105: Pad9
+  of 106: PadMultiply
+  of 107: PadAdd
+  of 109: PadSubtract
+  of 110: PadPeriod
+  of 111: PadDivide
+  of 112: F1
+  of 113: F2
+  of 114: F3
+  of 115: F4
+  of 116: F5
+  of 117: F6
+  of 118: F7
+  of 119: F8
+  of 120: F9
+  of 121: F10
+  of 122: F11
+  of 123: F12
+  of 144: NumLock
+  of 145: ScrollLock
+  of 186: Semicolon
+  of 187: Equal
+  of 188: Comma
+  of 189: Minus
+  of 190: Period
+  of 191: Slash
+  of 192: Backtick
+  of 219: LeftBracket
+  of 220: BackSlash
+  of 221: RightBracket
+  of 222: Quote
+  else: Unknown

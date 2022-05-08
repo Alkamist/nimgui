@@ -894,13 +894,6 @@ type
     characterRects*: array[char, Rect2]
     characterUvs*: array[char, Rect2]
 
-func measureLineWidth*(atlas: CanvasAtlas, text: string): float =
-  for c in text:
-    result += atlas.characterRects[c].width
-
-func measureLineHeight*(atlas: CanvasAtlas, text: string): float =
-  18
-
 func defaultCanvasAtlas*(): CanvasAtlas =
   result = CanvasAtlas(width: 128, height: 128)
 

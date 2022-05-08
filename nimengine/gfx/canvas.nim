@@ -497,66 +497,72 @@ func drawText*(canvas: Canvas,
                horizontalAlignment = HorizontalAlignment.Left,
                verticalAlignment = VerticalAlignment.Center,
                shouldWrap = true) =
-  # let lineWidth = canvas.atlas.measureLineWidth(text)
-  # let lineHeight = canvas.atlas.measureLineHeight(text)
+  const lineHeight = 18.0
 
-  const glyphHeight = 18.0
+  var lineInfo: seq[tuple[firstIndex, lastIndex: int]]
+  lineInfo.add((0, text.len - 1))
 
-  var quads = newSeq[Rect2](text.len)
-  var lastWrappableIndex = 0
-  var firstIndexOnLine = 0
+  block:
+    template currentLine(): untyped =
+      lineInfo[lineInfo.len - 1]
 
-  var x = 0.0
+    var i = 0
+    var wrapCount = 0
+    var lastWhitespace = 0
+    var x = 0.0
+
+    while i < text.len and wrapCount < text.len:
+      let c = text[i]
+      let glyphRect = canvas.atlas.characterRects[c]
+
+      if c == ' ':
+        lastWhitespace = i
+
+      let outOfBounds = x + glyphRect.width > bounds.width
+
+      if shouldWrap and outOfBounds and i > 0:
+        inc wrapCount
+        x = 0.0
+
+        if lastWhitespace > currentLine.firstIndex:
+          let nextLineStart = lastWhitespace + 1
+          currentLine.lastIndex = lastWhitespace - 1
+          lineInfo.add((nextLineStart, text.len - 1))
+          i = nextLineStart
+          continue
+        else:
+          currentLine.lastIndex = i - 1
+          lineInfo.add((i, text.len - 1))
+
+      x += glyphRect.width
+      inc i
+
   var y = 0.0
+  for info in lineInfo:
+    template calculateLineWidth(): float =
+      var lineWidth = 0.0
+      for i in info.firstIndex .. info.lastIndex:
+        let c = text[i]
+        let glyphRect = canvas.atlas.characterRects[c]
+        lineWidth += glyphRect.width
+      lineWidth
 
-  var wrapCount = 0
-  var i = 0
-  while i < text.len and wrapCount < text.len:
-    let c = text[i]
-    let glyphRect = canvas.atlas.characterRects[c]
+    let lineOffset = case horizontalAlignment:
+      of Left: 0.0
+      of Center: 0.5 * (bounds.width - calculateLineWidth())
+      of Right: bounds.width - calculateLineWidth()
 
-    if c == ' ':
-      lastWrappableIndex = i
+    var x = 0.0
+    for i in info.firstIndex .. info.lastIndex:
+      let c = text[i]
+      let glyphRect = canvas.atlas.characterRects[c]
+      let quad = rect2(
+        bounds.x + lineOffset + x,
+        bounds.y + y,
+        glyphRect.width,
+        glyphRect.height,
+      )
+      canvas.addQuadUv(quad, canvas.atlas.characterUvs[text[i]], color)
+      x += glyphRect.width
 
-    # let relativeX = bounds.x + accumulatedWidth
-    # let x = case horizontalAlignment:
-    #   of Left: relativeX
-    #   of Center: relativeX + 0.5 * (bounds.width - lineWidth)
-    #   of Right: relativeX + bounds.width - lineWidth
-
-    # let relativeY = 0.0
-    # let y = case verticalAlignment:
-    #   of Bottom: relativeY + bounds.height - lineHeight
-    #   of Center: relativeY + 0.5 * (bounds.height - lineHeight)
-    #   of Top: relativeY
-
-    # We hit the end of the bounds and need to wrap.
-    let outOfBounds = x + glyphRect.width > bounds.width
-    if shouldWrap and outOfBounds and i > 0:
-      inc wrapCount
-      x = 0.0
-      y += glyphHeight
-
-      # Try to wrap entire words if possible, otherwise
-      # wrap individual glyphs.
-      if lastWrappableIndex > firstIndexOnLine:
-        i = lastWrappableIndex + 1
-        firstIndexOnLine = i + 2
-        continue
-
-      firstIndexOnLine = i + 1
-
-    quads[i] = rect2(
-      bounds.x + x,
-      bounds.y + y,
-      glyphRect.width,
-      glyphRect.height,
-    )
-
-    x += glyphRect.width
-    inc i
-
-  for i, quad in quads:
-    if quad.width <= 0 or quad.height <= 0:
-      continue
-    canvas.addQuadUv(quad, canvas.atlas.characterUvs[text[i]], color)
+    y += lineHeight

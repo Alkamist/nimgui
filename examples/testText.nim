@@ -18,7 +18,7 @@ var size = vec2(128, 128)
 
 let textTemplate = "The quick brown fox. "
 var text = ""
-for i in 0 ..< 10000:
+for i in 0 ..< 100:
   text.add(textTemplate[i mod textTemplate.len])
 
 proc render() =
@@ -29,7 +29,7 @@ proc render() =
   canvas.beginFrame(window.width, window.height)
 
   canvas.fillRect(128, 128, size.x, size.y, rgb(120, 0, 0))
-  canvas.drawText(text, rect2(128, 128, size.x, size.y), rgb(255, 255, 255), Center, Top)
+  canvas.drawText(text, rect2(128, 128, size.x, size.y), rgb(255, 255, 255), Center, Center)
 
   canvasRenderer.render()
 

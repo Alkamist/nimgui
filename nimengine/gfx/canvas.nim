@@ -537,6 +537,11 @@ func drawText*(canvas: Canvas,
       x += glyphRect.width
       inc i
 
+  let textOffset = case verticalAlignment:
+    of Bottom: bounds.height - (lineHeight * lineInfo.len.float)
+    of Center: 0.5 * (bounds.height - (lineHeight * lineInfo.len.float))
+    of Top: 0.0
+
   var y = 0.0
   for info in lineInfo:
     template calculateLineWidth(): float =
@@ -558,7 +563,7 @@ func drawText*(canvas: Canvas,
       let glyphRect = canvas.atlas.characterRects[c]
       let quad = rect2(
         bounds.x + lineOffset + x,
-        bounds.y + y,
+        bounds.y + textOffset + y,
         glyphRect.width,
         glyphRect.height,
       )

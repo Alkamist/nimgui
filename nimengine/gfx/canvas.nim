@@ -2,6 +2,7 @@
 
 import ../gmath
 import ../gmath/types
+import ./canvasatlas
 
 func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
@@ -29,14 +30,14 @@ func openNormals(poly: openArray[Vec2]): seq[Vec2] =
 
 type
   HorizontalAlignment* = enum
-    left
-    center
-    right
+    Left
+    Center
+    Right
 
   VerticalAlignment* = enum
-    bottom
-    center
-    top
+    Bottom
+    Center
+    Top
 
   Index* = uint32
 
@@ -51,17 +52,17 @@ type
     indexCount*: int
 
   Canvas* = ref object
+    atlas*: CanvasAtlas
     width*, height*: float
     drawCalls*: seq[DrawCall]
     vertexData*: seq[Vertex]
     vertexWrite*: int
     indexData*: seq[Index]
     indexWrite*: int
-    whitePixelUv*: Vec2
     clipRectStack: seq[Rect2]
 
-func newCanvas*(): Canvas =
-  Canvas()
+func newCanvas*(atlas = defaultCanvasAtlas()): Canvas =
+  Canvas(atlas: atlas)
 
 func addDrawCall(canvas: Canvas) =
   if canvas.clipRectStack.len == 0:
@@ -124,7 +125,7 @@ func unreserve*(canvas: Canvas, vertexCount, indexCount: int) =
 func addVertex*(canvas: Canvas, position: Vec2, color: Color) =
   canvas.vertexData[canvas.vertexWrite] = Vertex(
     x: position.x, y: position.y,
-    u: canvas.whitePixelUv.x, v: canvas.whitePixelUv.y,
+    u: canvas.atlas.whitePixelUv.x, v: canvas.atlas.whitePixelUv.y,
     r: color.r, g: color.g, b: color.b, a: color.a,
   )
   inc canvas.vertexWrite
@@ -140,6 +141,19 @@ func addVertexUv*(canvas: Canvas, position, uv: Vec2, color: Color) =
 func addIndex*(canvas: Canvas, index: int) =
   canvas.indexData[canvas.indexWrite] = (canvas.vertexWrite + index).Index
   inc canvas.indexWrite
+
+func addQuadUv*(canvas: Canvas, quad, uv: Rect2, color: Color) =
+  canvas.reserve(4, 6)
+  canvas.addIndex(0)
+  canvas.addIndex(2)
+  canvas.addIndex(1)
+  canvas.addIndex(0)
+  canvas.addIndex(3)
+  canvas.addIndex(2)
+  canvas.addVertexUv(quad.bottomLeft, uv.bottomLeft, color)
+  canvas.addVertexUv(quad.topLeft, uv.topLeft, color)
+  canvas.addVertexUv(quad.topRight, uv.topRight, color)
+  canvas.addVertexUv(quad.bottomRight, uv.bottomRight, color)
 
 ###############################################################################
 # Polyline:
@@ -474,10 +488,40 @@ func strokeRect*(canvas: Canvas, x, y, width, height: float, color: Color, thick
   ]
   canvas.addPolyLine(points, color, thickness, feather, true)
 
-func fillText*(canvas: Canvas,
-               x, y, width, height: float,
+func drawText*(canvas: Canvas,
+               text: string,
+               bounds: Rect2,
                color: Color,
-               horizontalAlignment: HorizontalAlignment,
-               verticalAlignment: VerticalAlignment,
-               wrapWidth = 0.0) =
-  discard
+               horizontalAlignment = HorizontalAlignment.Left,
+               verticalAlignment = VerticalAlignment.Center,
+               shouldWrap = true,
+               shouldClip = false) =
+  let lineWidth = canvas.atlas.measureLineWidth(text)
+  let lineHeight = canvas.atlas.measureLineHeight(text)
+
+  var accumulatedWidth = 0.0
+  for c in text:
+    let glyphRect = canvas.atlas.characterRects[c]
+    let glyphUv = canvas.atlas.characterUvs[c]
+
+    let relativeX = bounds.x + accumulatedWidth
+    let x = case horizontalAlignment:
+      of Left: relativeX
+      of Center: relativeX + 0.5 * (bounds.width - lineWidth)
+      of Right: relativeX + bounds.width - lineWidth
+
+    let relativeY = 0.0
+    let y = case verticalAlignment:
+      of Bottom: relativeY + bounds.height - lineHeight
+      of Center: relativeY + 0.5 * (bounds.height - lineHeight)
+      of Top: relativeY
+
+    let quad = rect2(
+      x,
+      y,
+      glyphRect.width,
+      glyphRect.height,
+    )
+    canvas.addQuadUv(quad, glyphUv, color)
+
+    accumulatedWidth += glyphRect.width

@@ -54,8 +54,9 @@ proc orthoProjection(left, right, top, bottom: float32): array[4, array[4, float
 
 type
   CanvasRenderer* = ref object
+    canvas*: Canvas
     shader*: Shader
-    texture*: Texture
+    atlasTexture*: Texture
     vertexBuffer*: VertexBuffer
     indexBuffer*: IndexBuffer
     vao: GLuint
@@ -63,23 +64,24 @@ type
 proc `=destroy`*(renderer: var type CanvasRenderer()[]) =
   glDeleteVertexArrays(1, renderer.vao.addr)
 
-proc newCanvasRenderer*(): CanvasRenderer =
-  result = CanvasRenderer()
+proc newCanvasRenderer*(canvas: Canvas): CanvasRenderer =
+  result = CanvasRenderer(canvas: canvas)
 
   # Stop OpenGl from crashing on later versions.
   glGenVertexArrays(1, result.vao.addr)
   glBindVertexArray(result.vao)
 
   result.shader = newShader(canvasVertexShader, canvasFragmentShader)
-  result.texture = newTexture()
-  result.texture.upload(1, 1, [255'u8, 255'u8, 255'u8, 255'u8])
+  result.atlasTexture = newTexture()
+  result.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
   result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
   result.indexBuffer = newIndexBuffer(UInt32)
 
 proc render*(renderer: CanvasRenderer,
-             canvas: Canvas,
-             texture = renderer.texture,
+             atlasTexture = renderer.atlasTexture,
              shader = renderer.shader) =
+  let canvas = renderer.canvas
+
   if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
     return
 
@@ -90,7 +92,7 @@ proc render*(renderer: CanvasRenderer,
 
   shader.select()
   renderer.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
-  texture.select()
+  atlasTexture.select()
   renderer.vertexBuffer.select()
   renderer.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   renderer.indexBuffer.select()

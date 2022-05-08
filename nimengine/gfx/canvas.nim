@@ -488,40 +488,75 @@ func strokeRect*(canvas: Canvas, x, y, width, height: float, color: Color, thick
   ]
   canvas.addPolyLine(points, color, thickness, feather, true)
 
+# TODO: Handle clipping inside here so you can
+# cull glyph quads that are out of bounds.
 func drawText*(canvas: Canvas,
                text: string,
                bounds: Rect2,
                color: Color,
                horizontalAlignment = HorizontalAlignment.Left,
                verticalAlignment = VerticalAlignment.Center,
-               shouldWrap = true,
-               shouldClip = false) =
-  let lineWidth = canvas.atlas.measureLineWidth(text)
-  let lineHeight = canvas.atlas.measureLineHeight(text)
+               shouldWrap = true) =
+  # let lineWidth = canvas.atlas.measureLineWidth(text)
+  # let lineHeight = canvas.atlas.measureLineHeight(text)
 
-  var accumulatedWidth = 0.0
-  for c in text:
+  const glyphHeight = 18.0
+
+  var quads = newSeq[Rect2](text.len)
+  var lastWrappableIndex = 0
+  var firstIndexOnLine = 0
+
+  var x = 0.0
+  var y = 0.0
+
+  var wrapCount = 0
+  var i = 0
+  while i < text.len and wrapCount < text.len:
+    let c = text[i]
     let glyphRect = canvas.atlas.characterRects[c]
-    let glyphUv = canvas.atlas.characterUvs[c]
 
-    let relativeX = bounds.x + accumulatedWidth
-    let x = case horizontalAlignment:
-      of Left: relativeX
-      of Center: relativeX + 0.5 * (bounds.width - lineWidth)
-      of Right: relativeX + bounds.width - lineWidth
+    if c == ' ':
+      lastWrappableIndex = i
 
-    let relativeY = 0.0
-    let y = case verticalAlignment:
-      of Bottom: relativeY + bounds.height - lineHeight
-      of Center: relativeY + 0.5 * (bounds.height - lineHeight)
-      of Top: relativeY
+    # let relativeX = bounds.x + accumulatedWidth
+    # let x = case horizontalAlignment:
+    #   of Left: relativeX
+    #   of Center: relativeX + 0.5 * (bounds.width - lineWidth)
+    #   of Right: relativeX + bounds.width - lineWidth
 
-    let quad = rect2(
-      x,
-      y,
+    # let relativeY = 0.0
+    # let y = case verticalAlignment:
+    #   of Bottom: relativeY + bounds.height - lineHeight
+    #   of Center: relativeY + 0.5 * (bounds.height - lineHeight)
+    #   of Top: relativeY
+
+    # We hit the end of the bounds and need to wrap.
+    let outOfBounds = x + glyphRect.width > bounds.width
+    if shouldWrap and outOfBounds and i > 0:
+      inc wrapCount
+      x = 0.0
+      y += glyphHeight
+
+      # Try to wrap entire words if possible, otherwise
+      # wrap individual glyphs.
+      if lastWrappableIndex > firstIndexOnLine:
+        i = lastWrappableIndex + 1
+        firstIndexOnLine = i + 2
+        continue
+
+      firstIndexOnLine = i + 1
+
+    quads[i] = rect2(
+      bounds.x + x,
+      bounds.y + y,
       glyphRect.width,
       glyphRect.height,
     )
-    canvas.addQuadUv(quad, glyphUv, color)
 
-    accumulatedWidth += glyphRect.width
+    x += glyphRect.width
+    inc i
+
+  for i, quad in quads:
+    if quad.width <= 0 or quad.height <= 0:
+      continue
+    canvas.addQuadUv(quad, canvas.atlas.characterUvs[text[i]], color)

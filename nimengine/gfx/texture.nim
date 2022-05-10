@@ -4,24 +4,41 @@ import pkg/opengl
 export opengl
 
 type
+  # TextureFormat* = enum
+  #   Red = GL_RED
+  #   Rg = GL_RG
+  #   Rgb = GL_RGB
+  #   Bgr = GL_BGR
+  #   Rgba = GL_RGBA
+  #   Bgra = GL_BGRA
+  #   RedInteger = GL_RED_INTEGER
+  #   RgInteger = GL_RG_INTEGER
+  #   RgbInteger = GL_RGB_INTEGER
+  #   BgrInteger = GL_BGR_INTEGER
+  #   RgbaInteger = GL_RGBA_INTEGER
+  #   BgraInteger = GL_BGRA_INTEGER
+  #   StencilIndex = GL_STENCIL_INDEX
+  #   DepthComponent = GL_DEPTH_COMPONENT
+  #   DepthStencil = GL_DEPTH_STENCIL
+
   MinifyFilter* = enum
-    Nearest = GL_NEAREST,
-    Linear = GL_LINEAR,
-    NearestMipmapNearest = GL_NEAREST_MIPMAP_NEAREST,
-    LinearMipmapNearest = GL_LINEAR_MIPMAP_NEAREST,
-    NearestMipmapLinear = GL_NEAREST_MIPMAP_LINEAR,
-    LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR,
+    Nearest = GL_NEAREST
+    Linear = GL_LINEAR
+    NearestMipmapNearest = GL_NEAREST_MIPMAP_NEAREST
+    LinearMipmapNearest = GL_LINEAR_MIPMAP_NEAREST
+    NearestMipmapLinear = GL_NEAREST_MIPMAP_LINEAR
+    LinearMipmapLinear = GL_LINEAR_MIPMAP_LINEAR
 
   MagnifyFilter* = enum
-    Nearest = GL_NEAREST,
-    Linear = GL_LINEAR,
+    Nearest = GL_NEAREST
+    Linear = GL_LINEAR
 
   WrapMode* = enum
-    Repeat = GL_REPEAT,
-    ClampToBorder = GL_CLAMP_TO_BORDER,
-    ClampToEdge = GL_CLAMP_TO_EDGE,
-    MirroredRepeat = GL_MIRRORED_REPEAT,
-    MirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE,
+    Repeat = GL_REPEAT
+    ClampToBorder = GL_CLAMP_TO_BORDER
+    ClampToEdge = GL_CLAMP_TO_EDGE
+    MirroredRepeat = GL_MIRRORED_REPEAT
+    MirrorClampToEdge = GL_MIRROR_CLAMP_TO_EDGE
 
   Texture* = ref object
     id*: GLuint

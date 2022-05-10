@@ -1,4 +1,4 @@
-import test3
+import std/unicode
 import nimengine
 
 const vertexSrc = """
@@ -37,33 +37,35 @@ gfx.setBackgroundColor(0.2, 0, 0, 1)
 let shader = newShader(vertexSrc, fragmentSrc)
 shader.select()
 
-let vertexBuffer = newVertexBuffer([VertexAttributeKind.Float2,
-                                    VertexAttributeKind.Float2])
+let vertexBuffer = newVertexBuffer([Float2, Float2])
 vertexBuffer.select()
-vertexBuffer.upload(BufferUsage.StaticDraw, [
+vertexBuffer.upload(StaticDraw, [
   -1f, -1, 0, 1,
   -1, 1, 0, 0,
   1, 1, 1, 0,
   1, -1, 1, 1,
 ])
 
-let indexBuffer = newIndexBuffer(IndexKind.UInt32)
+let indexBuffer = newIndexBuffer(UInt32)
 indexBuffer.select()
-indexBuffer.upload(BufferUsage.StaticDraw, [
+indexBuffer.upload(StaticDraw, [
   0'u32, 2, 1,
   0, 3, 2,
 ])
 
+let fontData = readFile("experiments/consola.ttf")
+let atlas = newCanvasAtlas(fontData, 14)
+
 let texture = newTexture()
 texture.select()
-texture.upload(128, 128, atlas)
+texture.upload(atlas.width, atlas.height, atlas.data)
 
 proc render() =
   gfx.setViewport(0, 0, window.width, window.height)
   gfx.setClipRect(0, 0, window.width, window.height)
   gfx.clearBackground()
 
-  gfx.drawTriangles(6, IndexKind.UInt32, 0)
+  gfx.drawTriangles(6, UInt32, 0)
 
   openGlContext.swapBuffers()
 

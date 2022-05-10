@@ -1,4 +1,7 @@
-const atlasRaw* = [
+import ../gmath/types
+
+# This is the atlas from https://github.com/rxi/microui/blob/master/demo/atlas.inl
+const defaultDataWhite = [
   0x00'u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -883,116 +886,130 @@ const atlasRaw* = [
   0x00, 0x00, 0xba, 0xf7, 0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ]
 
-let atlas* = block:
-  var res: array[atlasRaw.len * 4, uint8]
-  for i in 0 ..< atlasRaw.len:
-    let i4 = i * 4
-    res[i4] = 255
-    res[i4 + 1] = 255
-    res[i4 + 2] = 255
-    res[i4 + 3] = atlasRaw[i]
-  res
+type
+  CanvasAtlas* = ref object
+    width*, height*: int
+    data*: seq[uint8]
+    whitePixelUv*: Vec2
+    characterRects*: array[char, Rect2]
+    characterUvs*: array[char, Rect2]
 
-# static mu_Rect atlas[] = {
-#   [ MU_ICON_CLOSE ] = { 88, 68, 16, 16 },
-#   [ MU_ICON_CHECK ] = { 0, 0, 18, 18 },
-#   [ MU_ICON_EXPANDED ] = { 118, 68, 7, 5 },
-#   [ MU_ICON_COLLAPSED ] = { 113, 68, 5, 7 },
-#   [ ATLAS_WHITE ] = { 125, 68, 3, 3 },
-#   [ ATLAS_FONT+32 ] = { 84, 68, 2, 17 },
-#   [ ATLAS_FONT+33 ] = { 39, 68, 3, 17 },
-#   [ ATLAS_FONT+34 ] = { 114, 51, 5, 17 },
-#   [ ATLAS_FONT+35 ] = { 34, 17, 7, 17 },
-#   [ ATLAS_FONT+36 ] = { 28, 34, 6, 17 },
-#   [ ATLAS_FONT+37 ] = { 58, 0, 9, 17 },
-#   [ ATLAS_FONT+38 ] = { 103, 0, 8, 17 },
-#   [ ATLAS_FONT+39 ] = { 86, 68, 2, 17 },
-#   [ ATLAS_FONT+40 ] = { 42, 68, 3, 17 },
-#   [ ATLAS_FONT+41 ] = { 45, 68, 3, 17 },
-#   [ ATLAS_FONT+42 ] = { 34, 34, 6, 17 },
-#   [ ATLAS_FONT+43 ] = { 40, 34, 6, 17 },
-#   [ ATLAS_FONT+44 ] = { 48, 68, 3, 17 },
-#   [ ATLAS_FONT+45 ] = { 51, 68, 3, 17 },
-#   [ ATLAS_FONT+46 ] = { 54, 68, 3, 17 },
-#   [ ATLAS_FONT+47 ] = { 124, 34, 4, 17 },
-#   [ ATLAS_FONT+48 ] = { 46, 34, 6, 17 },
-#   [ ATLAS_FONT+49 ] = { 52, 34, 6, 17 },
-#   [ ATLAS_FONT+50 ] = { 58, 34, 6, 17 },
-#   [ ATLAS_FONT+51 ] = { 64, 34, 6, 17 },
-#   [ ATLAS_FONT+52 ] = { 70, 34, 6, 17 },
-#   [ ATLAS_FONT+53 ] = { 76, 34, 6, 17 },
-#   [ ATLAS_FONT+54 ] = { 82, 34, 6, 17 },
-#   [ ATLAS_FONT+55 ] = { 88, 34, 6, 17 },
-#   [ ATLAS_FONT+56 ] = { 94, 34, 6, 17 },
-#   [ ATLAS_FONT+57 ] = { 100, 34, 6, 17 },
-#   [ ATLAS_FONT+58 ] = { 57, 68, 3, 17 },
-#   [ ATLAS_FONT+59 ] = { 60, 68, 3, 17 },
-#   [ ATLAS_FONT+60 ] = { 106, 34, 6, 17 },
-#   [ ATLAS_FONT+61 ] = { 112, 34, 6, 17 },
-#   [ ATLAS_FONT+62 ] = { 118, 34, 6, 17 },
-#   [ ATLAS_FONT+63 ] = { 119, 51, 5, 17 },
-#   [ ATLAS_FONT+64 ] = { 18, 0, 10, 17 },
-#   [ ATLAS_FONT+65 ] = { 41, 17, 7, 17 },
-#   [ ATLAS_FONT+66 ] = { 48, 17, 7, 17 },
-#   [ ATLAS_FONT+67 ] = { 55, 17, 7, 17 },
-#   [ ATLAS_FONT+68 ] = { 111, 0, 8, 17 },
-#   [ ATLAS_FONT+69 ] = { 0, 35, 6, 17 },
-#   [ ATLAS_FONT+70 ] = { 6, 35, 6, 17 },
-#   [ ATLAS_FONT+71 ] = { 119, 0, 8, 17 },
-#   [ ATLAS_FONT+72 ] = { 18, 17, 8, 17 },
-#   [ ATLAS_FONT+73 ] = { 63, 68, 3, 17 },
-#   [ ATLAS_FONT+74 ] = { 66, 68, 3, 17 },
-#   [ ATLAS_FONT+75 ] = { 62, 17, 7, 17 },
-#   [ ATLAS_FONT+76 ] = { 12, 51, 6, 17 },
-#   [ ATLAS_FONT+77 ] = { 28, 0, 10, 17 },
-#   [ ATLAS_FONT+78 ] = { 67, 0, 9, 17 },
-#   [ ATLAS_FONT+79 ] = { 76, 0, 9, 17 },
-#   [ ATLAS_FONT+80 ] = { 69, 17, 7, 17 },
-#   [ ATLAS_FONT+81 ] = { 85, 0, 9, 17 },
-#   [ ATLAS_FONT+82 ] = { 76, 17, 7, 17 },
-#   [ ATLAS_FONT+83 ] = { 18, 51, 6, 17 },
-#   [ ATLAS_FONT+84 ] = { 24, 51, 6, 17 },
-#   [ ATLAS_FONT+85 ] = { 26, 17, 8, 17 },
-#   [ ATLAS_FONT+86 ] = { 83, 17, 7, 17 },
-#   [ ATLAS_FONT+87 ] = { 38, 0, 10, 17 },
-#   [ ATLAS_FONT+88 ] = { 90, 17, 7, 17 },
-#   [ ATLAS_FONT+89 ] = { 30, 51, 6, 17 },
-#   [ ATLAS_FONT+90 ] = { 36, 51, 6, 17 },
-#   [ ATLAS_FONT+91 ] = { 69, 68, 3, 17 },
-#   [ ATLAS_FONT+92 ] = { 124, 51, 4, 17 },
-#   [ ATLAS_FONT+93 ] = { 72, 68, 3, 17 },
-#   [ ATLAS_FONT+94 ] = { 42, 51, 6, 17 },
-#   [ ATLAS_FONT+95 ] = { 15, 68, 4, 17 },
-#   [ ATLAS_FONT+96 ] = { 48, 51, 6, 17 },
-#   [ ATLAS_FONT+97 ] = { 54, 51, 6, 17 },
-#   [ ATLAS_FONT+98 ] = { 97, 17, 7, 17 },
-#   [ ATLAS_FONT+99 ] = { 0, 52, 5, 17 },
-#   [ ATLAS_FONT+100 ] = { 104, 17, 7, 17 },
-#   [ ATLAS_FONT+101 ] = { 60, 51, 6, 17 },
-#   [ ATLAS_FONT+102 ] = { 19, 68, 4, 17 },
-#   [ ATLAS_FONT+103 ] = { 66, 51, 6, 17 },
-#   [ ATLAS_FONT+104 ] = { 111, 17, 7, 17 },
-#   [ ATLAS_FONT+105 ] = { 75, 68, 3, 17 },
-#   [ ATLAS_FONT+106 ] = { 78, 68, 3, 17 },
-#   [ ATLAS_FONT+107 ] = { 72, 51, 6, 17 },
-#   [ ATLAS_FONT+108 ] = { 81, 68, 3, 17 },
-#   [ ATLAS_FONT+109 ] = { 48, 0, 10, 17 },
-#   [ ATLAS_FONT+110 ] = { 118, 17, 7, 17 },
-#   [ ATLAS_FONT+111 ] = { 0, 18, 7, 17 },
-#   [ ATLAS_FONT+112 ] = { 7, 18, 7, 17 },
-#   [ ATLAS_FONT+113 ] = { 14, 34, 7, 17 },
-#   [ ATLAS_FONT+114 ] = { 23, 68, 4, 17 },
-#   [ ATLAS_FONT+115 ] = { 5, 52, 5, 17 },
-#   [ ATLAS_FONT+116 ] = { 27, 68, 4, 17 },
-#   [ ATLAS_FONT+117 ] = { 21, 34, 7, 17 },
-#   [ ATLAS_FONT+118 ] = { 78, 51, 6, 17 },
-#   [ ATLAS_FONT+119 ] = { 94, 0, 9, 17 },
-#   [ ATLAS_FONT+120 ] = { 84, 51, 6, 17 },
-#   [ ATLAS_FONT+121 ] = { 90, 51, 6, 17 },
-#   [ ATLAS_FONT+122 ] = { 10, 68, 5, 17 },
-#   [ ATLAS_FONT+123 ] = { 31, 68, 4, 17 },
-#   [ ATLAS_FONT+124 ] = { 96, 51, 6, 17 },
-#   [ ATLAS_FONT+125 ] = { 35, 68, 4, 17 },
-#   [ ATLAS_FONT+126 ] = { 102, 51, 6, 17 },
-#   [ ATLAS_FONT+127 ] = { 108, 51, 6, 17 },
-# };
+func defaultCanvasAtlas*(): CanvasAtlas =
+  result = CanvasAtlas(width: 128, height: 128)
+
+  result.data = newSeq[uint8](defaultDataWhite.len * 4)
+  for i in 0 ..< defaultDataWhite.len:
+    let i4 = i * 4
+    result.data[i4] = 255
+    result.data[i4 + 1] = 255
+    result.data[i4 + 2] = 255
+    result.data[i4 + 3] = defaultDataWhite[i]
+
+  result.whitePixelUv = vec2(126 / result.width, 69 / result.height)
+
+  result.characterRects[32.char] = rect2(84, 68, 2, 17)
+  result.characterRects[33.char] = rect2(39, 68, 3, 17)
+  result.characterRects[34.char] = rect2(114, 51, 5, 17)
+  result.characterRects[35.char] = rect2(34, 17, 7, 17)
+  result.characterRects[36.char] = rect2(28, 34, 6, 17)
+  result.characterRects[37.char] = rect2(58, 0, 9, 17)
+  result.characterRects[38.char] = rect2(103, 0, 8, 17)
+  result.characterRects[39.char] = rect2(86, 68, 2, 17)
+  result.characterRects[40.char] = rect2(42, 68, 3, 17)
+  result.characterRects[41.char] = rect2(45, 68, 3, 17)
+  result.characterRects[42.char] = rect2(34, 34, 6, 17)
+  result.characterRects[43.char] = rect2(40, 34, 6, 17)
+  result.characterRects[44.char] = rect2(48, 68, 3, 17)
+  result.characterRects[45.char] = rect2(51, 68, 3, 17)
+  result.characterRects[46.char] = rect2(54, 68, 3, 17)
+  result.characterRects[47.char] = rect2(124, 34, 4, 17)
+  result.characterRects[48.char] = rect2(46, 34, 6, 17)
+  result.characterRects[49.char] = rect2(52, 34, 6, 17)
+  result.characterRects[50.char] = rect2(58, 34, 6, 17)
+  result.characterRects[51.char] = rect2(64, 34, 6, 17)
+  result.characterRects[52.char] = rect2(70, 34, 6, 17)
+  result.characterRects[53.char] = rect2(76, 34, 6, 17)
+  result.characterRects[54.char] = rect2(82, 34, 6, 17)
+  result.characterRects[55.char] = rect2(88, 34, 6, 17)
+  result.characterRects[56.char] = rect2(94, 34, 6, 17)
+  result.characterRects[57.char] = rect2(100, 34, 6, 17)
+  result.characterRects[58.char] = rect2(57, 68, 3, 17)
+  result.characterRects[59.char] = rect2(60, 68, 3, 17)
+  result.characterRects[60.char] = rect2(106, 34, 6, 17)
+  result.characterRects[61.char] = rect2(112, 34, 6, 17)
+  result.characterRects[62.char] = rect2(118, 34, 6, 17)
+  result.characterRects[63.char] = rect2(119, 51, 5, 17)
+  result.characterRects[64.char] = rect2(18, 0, 10, 17)
+  result.characterRects[65.char] = rect2(41, 17, 7, 17)
+  result.characterRects[66.char] = rect2(48, 17, 7, 17)
+  result.characterRects[67.char] = rect2(55, 17, 7, 17)
+  result.characterRects[68.char] = rect2(111, 0, 8, 17)
+  result.characterRects[69.char] = rect2(0, 35, 6, 17)
+  result.characterRects[70.char] = rect2(6, 35, 6, 17)
+  result.characterRects[71.char] = rect2(119, 0, 8, 17)
+  result.characterRects[72.char] = rect2(18, 17, 8, 17)
+  result.characterRects[73.char] = rect2(63, 68, 3, 17)
+  result.characterRects[74.char] = rect2(66, 68, 3, 17)
+  result.characterRects[75.char] = rect2(62, 17, 7, 17)
+  result.characterRects[76.char] = rect2(12, 51, 6, 17)
+  result.characterRects[77.char] = rect2(28, 0, 10, 17)
+  result.characterRects[78.char] = rect2(67, 0, 9, 17)
+  result.characterRects[79.char] = rect2(76, 0, 9, 17)
+  result.characterRects[80.char] = rect2(69, 17, 7, 17)
+  result.characterRects[81.char] = rect2(85, 0, 9, 17)
+  result.characterRects[82.char] = rect2(76, 17, 7, 17)
+  result.characterRects[83.char] = rect2(18, 51, 6, 17)
+  result.characterRects[84.char] = rect2(24, 51, 6, 17)
+  result.characterRects[85.char] = rect2(26, 17, 8, 17)
+  result.characterRects[86.char] = rect2(83, 17, 7, 17)
+  result.characterRects[87.char] = rect2(38, 0, 10, 17)
+  result.characterRects[88.char] = rect2(90, 17, 7, 17)
+  result.characterRects[89.char] = rect2(30, 51, 6, 17)
+  result.characterRects[90.char] = rect2(36, 51, 6, 17)
+  result.characterRects[91.char] = rect2(69, 68, 3, 17)
+  result.characterRects[92.char] = rect2(124, 51, 4, 17)
+  result.characterRects[93.char] = rect2(72, 68, 3, 17)
+  result.characterRects[94.char] = rect2(42, 51, 6, 17)
+  result.characterRects[95.char] = rect2(15, 68, 4, 17)
+  result.characterRects[96.char] = rect2(48, 51, 6, 17)
+  result.characterRects[97.char] = rect2(54, 51, 6, 17)
+  result.characterRects[98.char] = rect2(97, 17, 7, 17)
+  result.characterRects[99.char] = rect2(0, 52, 5, 17)
+  result.characterRects[100.char] = rect2(104, 17, 7, 17)
+  result.characterRects[101.char] = rect2(60, 51, 6, 17)
+  result.characterRects[102.char] = rect2(19, 68, 4, 17)
+  result.characterRects[103.char] = rect2(66, 51, 6, 17)
+  result.characterRects[104.char] = rect2(111, 17, 7, 17)
+  result.characterRects[105.char] = rect2(75, 68, 3, 17)
+  result.characterRects[106.char] = rect2(78, 68, 3, 17)
+  result.characterRects[107.char] = rect2(72, 51, 6, 17)
+  result.characterRects[108.char] = rect2(81, 68, 3, 17)
+  result.characterRects[109.char] = rect2(48, 0, 10, 17)
+  result.characterRects[110.char] = rect2(118, 17, 7, 17)
+  result.characterRects[111.char] = rect2(0, 18, 7, 17)
+  result.characterRects[112.char] = rect2(7, 18, 7, 17)
+  result.characterRects[113.char] = rect2(14, 34, 7, 17)
+  result.characterRects[114.char] = rect2(23, 68, 4, 17)
+  result.characterRects[115.char] = rect2(5, 52, 5, 17)
+  result.characterRects[116.char] = rect2(27, 68, 4, 17)
+  result.characterRects[117.char] = rect2(21, 34, 7, 17)
+  result.characterRects[118.char] = rect2(78, 51, 6, 17)
+  result.characterRects[119.char] = rect2(94, 0, 9, 17)
+  result.characterRects[120.char] = rect2(84, 51, 6, 17)
+  result.characterRects[121.char] = rect2(90, 51, 6, 17)
+  result.characterRects[122.char] = rect2(10, 68, 5, 17)
+  result.characterRects[123.char] = rect2(31, 68, 4, 17)
+  result.characterRects[124.char] = rect2(96, 51, 6, 17)
+  result.characterRects[125.char] = rect2(35, 68, 4, 17)
+  result.characterRects[126.char] = rect2(102, 51, 6, 17)
+  result.characterRects[127.char] = rect2(108, 51, 6, 17)
+
+  # Scale to 0 to 1.
+  for i, rect in result.characterRects:
+    let c = i.char
+    let w = result.width.float
+    let h = result.height.float
+    result.characterUvs[c].x = rect.x / w
+    result.characterUvs[c].y = rect.y / h
+    result.characterUvs[c].width = rect.width / w
+    result.characterUvs[c].height = rect.height / h

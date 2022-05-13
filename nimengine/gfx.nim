@@ -1,22 +1,24 @@
-import pkg/opengl
+import opengl
 export opengl
 
-import ./gfx/openglcontext
-import ./gfx/canvas
-import ./gfx/canvasatlas
-import ./gfx/canvasrenderer
-import ./gfx/indexbuffer
-import ./gfx/vertexbuffer
-import ./gfx/shader
-import ./gfx/texture
-import ./gfx/gfx
+import ./gfx/wrappers/common
+import ./gfx/wrappers/functions
+import ./gfx/wrappers/indexbuffer
+import ./gfx/wrappers/openglcontext
+import ./gfx/wrappers/shader
+import ./gfx/wrappers/texture
+import ./gfx/wrappers/vertexbuffer
 
-export openglcontext
-export canvas
-export canvasatlas
-export canvasrenderer
+export common
+export functions
 export indexbuffer
-export vertexBuffer
+export openglcontext
 export shader
 export texture
-export gfx
+export vertexbuffer
+
+import ./gfx/canvas
+export canvas
+
+import ./gfx/canvasatlas
+export canvasatlas

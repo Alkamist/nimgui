@@ -1,10 +1,9 @@
-import pkg/opengl
-export opengl
+import opengl
 
 var openGlIsInitialized {.threadvar.}: bool
 
 when defined(windows):
-  import pkg/winim/lean
+  import winim/lean
 
   let hmodule = LoadLibraryA("opengl32.dll")
 

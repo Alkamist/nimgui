@@ -1,11 +1,8 @@
-import pkg/opengl
-export opengl
-
+import opengl
 import ./common
-export common
 
 type
-  VertexAttributeKind* = enum
+  AttributeKind* = enum
     Float, Float2, Float3, Float4,
     Mat3, Mat4,
     Int, Int2, Int3, Int4,
@@ -14,9 +11,9 @@ type
   VertexBuffer* = ref object
     len*: int
     id*: GLuint
-    m_layout: seq[VertexAttributeKind]
+    m_layout: seq[AttributeKind]
 
-func toGlEnum*(kind: VertexAttributeKind): GLenum =
+func toGlEnum*(kind: AttributeKind): GLenum =
   case kind:
   of Float: cGL_FLOAT
   of Float2: cGL_FLOAT
@@ -30,7 +27,7 @@ func toGlEnum*(kind: VertexAttributeKind): GLenum =
   of Int4: cGL_INT
   of Bool: GL_BOOL
 
-func valueCount*(kind: VertexAttributeKind): int =
+func valueCount*(kind: AttributeKind): int =
   case kind:
   of Float: 1
   of Float2: 2
@@ -44,12 +41,12 @@ func valueCount*(kind: VertexAttributeKind): int =
   of Int4: 4
   of Bool: 1
 
-func byteCount*(kind: VertexAttributeKind): int =
+func byteCount*(kind: AttributeKind): int =
   if kind == Bool:
     return 1
   kind.valueCount * 4
 
-func byteCount*(layout: openArray[VertexAttributeKind]): int =
+func byteCount*(layout: openArray[AttributeKind]): int =
   for kind in layout:
     result += kind.byteCount
 
@@ -73,7 +70,7 @@ proc upload*[T](buffer: VertexBuffer, usage: BufferUsage, data: openArray[T]) =
       target = GL_ARRAY_BUFFER,
       size = data.len * sizeof(T),
       data = nil,
-      usage = usage.toGlEnum,
+      usage = usage.GlEnum,
     )
   glBufferSubData(
     target = GL_ARRAY_BUFFER,
@@ -99,11 +96,11 @@ proc uploadLayout(buffer: VertexBuffer) =
     )
     byteOffset += attribute.byteCount
 
-proc layout*(buffer: VertexBuffer): seq[VertexAttributeKind] =
+proc layout*(buffer: VertexBuffer): seq[AttributeKind] =
   buffer.m_layout
 
-proc setLayout*(buffer: VertexBuffer, layout: openArray[VertexAttributeKind]) =
-  buffer.m_layout = newSeq[VertexAttributeKind](layout.len)
+proc setLayout*(buffer: VertexBuffer, layout: openArray[AttributeKind]) =
+  buffer.m_layout = newSeq[AttributeKind](layout.len)
   for i, attribute in layout:
     buffer.m_layout[i] = attribute
   buffer.uploadLayout()
@@ -111,7 +108,7 @@ proc setLayout*(buffer: VertexBuffer, layout: openArray[VertexAttributeKind]) =
 proc `=destroy`*(buffer: var type VertexBuffer()[]) =
   glDeleteBuffers(1, buffer.id.addr)
 
-proc newVertexBuffer*(layout: openArray[VertexAttributeKind]): VertexBuffer =
+proc newVertexBuffer*(layout: openArray[AttributeKind]): VertexBuffer =
   result = VertexBuffer()
   glGenBuffers(1, result.id.addr)
   result.setLayout(layout)

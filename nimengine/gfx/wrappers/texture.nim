@@ -1,26 +1,8 @@
 {.experimental: "overloadableEnums".}
 
-import pkg/opengl
-export opengl
+import opengl
 
 type
-  # TextureFormat* = enum
-  #   Red = GL_RED
-  #   Rg = GL_RG
-  #   Rgb = GL_RGB
-  #   Bgr = GL_BGR
-  #   Rgba = GL_RGBA
-  #   Bgra = GL_BGRA
-  #   RedInteger = GL_RED_INTEGER
-  #   RgInteger = GL_RG_INTEGER
-  #   RgbInteger = GL_RGB_INTEGER
-  #   BgrInteger = GL_BGR_INTEGER
-  #   RgbaInteger = GL_RGBA_INTEGER
-  #   BgraInteger = GL_BGRA_INTEGER
-  #   StencilIndex = GL_STENCIL_INDEX
-  #   DepthComponent = GL_DEPTH_COMPONENT
-  #   DepthStencil = GL_DEPTH_STENCIL
-
   MinifyFilter* = enum
     Nearest = GL_NEAREST
     Linear = GL_LINEAR
@@ -78,6 +60,22 @@ proc upload*(texture: Texture, width, height: int, data: openArray[uint8]) =
     width = width.GLsizei,
     height = height.GLsizei,
     border = 0,
+    format = GL_RGBA,
+    `type` = GL_UNSIGNED_BYTE,
+    pixels = data[0].unsafeAddr,
+  )
+
+proc uploadSub*(texture: Texture, width, height: int, data: openArray[uint8]) =
+  texture.width = width
+  texture.height = height
+  texture.select()
+  glTexSubImage2D(
+    target = GL_TEXTURE_2D,
+    level = 0,
+    xoffset = 0.GLint,
+    yoffset = 0.GLint,
+    width = width.GLsizei,
+    height = height.GLsizei,
     format = GL_RGBA,
     `type` = GL_UNSIGNED_BYTE,
     pixels = data[0].unsafeAddr,

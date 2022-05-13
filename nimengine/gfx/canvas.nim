@@ -1,34 +1,60 @@
 {.experimental: "overloadableEnums".}
 
-import ../gmath
-import ../gmath/types
+import std/math
+import std/unicode
+import opengl
+
+import ./wrappers/functions as gfx
+import ./wrappers/shader
+import ./wrappers/texture
+import ./wrappers/vertexbuffer
+import ./wrappers/indexbuffer
+import ./wrappers/common
 import ./canvasatlas
 
-func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
-  ## Assumes clockwise winding of polygon.
-  result = newSeq[Vec2](poly.len)
-  for i in 0 ..< result.len:
-    let nextPointIndex =
-      if i == result.len - 1:
-        0
-      else:
-        i + 1
+const vertexSrc = """
+#version 300 es
+precision highp float;
+layout (location = 0) in vec2 Position;
+layout (location = 1) in vec2 UV;
+layout (location = 2) in vec4 Color;
+uniform mat4 ProjMtx;
+out vec2 Frag_UV;
+out vec4 Frag_Color;
+void main()
+{
+  Frag_UV = UV;
+  Frag_Color = Color;
+  gl_Position = ProjMtx * vec4(Position.xy, 0, 1);
+}
+"""
 
-    let point = poly[i]
-    let nextPoint = poly[nextPointIndex]
+const fragmentSrc = """
+#version 300 es
+precision mediump float;
+uniform sampler2D Texture;
+in vec2 Frag_UV;
+in vec4 Frag_Color;
+layout (location = 0) out vec4 Out_Color;
+void main()
+{
+  Out_Color = Frag_Color * texture(Texture, Frag_UV.st);
+}
+"""
 
-    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
-
-func openNormals(poly: openArray[Vec2]): seq[Vec2] =
-  ## Assumes clockwise winding of polygon.
-  result = newSeq[Vec2](poly.len - 1)
-  for i in 0 ..< result.len:
-    let point = poly[i]
-    let nextPoint = poly[i + 1]
-
-    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
+func orthoProjection(left, right, top, bottom: float32): array[4, array[4, float32]] =
+  [
+    [2.0f / (right - left), 0.0f, 0.0f, 0.0f],
+    [0.0f, 2.0f / (top - bottom), 0.0f, 0.0f],
+    [0.0f, 0.0f, -1.0f, 0.0f],
+    [(right + left) / (left - right), (top + bottom) / (bottom - top), 0.0f, 1.0f],
+  ]
 
 type
+  # Vec2 = tuple[x, y: float]
+  Rect2 = tuple[x, y, width, height: float]
+  Color = tuple[r, g, b, a: float]
+
   HorizontalAlignment* = enum
     Left
     Center
@@ -39,73 +65,91 @@ type
     Center
     Top
 
-  Index* = uint32
+  Index = uint32
 
-  Vertex* = object
+  Vertex = object
     x*, y*: float32
     u*, v*: float32
     r*, g*, b*, a*: float32
 
-  DrawCall* = object
-    clipRect*: Rect2
-    indexOffset*: int
-    indexCount*: int
+  DrawCall = object
+    clipRect: Rect2
+    indexOffset: int
+    indexCount: int
 
   Canvas* = ref object
-    atlas*: CanvasAtlas
-    width*, height*: float
-    drawCalls*: seq[DrawCall]
-    vertexData*: seq[Vertex]
-    vertexWrite*: int
-    indexData*: seq[Index]
-    indexWrite*: int
+    width, height: float
+    vertexData: seq[Vertex]
+    vertexWrite: int
+    indexData: seq[Index]
+    indexWrite: int
+    shader: Shader
+    atlasTexture: Texture
+    vertexBuffer: VertexBuffer
+    indexBuffer: IndexBuffer
+    vertexArrayId: GLuint
+    drawCalls: seq[DrawCall]
     clipRectStack: seq[Rect2]
+    atlas*: CanvasAtlas
 
-func newCanvas*(atlas: CanvasAtlas): Canvas =
-  Canvas(atlas: atlas)
+func vertex(x, y, u, v, r, g, b, a: float): Vertex =
+  Vertex(
+    x: x.float32, y: y.float32,
+    u: u.float32, v: v.float32,
+    r: r.float32, g: g.float32, b: b.float32, a: a.float32,
+  )
+
+proc `=destroy`*(canvas: var type Canvas()[]) =
+  glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
+
+proc newCanvas*(): Canvas =
+  result = Canvas()
+
+  # Stop OpenGl from crashing on later versions.
+  glGenVertexArrays(1, result.vertexArrayId.addr)
+  glBindVertexArray(result.vertexArrayId)
+
+  result.shader = newShader(vertexSrc, fragmentSrc)
+  result.atlasTexture = newTexture()
+  result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
+  result.indexBuffer = newIndexBuffer(UInt32)
+
+proc loadFont*(canvas: Canvas, location: string, fontSize: float) =
+  let fontData = readFile(location)
+  canvas.atlas = newCanvasAtlas(fontData, fontSize)
+  canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
 func addDrawCall(canvas: Canvas) =
   if canvas.clipRectStack.len == 0:
     return
 
+  template currentDrawCall(): untyped = canvas.drawCalls[canvas.drawCalls.len - 1]
+  template currentClipRect(): untyped = canvas.clipRectStack[canvas.clipRectStack.len - 1]
+
   let indexOffset = canvas.indexData.len
   let previousDrawCallIsEmpty =
     canvas.drawCalls.len > 0 and
-    canvas.drawCalls[canvas.drawCalls.len - 1].indexCount > 0
+    currentDrawCall.indexCount > 0
 
   # Avoid allocating new draw calls if the previous one is empty.
   # There could still be an empty draw call at the end of the list though.
   if canvas.drawCalls.len == 0 or previousDrawCallIsEmpty:
     canvas.drawCalls.add(DrawCall(
-      clipRect: canvas.clipRectStack[canvas.clipRectStack.len - 1],
+      clipRect: currentClipRect,
       indexOffset: indexOffset,
       indexCount: 0,
     ))
   else:
-    canvas.drawCalls[canvas.drawCalls.len - 1].clipRect = canvas.clipRectStack[canvas.clipRectStack.len - 1]
-    canvas.drawCalls[canvas.drawCalls.len - 1].indexOffset = indexOffset
-
-func pushClipRect*(canvas: Canvas, clipRect: Rect2) =
-  canvas.clipRectStack.add(clipRect)
-  canvas.addDrawCall()
+    currentDrawCall.clipRect = currentClipRect
+    currentDrawCall.indexOffset = indexOffset
 
 func pushClipRect*(canvas: Canvas, x, y, width, height: float) =
-  canvas.pushClipRect(rect2(x, y, width, height))
+  canvas.clipRectStack.add (x, y, width, height)
+  canvas.addDrawCall()
 
 func popClipRect*(canvas: Canvas) =
   canvas.clipRectStack.del(canvas.clipRectStack.len - 1)
   canvas.addDrawCall()
-
-func beginFrame*(canvas: Canvas, width, height: float) =
-  canvas.width = width
-  canvas.height = height
-  canvas.vertexWrite = 0
-  canvas.indexWrite = 0
-  canvas.vertexData.setLen(0)
-  canvas.indexData.setLen(0)
-  canvas.clipRectStack.setLen(0)
-  canvas.drawCalls.setLen(0)
-  canvas.pushClipRect(0, 0, canvas.width, canvas.height)
 
 func reserve*(canvas: Canvas, vertexCount, indexCount: int) =
   assert(canvas.indexData.len + indexCount <= Index.high.int)
@@ -122,27 +166,15 @@ func unreserve*(canvas: Canvas, vertexCount, indexCount: int) =
   canvas.vertexData.setLen((canvas.vertexData.len - vertexCount).max(0))
   canvas.indexData.setLen((canvas.indexData.len - indexCount).max(0))
 
-func addVertex*(canvas: Canvas, position: Vec2, color: Color) =
-  canvas.vertexData[canvas.vertexWrite] = Vertex(
-    x: position.x, y: position.y,
-    u: canvas.atlas.whitePixelUv.x, v: canvas.atlas.whitePixelUv.y,
-    r: color.r, g: color.g, b: color.b, a: color.a,
-  )
-  inc canvas.vertexWrite
-
-func addVertexUv*(canvas: Canvas, position, uv: Vec2, color: Color) =
-  canvas.vertexData[canvas.vertexWrite] = Vertex(
-    x: position.x, y: position.y,
-    u: uv.x, v: uv.y,
-    r: color.r, g: color.g, b: color.b, a: color.a,
-  )
+func addVertex*(canvas: Canvas, x, y, u, v, r, g, b, a: float) =
+  canvas.vertexData[canvas.vertexWrite] = vertex(x, y, u, v, r, g, b, a)
   inc canvas.vertexWrite
 
 func addIndex*(canvas: Canvas, index: int) =
   canvas.indexData[canvas.indexWrite] = (canvas.vertexWrite + index).Index
   inc canvas.indexWrite
 
-func addQuadUv*(canvas: Canvas, quad, uv: Rect2, color: Color) =
+func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.reserve(4, 6)
   canvas.addIndex(0)
   canvas.addIndex(2)
@@ -150,431 +182,193 @@ func addQuadUv*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.addIndex(0)
   canvas.addIndex(3)
   canvas.addIndex(2)
-  canvas.addVertexUv(quad.bottomLeft, uv.bottomLeft, color)
-  canvas.addVertexUv(quad.topLeft, uv.topLeft, color)
-  canvas.addVertexUv(quad.topRight, uv.topRight, color)
-  canvas.addVertexUv(quad.bottomRight, uv.bottomRight, color)
 
-###############################################################################
-# Polyline:
-###############################################################################
+  proc lrtb(rect: Rect2): tuple[left, right, top, bottom: float] =
+    (rect.x, rect.x + rect.width, rect.y, rect.y + rect.height)
 
-func addPolyLineOpenNoFeather(canvas: Canvas, points: openArray[Vec2], color: Color, thickness: float) =
-  if points.len < 2:
+  let quad = quad.lrtb
+  let uv = uv.lrtb
+
+  canvas.addVertex(quad.left, quad.bottom, uv.left, uv.bottom, color.r, color.g, color.b, color.a)
+  canvas.addVertex(quad.left, quad.top, uv.left, uv.top, color.r, color.g, color.b, color.a)
+  canvas.addVertex(quad.right, quad.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
+  canvas.addVertex(quad.right, quad.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
+
+func beginFrame*(canvas: Canvas, width, height: float) =
+  canvas.width = width
+  canvas.height = height
+  canvas.vertexWrite = 0
+  canvas.indexWrite = 0
+  canvas.vertexData.setLen(0)
+  canvas.indexData.setLen(0)
+  canvas.clipRectStack.setLen(0)
+  canvas.drawCalls.setLen(0)
+  canvas.pushClipRect(0, 0, canvas.width, canvas.height)
+
+proc render*(canvas: Canvas) =
+  if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
     return
 
-  let indexCount = (points.len - 1) * 6
-  let vertexCount = points.len * 2
-  canvas.reserve(vertexCount, indexCount)
+  gfx.enableBlend()
+  gfx.enableClipping()
+  gfx.disableFaceCulling()
+  gfx.disableDepthTesting()
 
-  # Add indices.
-  for i in countup(3, vertexCount - 1, 2):
-    canvas.addIndex(i - 3)
-    canvas.addIndex(i - 2)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 2)
-    canvas.addIndex(i)
+  canvas.shader.select()
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
+  canvas.atlasTexture.select()
+  canvas.vertexBuffer.select()
+  canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
+  canvas.indexBuffer.select()
+  canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
-  # Add vertices.
-  let halfThickness = 0.5 * thickness
-  let normals = points.openNormals
+  for drawCall in canvas.drawCalls:
+    if drawCall.indexCount == 0:
+      continue
 
-  let startExpander = normals[0] * halfThickness
-  let aStart = points[0] + startExpander
-  let bStart = points[0] - startExpander
-  canvas.addVertex(aStart, color)
-  canvas.addVertex(bStart, color)
+    # OpenGl clip rects are placed from the bottom left.
+    let crX = drawCall.clipRect.x
+    let crYFlipped = canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height)
+    let crWidth = drawCall.clipRect.width
+    let crHeight = drawCall.clipRect.height
+    gfx.setClipRect(
+      crX,
+      crYFlipped,
+      crWidth,
+      crHeight,
+    )
 
-  for i in 1 ..< normals.len:
-    let previousNormal = normals[i - 1]
-    let normal = normals[i]
-
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
-    let theta = previousNormal.angleTo(expanderNormal)
-    let expanderLength = halfThickness / cos(theta)
-    let expander = expanderNormal * expanderLength
-
-    let a = points[i] + expander
-    let b = points[i] - expander
-
-    canvas.addVertex(a, color)
-    canvas.addVertex(b, color)
-
-  let endExpander = normals[normals.len - 1] * halfThickness
-  let aEnd = points[points.len - 1] + endExpander
-  let bEnd = points[points.len - 1] - endExpander
-  canvas.addVertex(aEnd, color)
-  canvas.addVertex(bEnd, color)
-
-func addPolyLineClosedNoFeather(canvas: Canvas, points: openArray[Vec2], color: Color, thickness: float) =
-  if points.len < 2:
-    return
-
-  let indexCount = points.len * 6
-  let vertexCount = points.len * 2
-  canvas.reserve(vertexCount, indexCount)
-
-  # Add indices.
-  for i in countup(3, vertexCount - 1, 2):
-    canvas.addIndex(i - 3)
-    canvas.addIndex(i - 2)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 2)
-    canvas.addIndex(i)
-
-  # Add the closing indices.
-  canvas.addIndex(vertexCount - 2)
-  canvas.addIndex(vertexCount - 1)
-  canvas.addIndex(0)
-  canvas.addIndex(0)
-  canvas.addIndex(vertexCount - 1)
-  canvas.addIndex(1)
-
-  # Add vertices.
-  let halfThickness = 0.5 * thickness
-  let normals = points.closedNormals
-
-  for i in 0 ..< normals.len:
-    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
-    let previousNormal = normals[previousNormalIndex]
-    let normal = normals[i]
-
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
-    let theta = previousNormal.angleTo(expanderNormal)
-    let miterLength = halfThickness / cos(theta)
-    let expander = expanderNormal * miterLength
-
-    let a = points[i] + expander
-    let b = points[i] - expander
-
-    canvas.addVertex(a, color)
-    canvas.addVertex(b, color)
-
-func addPolyLineClosedFeather(canvas: Canvas, points: openArray[Vec2], color: Color, thickness, feather: float) =
-  if points.len < 2:
-    return
-
-  let indexCount = points.len * 18
-  let vertexCount = points.len * 4
-  canvas.reserve(vertexCount, indexCount)
-
-  # Add indices.
-  for i in countup(7, vertexCount - 1, 4):
-    canvas.addIndex(i - 6)
-    canvas.addIndex(i - 5)
-    canvas.addIndex(i - 2)
-    canvas.addIndex(i - 2)
-    canvas.addIndex(i - 5)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 5)
-    canvas.addIndex(i - 4)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 1)
-    canvas.addIndex(i - 4)
-    canvas.addIndex(i)
-    canvas.addIndex(i - 7)
-    canvas.addIndex(i - 6)
-    canvas.addIndex(i - 3)
-    canvas.addIndex(i - 3)
-    canvas.addIndex(i - 6)
-    canvas.addIndex(i - 2)
-
-  # Add the closing indices.
-  canvas.addIndex(vertexCount - 3)
-  canvas.addIndex(vertexCount - 2)
-  canvas.addIndex(1)
-  canvas.addIndex(1)
-  canvas.addIndex(vertexCount - 2)
-  canvas.addIndex(2)
-  canvas.addIndex(vertexCount - 2)
-  canvas.addIndex(vertexCount - 1)
-  canvas.addIndex(2)
-  canvas.addIndex(2)
-  canvas.addIndex(vertexCount - 1)
-  canvas.addIndex(3)
-  canvas.addIndex(vertexCount - 4)
-  canvas.addIndex(vertexCount - 3)
-  canvas.addIndex(0)
-  canvas.addIndex(0)
-  canvas.addIndex(vertexCount - 3)
-  canvas.addIndex(1)
-
-  # Add vertices.
-  let halfThickness = thickness * 0.5
-  let normals = points.closedNormals
-  let featherColor = rgba(color.r, color.g, color.b, 0)
-
-  for i in 0 ..< normals.len:
-    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
-    let previousNormal = normals[previousNormalIndex]
-    let normal = normals[i]
-
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
-    let theta = previousNormal.angleTo(expanderNormal)
-    let cosTheta = cos(theta)
-    let expanderLength = halfThickness / cosTheta
-    let expander = expanderNormal * expanderLength
-    let featherLength = feather / cosTheta
-    let featherExpander = expanderNormal * featherLength
-
-    let a = points[i] + expander
-    let aFeather = a + featherExpander
-    let b = points[i] - expander
-    let bFeather = b - featherExpander
-
-    canvas.addVertex(aFeather, featherColor)
-    canvas.addVertex(a, color)
-    canvas.addVertex(b, color)
-    canvas.addVertex(bFeather, featherColor)
-
-func addPolyLine*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0, feather = 0.0, closed = false) =
-  if feather > 0:
-    if closed:
-      canvas.addPolyLineClosedFeather(points, color, thickness, feather)
-    # else:
-    #   canvas.addPolyLineOpenFeather(points, color, thickness, feather)
-  else:
-    if closed:
-      canvas.addPolyLineClosedNoFeather(points, color, thickness)
-    else:
-      canvas.addPolyLineOpenNoFeather(points, color, thickness)
-
-###############################################################################
-# Convex Poly:
-###############################################################################
-
-func addConvexPolyNoFeather(canvas: Canvas, points: openArray[Vec2], color: Color) =
-  ## Assumes clockwise winding of polygon.
-  if points.len < 3:
-    return
-
-  let indexCount = (points.len - 2) * 3
-  let vertexCount = points.len
-  canvas.reserve(vertexCount, indexCount)
-
-  # Add indices.
-  for i in 2 ..< points.len:
-    canvas.addIndex(0)
-    canvas.addIndex(i)
-    canvas.addIndex(i - 1)
-
-  # Add vertices.
-  let normals = points.closedNormals
-
-  for i in 0 ..< vertexCount:
-    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
-    let previousNormal = normals[previousNormalIndex]
-    let normal = normals[i]
-
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
-    let theta = previousNormal.angleTo(expanderNormal)
-    let expander = expanderNormal * 0.5 / cos(theta)
-
-    # The polygon needs to be expanded slightly to be
-    # inclusive of all pixels when rendered and match up
-    # with addPolyLine.
-    canvas.addVertex(points[i] + expander, color)
-
-func addConvexPolyFeather(canvas: Canvas, points: openArray[Vec2], color: Color, feather: float) =
-  ## Assumes clockwise winding of polygon.
-  if points.len < 3:
-    return
-
-  let indexCount = (points.len - 2) * 3 + points.len * 6
-  let vertexCount = points.len * 2
-  canvas.reserve(vertexCount, indexCount)
-
-  # Add the first feather quad.
-  let firstQuadInner0 = 0
-  let firstQuadInner1 = 2
-  let firstQuadOuter0 = 1
-  let firstQuadOuter1 = 3
-
-  canvas.addIndex(firstQuadInner0)
-  canvas.addIndex(firstQuadOuter1)
-  canvas.addIndex(firstQuadOuter0)
-  canvas.addIndex(firstQuadOuter1)
-  canvas.addIndex(firstQuadInner0)
-  canvas.addIndex(firstQuadInner1)
-
-  # Add indices.
-  for i in countup(4, vertexCount - 1, 2):
-    let innerShape0 = 0
-    let innerShape1 = i - 2
-    let innerShape2 = i
-
-    canvas.addIndex(innerShape0)
-    canvas.addIndex(innerShape2)
-    canvas.addIndex(innerShape1)
-
-    let featherQuad1 = i - 1
-    let featherQuad2 = i + 1
-
-    canvas.addIndex(innerShape1)
-    canvas.addIndex(featherQuad2)
-    canvas.addIndex(featherQuad1)
-    canvas.addIndex(featherQuad2)
-    canvas.addIndex(innerShape1)
-    canvas.addIndex(innerShape2)
-
-  # Add the final feather quad.
-  let finalQuadInner0 = vertexCount - 2
-  let finalQuadInner1 = 0
-  let finalQuadOuter0 = vertexCount - 1
-  let finalQuadOuter1 = 1
-
-  canvas.addIndex(finalQuadInner0)
-  canvas.addIndex(finalQuadOuter1)
-  canvas.addIndex(finalQuadOuter0)
-  canvas.addIndex(finalQuadOuter1)
-  canvas.addIndex(finalQuadInner0)
-  canvas.addIndex(finalQuadInner1)
-
-  # Add vertices.
-  let featherColor = rgba(color.r, color.g, color.b, 0)
-  let normals = points.closedNormals
-
-  for i in 0 ..< points.len:
-    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
-
-    let previousNormal = normals[previousNormalIndex]
-    let normal = normals[i]
-
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
-    let theta = previousNormal.angleTo(expanderNormal)
-    let cosTheta = cos(theta)
-    let point = points[i] + expanderNormal * 0.5 / cosTheta
-    let featherLength = feather / cosTheta
-    let featherPoint = point + expanderNormal * featherLength
-
-    canvas.addVertex(point, color)
-    canvas.addVertex(featherPoint, featherColor)
-
-func addConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color, feather = 0.0) =
-  if feather > 0:
-    canvas.addConvexPolyFeather(points, color, feather)
-  else:
-    canvas.addConvexPolyNoFeather(points, color)
-
-###############################################################################
-# Drawing:
-###############################################################################
-
-func fillRect*(canvas: Canvas, x, y, width, height: float, color: Color, feather = 0.0) =
-  let left = x
-  let right = x + width
-  let top = y
-  let bottom = y + height
-  let points = [
-    vec2(left, top),
-    vec2(right, top),
-    vec2(right, bottom),
-    vec2(left, bottom),
-  ]
-  canvas.addConvexPoly(points, color, feather)
-
-func strokeRect*(canvas: Canvas, x, y, width, height: float, color: Color, thickness = 1.0, feather = 0.0) =
-  let left = x
-  let right = x + width
-  let top = y
-  let bottom = y + height
-  let points = [
-    vec2(left, top),
-    vec2(right, top),
-    vec2(right, bottom),
-    vec2(left, bottom),
-  ]
-  canvas.addPolyLine(points, color, thickness, feather, true)
+    gfx.drawTriangles(
+      drawCall.indexCount,
+      canvas.indexBuffer.kind,
+      drawCall.indexOffset,
+    )
 
 # TODO: Handle clipping inside here so you can
 # cull glyph quads that are out of bounds.
-# func drawText*(canvas: Canvas,
-#                text: string,
-#                bounds: Rect2,
-#                color: Color,
-#                horizontalAlignment = HorizontalAlignment.Left,
-#                verticalAlignment = VerticalAlignment.Center,
-#                wordWrap = true) =
-#   const lineHeight = 18.0
+func drawText*(canvas: Canvas,
+               text: string,
+               bounds: Rect2,
+               color: Color,
+               horizontalAlignment = HorizontalAlignment.Left,
+               verticalAlignment = VerticalAlignment.Center,
+               wordWrap = true) =
+  const newLine = "\n".runeAt(0)
 
-#   var lineInfo: seq[tuple[firstIndex, lastIndex: int]]
-#   lineInfo.add((0, text.len - 1))
+  if canvas.atlas.glyphInfoTable.len == 0:
+    return
 
-#   block:
-#     template currentLine(): untyped =
-#       lineInfo[lineInfo.len - 1]
+  let runes = text.toRunes
 
-#     var i = 0
-#     var wrapCount = 0
-#     var lastWhitespace = 0
-#     var x = 0.0
+  var lineInfo: seq[tuple[firstIndex, lastIndex: int]]
+  lineInfo.add((0, runes.len - 1))
 
-#     while i < text.len and wrapCount < text.len:
-#       let c = text[i]
-#       let glyphRect = canvas.atlas.characterRects[c]
+  # Extract info about lines based on glyph bounds.
+  block:
+    template currentLine(): untyped =
+      lineInfo[lineInfo.len - 1]
 
-#       if c ==  ' ':
-#         lastWhitespace = i
+    var i = 0
+    var wrapCount = 0
+    var lastWhitespace = 0
+    var x = 0.0
 
-#       if c == '\n':
-#         x = 0.0
-#         currentLine.lastIndex = i
-#         inc i
-#         lineInfo.add((i, text.len - 1))
-#         continue
+    while i < runes.len and wrapCount < runes.len:
+      let rune = runes[i]
 
-#       let outOfBounds = x + glyphRect.width > bounds.width
+      if not canvas.atlas.glyphInfoTable.hasKey(rune):
+        inc i
+        continue
 
-#       if wordWrap and outOfBounds and i > 0:
-#         inc wrapCount
-#         x = 0.0
+      let glyphInfo = canvas.atlas.glyphInfoTable[rune]
 
-#         if lastWhitespace > currentLine.firstIndex:
-#           let nextLineStart = lastWhitespace + 1
-#           currentLine.lastIndex = lastWhitespace - 1
-#           lineInfo.add((nextLineStart, text.len - 1))
-#           i = nextLineStart
-#           continue
-#         else:
-#           currentLine.lastIndex = i - 1
-#           lineInfo.add((i, text.len - 1))
+      if rune.isWhiteSpace:
+        lastWhitespace = i
 
-#       x += glyphRect.width
-#       inc i
+      if rune == newLine:
+        x = 0.0
+        currentLine.lastIndex = i - 1
+        inc i
+        lineInfo.add((i, runes.len - 1))
+        continue
 
-#   let textOffset = case verticalAlignment:
-#     of Bottom: bounds.height - (lineHeight * lineInfo.len.float)
-#     of Center: 0.5 * (bounds.height - (lineHeight * lineInfo.len.float))
-#     of Top: 0.0
+      let outOfBounds = x + glyphInfo.xAdvance > bounds.width
 
-#   var y = 0.0
-#   for info in lineInfo:
-#     template calculateLineWidth(): float =
-#       var lineWidth = 0.0
-#       for i in info.firstIndex .. info.lastIndex:
-#         let c = text[i]
-#         let glyphRect = canvas.atlas.characterRects[c]
-#         lineWidth += glyphRect.width
-#       lineWidth
+      if wordWrap and outOfBounds and i > 0:
+        inc wrapCount
+        x = 0.0
 
-#     let lineOffset = case horizontalAlignment:
-#       of Left: 0.0
-#       of Center: 0.5 * (bounds.width - calculateLineWidth())
-#       of Right: bounds.width - calculateLineWidth()
+        if lastWhitespace > currentLine.firstIndex:
+          let nextLineStart = lastWhitespace + 1
+          currentLine.lastIndex = lastWhitespace - 1
+          lineInfo.add((nextLineStart, runes.len - 1))
+          i = nextLineStart
+          continue
+        else:
+          currentLine.lastIndex = i - 1
+          lineInfo.add((i, runes.len - 1))
 
-#     var x = 0.0
-#     for i in info.firstIndex .. info.lastIndex:
-#       let c = text[i]
-#       let glyphRect = canvas.atlas.characterRects[c]
-#       let quad = rect2(
-#         bounds.x + lineOffset + x,
-#         bounds.y + textOffset + y,
-#         glyphRect.width,
-#         glyphRect.height,
-#       )
-#       canvas.addQuadUv(quad, canvas.atlas.characterUvs[text[i]], color)
-#       x += glyphRect.width
+      x += glyphInfo.xAdvance
+      inc i
 
-#     y += lineHeight
+  let lineHeight = canvas.atlas.lineHeight
+
+  let yAlign = case verticalAlignment:
+    of Bottom: bounds.height - (lineHeight * lineInfo.len.float)
+    of Center: 0.5 * (bounds.height - (lineHeight * lineInfo.len.float))
+    of Top: 0.0
+
+  var y = lineHeight + canvas.atlas.glyphBoundingBox[0].y
+
+  for info in lineInfo:
+    template calculateLineWidth(): float =
+      var lineWidth = 0.0
+      for i in info.firstIndex .. info.lastIndex:
+        let rune =
+          if canvas.atlas.glyphInfoTable.hasKey(runes[i]):
+            runes[i]
+          else:
+            128.Rune
+        let glyphInfo = canvas.atlas.glyphInfoTable[rune]
+
+        lineWidth += glyphInfo.xAdvance
+
+        if i == info.firstIndex: lineWidth -= glyphInfo.xOffset
+        if i == info.lastIndex: lineWidth += glyphInfo.xOffset
+
+      lineWidth
+
+    let xAlign = case horizontalAlignment:
+      of Left: 0.0
+      of Center: 0.5 * (bounds.width - calculateLineWidth())
+      of Right: bounds.width - calculateLineWidth()
+
+    var x = 0.0
+    for i in info.firstIndex .. info.lastIndex:
+      let rune =
+        if canvas.atlas.glyphInfoTable.hasKey(runes[i]):
+          runes[i]
+        else:
+          128.Rune
+
+      let glyphInfo = canvas.atlas.glyphInfoTable[rune]
+
+      let quad = (
+        (bounds.x + xAlign + x + glyphInfo.xOffset).round,
+        (bounds.y + yAlign + y + glyphInfo.yOffset).round,
+        glyphInfo.width.float,
+        glyphInfo.height.float,
+      )
+
+      let uv = (
+        glyphInfo.x.float / canvas.atlas.width.float,
+        glyphInfo.y.float / canvas.atlas.height.float,
+        glyphInfo.width.float / canvas.atlas.width.float,
+        glyphInfo.height.float / canvas.atlas.height.float,
+      )
+
+      canvas.addQuad(quad, uv, color)
+
+      x += glyphInfo.xAdvance
+
+    y += lineHeight

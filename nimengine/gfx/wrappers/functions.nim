@@ -1,12 +1,5 @@
-import pkg/opengl
-export opengl
-
-import ../gmath
-import ../gmath/types
-export gmath
-
+import opengl
 import ./indexbuffer
-export indexbuffer
 
 {.push inline.}
 
@@ -38,7 +31,7 @@ proc disableDepthTesting*() =
 proc setBackgroundColor*(r, g, b, a: float) =
   glClearColor(r, g, b, a)
 
-proc setBackgroundColor*(color: Color) =
+proc setBackgroundColor*(color: tuple[r, g, b, a: float]) =
   glClearColor(color.r, color.g, color.b, color.a)
 
 proc clearBackground*() =
@@ -48,15 +41,9 @@ proc clearBackground*() =
 proc setViewport*(x, y, width, height: float) =
   glViewport(x.GLint, y.GLint, width.GLsizei, height.GLsizei)
 
-proc setViewport*(rect: Rect2) =
-  glViewport(rect.x.GLint, rect.y.GLint, rect.width.GLsizei, rect.height.GLsizei)
-
 # x and y are the bottom left.
 proc setClipRect*(x, y, width, height: float) =
   glScissor(x.GLint, y.GLint, width.GLsizei, height.GLsizei)
-
-proc setClipRect*(rect: Rect2) =
-  glScissor(rect.x.GLint, rect.y.GLint, rect.width.GLsizei, rect.height.GLsizei)
 
 proc drawTriangles*(indexCount: int, indexKind: IndexKind, indexOffset: int) =
   glDrawElements(

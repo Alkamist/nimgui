@@ -2,18 +2,26 @@ import std/unicode
 import std/tables
 import std/math
 import ./stb_truetype
-import ../gmath
-import ../gmath/types
+
+export tables
 
 type
+  GlyphInfo* = object
+    x*, y*: int
+    width*, height*: int
+    xOffset*, yOffset*: float
+    xAdvance*: float
+
   CanvasAtlas* = ref object
+    lineHeight*: float
     width*, height*: int
     data*: seq[uint8]
-    whitePixelUv*: Vec2
-    characterRects*: Table[Rune, Rect2]
-    characterUvs*: Table[Rune, Rect2]
+    whitePixel*: tuple[x, y: int]
+    glyphInfoTable*: Table[Rune, GlyphInfo]
+    glyphBoundingBox*: (tuple[x, y: float], tuple[x, y: float])
+    stbFontInfo: stbtt_fontinfo
 
-proc addWhitePixels(atlas: CanvasAtlas) =
+func addWhitePixels(atlas: CanvasAtlas) =
   let extraPixelRows = 6
   let endOfFont = atlas.data.len
   atlas.data.setLen(endOfFont + atlas.width * extraPixelRows * 4)
@@ -28,10 +36,25 @@ proc addWhitePixels(atlas: CanvasAtlas) =
       atlas.data[i4 + 3] = 255
 
   atlas.height += extraPixelRows
-  atlas.whitePixelUv.x = 1 / atlas.width
-  atlas.whitePixelUv.y = (atlas.height - 1) / atlas.height
+  atlas.whitePixel.x = 1
+  atlas.whitePixel.y = (atlas.height - 1)
 
-proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstChar = 0, numChars = 96) =
+proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstChar = 0, numChars = 128) =
+  if stbtt_InitFont(atlas.stbFontInfo.addr, fontData.cstring, 0) == 0:
+    echo "Failed to load font."
+
+  var x0, y0, x1, y1: cint
+  stbtt_GetFontBoundingBox(atlas.stbFontInfo.addr, x0.addr, y0.addr, x1.addr, y1.addr)
+
+  let fontScale = stbtt_ScaleForPixelHeight(atlas.stbFontInfo.addr, pixelHeight)
+
+  atlas.glyphBoundingBox = (
+    (fontScale * x0.float, fontScale * y0.float),
+    (fontScale * x1.float, fontScale * y1.float),
+  )
+
+  atlas.lineHeight = pixelHeight
+
   let charsPerRowGuess = numChars.float.sqrt.ceil
   let widthHeightGuess = (charsPerRowGuess * pixelHeight).ceil.int
 
@@ -77,6 +100,19 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
     atlas.data[i4 + 1] = 255
     atlas.data[i4 + 2] = 255
     atlas.data[i4 + 3] = alpha
+
+  for i, data in chardata:
+    let rune = (firstChar + i).Rune
+    echo rune
+    atlas.glyphInfoTable[rune] = GlyphInfo(
+      x: data.x0.int,
+      y: data.y0.int,
+      width: data.x1.int - data.x0.int,
+      height: data.y1.int - data.y0.int,
+      xOffset: data.xoff,
+      yOffset: data.yoff,
+      xAdvance: data.xadvance,
+    )
 
 proc newCanvasAtlas*(fontData: string, pixelHeight: float): CanvasAtlas =
   result = CanvasAtlas()

@@ -52,5 +52,3 @@ method draw*(button: ButtonWidget) =
     else: button.colors.background
 
   button.fillRect(0, 0, button.width, button.height, buttonColor)
-
-  # button.fillText(0, 0, button.width, button.height, rgb(255, 255, 255), center, center)

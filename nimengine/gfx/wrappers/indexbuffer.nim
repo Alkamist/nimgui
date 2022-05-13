@@ -1,8 +1,5 @@
-import pkg/opengl
-export opengl
-
+import opengl
 import ./common
-export common
 
 type
   IndexType* = uint8 | uint16 | uint32
@@ -55,7 +52,7 @@ proc upload*[T: IndexType](buffer: IndexBuffer, usage: BufferUsage, data: openAr
       target = GL_ELEMENT_ARRAY_BUFFER,
       size = data.len * sizeof(T),
       data = nil,
-      usage = usage.toGlEnum,
+      usage = usage.GlEnum,
     )
   glBufferSubData(
     target = GL_ELEMENT_ARRAY_BUFFER,

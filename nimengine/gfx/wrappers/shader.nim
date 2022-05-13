@@ -1,5 +1,4 @@
-import pkg/opengl
-export opengl
+import opengl
 
 type
   Uniform3fv* = array[3, float32]

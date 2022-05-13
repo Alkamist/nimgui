@@ -19,6 +19,3 @@ export vertexbuffer
 
 import ./gfx/canvas
 export canvas
-
-import ./gfx/canvasatlas
-export canvasatlas

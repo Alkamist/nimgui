@@ -4,6 +4,8 @@ import std/math
 import std/unicode
 import opengl
 
+import ../gmath
+
 import ./wrappers/functions as gfx
 import ./wrappers/shader
 import ./wrappers/texture
@@ -51,7 +53,7 @@ func orthoProjection(left, right, top, bottom: float32): array[4, array[4, float
   ]
 
 type
-  # Vec2 = tuple[x, y: float]
+  Vec2 = tuple[x, y: float]
   Rect2 = tuple[x, y, width, height: float]
   Color = tuple[r, g, b, a: float]
 
@@ -78,7 +80,7 @@ type
     indexCount: int
 
   Canvas* = ref object
-    width, height: float
+    width*, height*: float
     vertexData: seq[Vertex]
     vertexWrite: int
     indexData: seq[Index]
@@ -90,14 +92,31 @@ type
     vertexArrayId: GLuint
     drawCalls: seq[DrawCall]
     clipRectStack: seq[Rect2]
-    atlas*: CanvasAtlas
+    atlas: CanvasAtlas
 
-func vertex(x, y, u, v, r, g, b, a: float): Vertex =
-  Vertex(
-    x: x.float32, y: y.float32,
-    u: u.float32, v: v.float32,
-    r: r.float32, g: g.float32, b: b.float32, a: a.float32,
-  )
+func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
+  ## Assumes clockwise winding of polygon.
+  result = newSeq[Vec2](poly.len)
+  for i in 0 ..< result.len:
+    let nextPointIndex =
+      if i == result.len - 1:
+        0
+      else:
+        i + 1
+
+    let point = poly[i]
+    let nextPoint = poly[nextPointIndex]
+
+    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
+
+func openNormals(poly: openArray[Vec2]): seq[Vec2] =
+  ## Assumes clockwise winding of polygon.
+  result = newSeq[Vec2](poly.len - 1)
+  for i in 0 ..< result.len:
+    let point = poly[i]
+    let nextPoint = poly[i + 1]
+
+    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
 
 proc `=destroy`*(canvas: var type Canvas()[]) =
   glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
@@ -171,7 +190,27 @@ func unreserve*(canvas: Canvas, vertexCount, indexCount: int) =
   canvas.indexData.setLen((canvas.indexData.len - indexCount).max(0))
 
 func addVertex*(canvas: Canvas, x, y, u, v, r, g, b, a: float) =
-  canvas.vertexData[canvas.vertexWrite] = vertex(x, y, u, v, r, g, b, a)
+  canvas.vertexData[canvas.vertexWrite] = Vertex(
+    x: x, y: y,
+    u: u, v: v,
+    r: r, g: g, b: b, a: a,
+  )
+  inc canvas.vertexWrite
+
+func addVertex*(canvas: Canvas, position, uv: Vec2, color: Color) =
+  canvas.vertexData[canvas.vertexWrite] = Vertex(
+    x: position.x, y: position.y,
+    u: uv.x, v: uv.y,
+    r: color.r, g: color.g, b: color.b, a: color.a,
+  )
+  inc canvas.vertexWrite
+
+func addVertex*(canvas: Canvas, position: Vec2, color: Color) =
+  canvas.vertexData[canvas.vertexWrite] = Vertex(
+    x: position.x, y: position.y,
+    u: canvas.atlas.whitePixelUv.x, v: canvas.atlas.whitePixelUv.y,
+    r: color.r, g: color.g, b: color.b, a: color.a,
+  )
   inc canvas.vertexWrite
 
 func addIndex*(canvas: Canvas, index: int) =
@@ -247,6 +286,122 @@ proc render*(canvas: Canvas) =
       canvas.indexBuffer.kind,
       drawCall.indexOffset,
     )
+
+func fillRect*(canvas: Canvas, quad: Rect2, color: Color) =
+  canvas.addQuad(quad, canvas.atlas.whitePixelUv, color)
+
+func outlineRect*(canvas: Canvas, quad: Rect2, color: Color, thickness = 1.0) =
+  let left = quad.x
+  let leftInner = left + thickness
+  let right = left + quad.width
+  let rightInner = right - thickness
+  let top = quad.y
+  let bottom = top + quad.height
+  let bottomInner = bottom - thickness
+
+  let sideHeight = bottom - top
+  let topBottomWidth = rightInner - leftInner
+
+  canvas.fillRect((left, top, thickness, sideHeight), color)
+  canvas.fillRect((rightInner, top, thickness, sideHeight), color)
+
+  canvas.fillRect((leftInner, top, topBottomWidth, thickness), color)
+  canvas.fillRect((leftInner, bottomInner, topBottomWidth, thickness), color)
+
+func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
+  if points.len < 2:
+    return
+
+  let indexCount = (points.len - 1) * 6
+  let vertexCount = points.len * 2
+  canvas.reserve(vertexCount, indexCount)
+
+  # Add indices.
+  for i in countup(3, vertexCount - 1, 2):
+    canvas.addIndex(i - 3)
+    canvas.addIndex(i - 2)
+    canvas.addIndex(i - 1)
+    canvas.addIndex(i - 1)
+    canvas.addIndex(i - 2)
+    canvas.addIndex(i)
+
+  # Add vertices.
+  let halfThickness = 0.5 * thickness
+  let normals = points.openNormals
+
+  let startExpander = normals[0] * halfThickness
+  let aStart = points[0] + startExpander
+  let bStart = points[0] - startExpander
+  canvas.addVertex(aStart, color)
+  canvas.addVertex(bStart, color)
+
+  for i in 1 ..< normals.len:
+    let previousNormal = normals[i - 1]
+    let normal = normals[i]
+
+    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let theta = previousNormal.angleTo(expanderNormal)
+    let expanderLength = halfThickness / cos(theta)
+    let expander = expanderNormal * expanderLength
+
+    let a = points[i] + expander
+    let b = points[i] - expander
+
+    canvas.addVertex(a, color)
+    canvas.addVertex(b, color)
+
+  let endExpander = normals[normals.len - 1] * halfThickness
+  let aEnd = points[points.len - 1] + endExpander
+  let bEnd = points[points.len - 1] - endExpander
+  canvas.addVertex(aEnd, color)
+  canvas.addVertex(bEnd, color)
+
+func fillPolyLineClosed*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
+  const bias = (x: 1.0, y: 0.0)
+
+  if points.len < 2:
+    return
+
+  let indexCount = points.len * 6
+  let vertexCount = points.len * 2
+  canvas.reserve(vertexCount, indexCount)
+
+  # Add indices.
+  for i in countup(3, vertexCount - 1, 2):
+    canvas.addIndex(i - 3)
+    canvas.addIndex(i - 2)
+    canvas.addIndex(i - 1)
+    canvas.addIndex(i - 1)
+    canvas.addIndex(i - 2)
+    canvas.addIndex(i)
+
+  # Add the closing indices.
+  canvas.addIndex(vertexCount - 2)
+  canvas.addIndex(vertexCount - 1)
+  canvas.addIndex(0)
+  canvas.addIndex(0)
+  canvas.addIndex(vertexCount - 1)
+  canvas.addIndex(1)
+
+  # Add vertices.
+  let halfThickness = 0.5 * thickness
+  let normals = points.closedNormals
+
+  for i in 0 ..< normals.len:
+    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
+    let previousNormal = normals[previousNormalIndex]
+    let normal = normals[i]
+
+    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let theta = previousNormal.angleTo(expanderNormal)
+    let miterLength = halfThickness / cos(theta)
+    let expander = expanderNormal * miterLength
+
+    let a = points[i] + expander + bias
+    let b = points[i] - expander + bias
+
+    canvas.addVertex(a, color)
+    canvas.addVertex(b, color)
 
 func drawText*(canvas: Canvas,
                text: string,
@@ -377,14 +532,7 @@ func drawText*(canvas: Canvas,
          quad.y > bounds.y + bounds.height)
 
       if not quadIsEntirelyOutOfBounds:
-        let uv = (
-          glyphInfo.x.float / atlas.width.float,
-          glyphInfo.y.float / atlas.height.float,
-          glyphInfo.width.float / atlas.width.float,
-          glyphInfo.height.float / atlas.height.float,
-        )
-
-        canvas.addQuad(quad, uv, color)
+        canvas.addQuad(quad, glyphInfo.uv, color)
 
         x += glyphInfo.xAdvance
 

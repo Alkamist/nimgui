@@ -23,11 +23,6 @@ let canvas = newCanvas()
 # canvas.loadFont("experiments/Roboto-Regular_1.ttf", 16)
 canvas.loadFont("experiments/consola.ttf", 13)
 
-let whitePixelUv = (
-  x: canvas.atlas.whitePixel.x / canvas.atlas.width,
-  y: canvas.atlas.whitePixel.y / canvas.atlas.height,
-)
-
 let phrase = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLNOPQRSTUVWXYZ 1234567890 "
 var text = ""
 for i in 0 ..< 1000:
@@ -41,12 +36,18 @@ proc render() =
   gfx.clearBackground()
 
   canvas.beginFrame(window.width, window.height)
-  canvas.addQuad(
-    rect2(128, 128, size.x, size.y),
-    rect2(whitePixelUv.x, whitePixelUv.y, 0, 0),
-    rgb(120, 0, 0),
-  )
+  canvas.fillRect(rect2(128, 128, size.x, size.y), rgb(120, 0, 0))
+  canvas.outlineRect(rect2(128, 128, size.x, size.y), rgb(0, 255, 0), 1.0)
   canvas.drawText(text, rect2(128, 128, size.x, size.y), rgb(255, 255, 255), Left, Top)
+
+  let points = [
+    (50.0, 50.0),
+    (200.0, 50.0),
+    (200.0, 200.0),
+    (50.0, 200.0),
+  ]
+
+  canvas.fillPolyLineClosed(points, rgb(0, 255, 0), 1.0)
 
   canvas.render()
   openGlContext.swapBuffers()

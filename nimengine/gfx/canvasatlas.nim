@@ -11,11 +11,13 @@ type
     width, height: int
     xOffset, yOffset: float
     xAdvance: float
+    uv: tuple[x, y, width, height: float]
 
   CanvasAtlas* = ref object
     width*, height*: int
     data*: seq[uint8]
     whitePixel*: tuple[x, y: int]
+    whitePixelUv*: tuple[x, y, width, height: float]
     glyphInfoTable*: Table[Rune, GlyphInfo]
     glyphBoundingBox*: (tuple[x, y: float], tuple[x, y: float])
     stbFontInfo: stbtt_fontinfo
@@ -100,17 +102,33 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
 
   for i, data in chardata:
     let rune = (firstChar + i).Rune
+
+    let width = data.x1.float - data.x0.float
+    let height = data.y1.float - data.y0.float
+
     atlas.glyphInfoTable[rune] = (
       x: data.x0.int,
       y: data.y0.int,
-      width: data.x1.int - data.x0.int,
-      height: data.y1.int - data.y0.int,
+      width: width.int,
+      height: height.int,
       xOffset: data.xoff.float,
       yOffset: data.yoff.float,
       xAdvance: data.xadvance.float,
+      uv: (x: 0.0, y: 0.0, width: 0.0, height: 0.0),
     )
+
+proc calculateUvs(atlas: CanvasAtlas) =
+  atlas.whitePixelUv.x = atlas.whitePixel.x / atlas.width
+  atlas.whitePixelUv.y = atlas.whitePixel.y / atlas.height
+
+  for rune in atlas.glyphInfoTable.keys:
+    atlas.glyphInfoTable[rune].uv.x = atlas.glyphInfoTable[rune].x / atlas.width
+    atlas.glyphInfoTable[rune].uv.y = atlas.glyphInfoTable[rune].y / atlas.height
+    atlas.glyphInfoTable[rune].uv.width = atlas.glyphInfoTable[rune].width / atlas.width
+    atlas.glyphInfoTable[rune].uv.height = atlas.glyphInfoTable[rune].height / atlas.height
 
 proc newCanvasAtlas*(fontData: string, pixelHeight: float): CanvasAtlas =
   result = CanvasAtlas()
   result.loadFont(fontData, pixelHeight)
   result.addWhitePixels()
+  result.calculateUvs()

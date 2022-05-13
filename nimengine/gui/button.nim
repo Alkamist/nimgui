@@ -24,7 +24,7 @@ func defaultButtonColors(): ButtonColors =
     background: defaultColors.button,
     hovered: defaultColors.buttonHovered,
     down: defaultColors.buttonDown,
-    text: defaultColors.buttonText,
+    text: defaultColors.text,
   )
 
 func newButtonWidget*(): ButtonWidget =

@@ -17,22 +17,31 @@ let height = window.height / 5.0
 
 for i in 0 ..< 5:
   for j in 0 ..< 5:
-    let b = newButtonWidget()
-    b.label = "Ayy Lmao"
-    b.x = 20
-    b.y = 40
-    b.width = 100
-    b.height = 80
-    b.onClicked = proc() = echo "Clicked"
+    let button = newButtonWidget()
+    button.label = "Button"
+    button.x = 20
+    button.y = 40
+    button.width = 100
+    button.height = 80
+    button.onClicked = proc() = echo "Clicked"
 
-    let w = newWindowWidget()
-    w.x = i.float * width
-    w.y = j.float * height
-    w.width = 300
-    w.height = 200
-    w.children.add(b)
+    let parent = newWindowWidget()
+    parent.title = "Window"
+    parent.x = i.float * width
+    parent.y = j.float * height
+    parent.width = 300
+    parent.height = 200
 
-    gui.children.add(w)
+    let child = newWindowWidget()
+    child.title = "Child Window"
+    child.x = 50
+    child.y = 50
+    child.width = 200
+    child.height = 200
+
+    parent.children.add(child)
+    child.children.add(button)
+    gui.children.add(parent)
 
 proc render() =
   gfx.setViewport(0, 0, window.width, window.height)

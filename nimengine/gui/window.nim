@@ -7,6 +7,7 @@ import ./widget
 type
   WindowColors* = object
     background*: Color
+    title*: Color
     titleBar*: Color
     border*: Color
     resizeHandle*: Color
@@ -15,6 +16,7 @@ type
 
   WindowWidget* = ref object of Widget
     colors*: WindowColors
+    title*: string
     titleBarHeight*: float
     resizeHandleSize*: float
     minWidth*: float
@@ -33,6 +35,7 @@ type
 func defaultWindowColors(): WindowColors =
   WindowColors(
     background: defaultColors.main,
+    title: defaultColors.text,
     titleBar: defaultColors.dark,
     border: defaultColors.border,
     resizeHandle: defaultColors.button,
@@ -110,6 +113,17 @@ method draw*(window: WindowWidget) =
   let x = window.absoluteX.round
   let y = window.absoluteY.round
 
+  let parentIsFocused =
+    window.parent != nil and
+    window.parent.isFocused
+
+  let isTopMost =
+    window.parent.children.len > 0 and
+    window.parent.children[0] == window
+
+  if parentIsFocused and isTopMost:
+    canvas.fillRect (x + 5, y + 5, window.width, window.height), (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
+
   canvas.outlineRect (x, y, window.width, window.height), window.colors.border
 
   let body = (
@@ -127,13 +141,24 @@ method draw*(window: WindowWidget) =
 
   canvas.fillRect titleBar, window.colors.titleBar
 
+  const titleInset = 10.0
+  canvas.drawText(
+    window.title,
+    (titleBar.x + titleInset, titleBar.y, titleBar.width - titleInset * 2.0, titleBar.height),
+    window.colors.title,
+    xAlign = Left,
+    yAlign = Center,
+    wordWrap = false,
+    clip = true,
+  )
+
   canvas.pushClipRect body
 
   canvas.fillRect body, window.colors.background
 
   window.drawChildren()
 
-  let resizeInset = 4.0
+  const resizeInset = 4.0
   let resizeLeft = (x + window.width - window.resizeHandleSize + resizeInset).round
   let resizeRight = (x + window.width - resizeInset).round
   let resizeBottom = (y + window.height - resizeInset).round

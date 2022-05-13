@@ -16,6 +16,7 @@ type
     mouseX*, mouseY*: float
     mouseIsInside*: bool
     mouseIsOver*: bool
+    isFocused*: bool
     mouseOver*: Widget
     focus*: Widget
 
@@ -32,6 +33,7 @@ method update*(widget: Widget) {.base, locks: "unknown".} =
   if widget.parent == nil:
     widget.mouseIsInside = true
     widget.mouseIsOver = true
+    widget.isFocused = true
   widget.width = widget.canvas.width
   widget.height = widget.canvas.height
   widget.updateChildren()
@@ -96,7 +98,9 @@ func updateChildren*(widget: Widget) =
     widget.children[0] = widget.focus
 
   for i in countup(0, widget.children.len - 1, 1):
-    widget.children[i].update()
+    let child = widget.children[i]
+    child.isFocused = widget.focus == child
+    child.update()
 
 func drawChildren*(widget: Widget) =
   for i in countdown(widget.children.len - 1, 0, 1):

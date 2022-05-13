@@ -1,15 +1,14 @@
 import pkg/nimengine
-import pkg/nimengine/gmath/types
 
 let window = newWindow()
 
 let openGlContext = gfx.newOpenGlContext(window.platform.handle)
 openGlContext.select()
 
-gfx.setBackgroundColor(rgb(32, 32, 32))
+gfx.setBackgroundColor(0.1, 0.1, 0.1, 1.0)
 
 let canvas = gfx.newCanvas()
-let canvasRenderer = gfx.newCanvasRenderer()
+canvas.loadFont("examples/consola.ttf", 13)
 
 let gui = newWidget(canvas, window.input)
 
@@ -41,7 +40,7 @@ proc render() =
 
   canvas.beginFrame(window.width, window.height)
   gui.draw()
-  canvasRenderer.render(canvas)
+  canvas.render()
 
   openGlContext.swapBuffers()
 

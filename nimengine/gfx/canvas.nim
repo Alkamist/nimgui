@@ -162,10 +162,6 @@ func addDrawCall(canvas: Canvas) =
     currentDrawCall.clipRect = currentClipRect
     currentDrawCall.indexOffset = indexOffset
 
-func pushClipRect*(canvas: Canvas, x, y, width, height: float) =
-  canvas.clipRectStack.add (x, y, width, height)
-  canvas.addDrawCall()
-
 func pushClipRect*(canvas: Canvas, rect: Rect2) =
   canvas.clipRectStack.add rect
   canvas.addDrawCall()
@@ -246,7 +242,7 @@ func beginFrame*(canvas: Canvas, width, height: float) =
   canvas.indexData.setLen(0)
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
-  canvas.pushClipRect(0, 0, canvas.width, canvas.height)
+  canvas.pushClipRect (0.0, 0.0, canvas.width, canvas.height)
 
 proc render*(canvas: Canvas) =
   if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
@@ -309,6 +305,8 @@ func outlineRect*(canvas: Canvas, quad: Rect2, color: Color, thickness = 1.0) =
   canvas.fillRect((leftInner, bottomInner, topBottomWidth, thickness), color)
 
 func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
+  const bias = (x: 1.0, y: 0.0)
+
   if points.len < 2:
     return
 
@@ -330,8 +328,8 @@ func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, th
   let normals = points.openNormals
 
   let startExpander = normals[0] * halfThickness
-  let aStart = points[0] + startExpander
-  let bStart = points[0] - startExpander
+  let aStart = points[0] + startExpander + bias
+  let bStart = points[0] - startExpander + bias
   canvas.addVertex(aStart, color)
   canvas.addVertex(bStart, color)
 
@@ -344,15 +342,15 @@ func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, th
     let expanderLength = halfThickness / cos(theta)
     let expander = expanderNormal * expanderLength
 
-    let a = points[i] + expander
-    let b = points[i] - expander
+    let a = points[i] + expander + bias
+    let b = points[i] - expander + bias
 
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
 
   let endExpander = normals[normals.len - 1] * halfThickness
-  let aEnd = points[points.len - 1] + endExpander
-  let bEnd = points[points.len - 1] - endExpander
+  let aEnd = points[points.len - 1] + endExpander + bias
+  let bEnd = points[points.len - 1] - endExpander + bias
   canvas.addVertex(aEnd, color)
   canvas.addVertex(bEnd, color)
 
@@ -402,6 +400,40 @@ func fillPolyLineClosed*(canvas: Canvas, points: openArray[Vec2], color: Color, 
 
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
+
+func fillConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color) =
+  const bias = (x: 1.0, y: 0.0)
+
+  ## Assumes clockwise winding of polygon.
+  if points.len < 3:
+    return
+
+  let indexCount = (points.len - 2) * 3
+  let vertexCount = points.len
+  canvas.reserve(vertexCount, indexCount)
+
+  # Add indices.
+  for i in 2 ..< points.len:
+    canvas.addIndex(0)
+    canvas.addIndex(i)
+    canvas.addIndex(i - 1)
+
+  # Add vertices.
+  let normals = points.closedNormals
+
+  for i in 0 ..< vertexCount:
+    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
+    let previousNormal = normals[previousNormalIndex]
+    let normal = normals[i]
+
+    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let theta = previousNormal.angleTo(expanderNormal)
+    let expander = expanderNormal * 0.5 / cos(theta)
+
+    # The polygon needs to be expanded slightly to be
+    # inclusive of all pixels when rendered and match up
+    # with addPolyLine.
+    canvas.addVertex(points[i] + expander + bias, color)
 
 func drawText*(canvas: Canvas,
                text: string,

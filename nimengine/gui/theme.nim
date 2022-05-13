@@ -1,5 +1,11 @@
 import ../gmath
-import ../gmath/types
+export gmath
+
+type
+  Color* = tuple[r, g, b, a: float]
+
+func rgb*(r, g, b: uint8): Color =
+  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: 1.0)
 
 const main = rgb(54, 57, 63)
 const button = main.lightened(0.15)

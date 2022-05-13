@@ -2,7 +2,6 @@
 
 import ./theme
 import ./widget
-import ../gmath/types
 
 type
   WindowColors* = object
@@ -106,32 +105,47 @@ method update*(window: WindowWidget) =
   window.updateChildren()
 
 method draw*(window: WindowWidget) =
-  # Border:
-  window.strokeRect(0, 0, window.width, window.height, window.colors.border)
+  let canvas = window.canvas
+  let x = window.absoluteX.round
+  let y = window.absoluteY.round
 
-  window.pushClipRect(1, 1, window.width - 2, window.height - 2)
+  canvas.outlineRect (x, y, window.width, window.height), window.colors.border
 
-  # Background and title bar.
-  window.fillRect(0, 0, window.width, window.height, window.colors.background)
-  window.fillRect(0, 0, window.width, window.titleBarHeight, window.colors.titleBar)
+  let body = (
+    x: x + 1,
+    y: y + window.titleBarHeight,
+    width: window.width - 2,
+    height: window.height - window.titleBarHeight - 1,
+  )
+  let titleBar = (
+    x: x + 1,
+    y: y + 1,
+    width: window.width - 2,
+    height: window.titleBarHeight - 1,
+  )
+
+  canvas.fillRect titleBar, window.colors.titleBar
+
+  canvas.pushClipRect body
+
+  canvas.fillRect body, window.colors.background
 
   window.drawChildren()
 
-  # Resize Handle.
   let resizeInset = 4.0
   let resizeLeft = (window.x + window.width - window.resizeHandleSize + resizeInset).round
   let resizeRight = (window.x + window.width - resizeInset).round
   let resizeBottom = (window.y + window.height - resizeInset).round
   let resizeTop = (window.y + window.height - window.resizeHandleSize + resizeInset).round
   let resizeHandlePoints = [
-    vec2(resizeLeft, resizeBottom),
-    vec2(resizeRight, resizeTop),
-    vec2(resizeRight, resizeBottom),
+    (resizeLeft, resizeBottom),
+    (resizeRight, resizeTop),
+    (resizeRight, resizeBottom),
   ]
   let resizeHandleColor =
     if window.isBeingResized: window.colors.resizeHandlePressed
     elif window.resizeHandleIsHovered: window.colors.resizeHandleHovered
     else: window.colors.resizeHandle
-  window.canvas.addConvexPoly(resizeHandlePoints, resizeHandleColor)
+  canvas.fillConvexPoly(resizeHandlePoints, resizeHandleColor)
 
-  window.popClipRect()
+  canvas.popClipRect()

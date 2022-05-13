@@ -2,7 +2,6 @@
 
 import ./theme
 import ./widget
-import ../gmath/types
 
 type
   ButtonColors* = object
@@ -46,9 +45,13 @@ method update*(button: ButtonWidget) =
         button.onClicked()
 
 method draw*(button: ButtonWidget) =
+  let canvas = button.canvas
+  let x = button.absoluteX.round
+  let y = button.absoluteY.round
+
   let buttonColor =
     if button.isDown: button.colors.down
     elif button.mouseIsOver: button.colors.hovered
     else: button.colors.background
 
-  button.fillRect(0, 0, button.width, button.height, buttonColor)
+  canvas.fillRect (x, y, button.width, button.height), buttonColor

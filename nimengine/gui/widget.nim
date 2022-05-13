@@ -1,11 +1,8 @@
 import ../input
 import ../gfx/canvas
-import ../gmath
-import ../gmath/types
 
 export input
 export canvas
-export gmath
 
 type
   Widget* = ref object of RootObj
@@ -51,33 +48,6 @@ template keyReleased*(widget: Widget): untyped = widget.input.keyReleased
 
 template mouseXChange*(widget: Widget): untyped = widget.input.mouseXChange
 template mouseYChange*(widget: Widget): untyped = widget.input.mouseYChange
-
-# I am rounding gui points before rendering because I can't
-# figure out how to get clipping to work correctly otherwise.
-func pushClipRect*(widget: Widget, x, y, width, height: float) =
-  let x = (widget.absoluteX + x).round
-  let y = (widget.absoluteY + y).round
-  let width = width.round
-  let height = height.round
-  widget.canvas.pushClipRect(x, y, width, height)
-
-template pushClipRect*(widget: Widget): untyped = widget.pushClipRect(0, 0, widget.width, widget.height)
-template popClipRect*(widget: Widget): untyped = widget.canvas.popClipRect()
-
-func fillRect*(widget: Widget, x, y, width, height: float, color: Color, feather = 0.0) =
-  let x = (widget.absoluteX + x).round
-  let y = (widget.absoluteY + y).round
-  let width = width.round
-  let height = height.round
-  widget.canvas.fillRect(x, y, width, height, color, feather)
-
-func strokeRect*(widget: Widget, x, y, width, height: float, color: Color, thickness = 1.0, feather = 0.0) =
-  let x = (widget.absoluteX + x).round
-  let y = (widget.absoluteY + y).round
-  let width = width.round
-  let height = height.round
-  widget.canvas.strokeRect(x, y, width, height, color, thickness, feather)
-
 
 func updateChildren*(widget: Widget) =
   var mouseOverIsSet = false

@@ -114,9 +114,9 @@ proc newCanvas*(): Canvas =
   result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
   result.indexBuffer = newIndexBuffer(UInt32)
 
-proc loadFont*(canvas: Canvas, location: string, fontSize: float) =
+proc loadFont*(canvas: Canvas, location: string, pixelHeight: float) =
   let fontData = readFile(location)
-  canvas.atlas = newCanvasAtlas(fontData, fontSize)
+  canvas.atlas = newCanvasAtlas(fontData, pixelHeight)
   canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
 func addDrawCall(canvas: Canvas) =
@@ -145,6 +145,10 @@ func addDrawCall(canvas: Canvas) =
 
 func pushClipRect*(canvas: Canvas, x, y, width, height: float) =
   canvas.clipRectStack.add (x, y, width, height)
+  canvas.addDrawCall()
+
+func pushClipRect*(canvas: Canvas, rect: Rect2) =
+  canvas.clipRectStack.add rect
   canvas.addDrawCall()
 
 func popClipRect*(canvas: Canvas) =
@@ -244,24 +248,28 @@ proc render*(canvas: Canvas) =
       drawCall.indexOffset,
     )
 
-# TODO: Handle clipping inside here so you can
-# cull glyph quads that are out of bounds.
 func drawText*(canvas: Canvas,
                text: string,
                bounds: Rect2,
                color: Color,
-               horizontalAlignment = HorizontalAlignment.Left,
-               verticalAlignment = VerticalAlignment.Center,
-               wordWrap = true) =
+               xAlign = HorizontalAlignment.Left,
+               yAlign = VerticalAlignment.Center,
+               wordWrap = true,
+               clip = true) =
+  let atlas = canvas.atlas
+
+  if clip:
+    canvas.pushClipRect bounds
+
   const newLine = "\n".runeAt(0)
 
-  if canvas.atlas.glyphInfoTable.len == 0:
+  if atlas.glyphInfoTable.len == 0:
     return
 
   let runes = text.toRunes
 
   var lineInfo: seq[tuple[firstIndex, lastIndex: int]]
-  lineInfo.add((0, runes.len - 1))
+  lineInfo.add (0, runes.len - 1)
 
   # Extract info about lines based on glyph bounds.
   block:
@@ -276,11 +284,11 @@ func drawText*(canvas: Canvas,
     while i < runes.len and wrapCount < runes.len:
       let rune = runes[i]
 
-      if not canvas.atlas.glyphInfoTable.hasKey(rune):
+      if not atlas.glyphInfoTable.hasKey(rune):
         inc i
         continue
 
-      let glyphInfo = canvas.atlas.glyphInfoTable[rune]
+      let glyphInfo = atlas.glyphInfoTable[rune]
 
       if rune.isWhiteSpace:
         lastWhitespace = i
@@ -289,7 +297,7 @@ func drawText*(canvas: Canvas,
         x = 0.0
         currentLine.lastIndex = i - 1
         inc i
-        lineInfo.add((i, runes.len - 1))
+        lineInfo.add (i, runes.len - 1)
         continue
 
       let outOfBounds = x + glyphInfo.xAdvance > bounds.width
@@ -301,35 +309,36 @@ func drawText*(canvas: Canvas,
         if lastWhitespace > currentLine.firstIndex:
           let nextLineStart = lastWhitespace + 1
           currentLine.lastIndex = lastWhitespace - 1
-          lineInfo.add((nextLineStart, runes.len - 1))
+          lineInfo.add (nextLineStart, runes.len - 1)
           i = nextLineStart
           continue
         else:
           currentLine.lastIndex = i - 1
-          lineInfo.add((i, runes.len - 1))
+          lineInfo.add (i, runes.len - 1)
 
       x += glyphInfo.xAdvance
       inc i
 
-  let lineHeight = canvas.atlas.lineHeight
+  let lineHeight = atlas.glyphBoundingBox[1].y
 
-  let yAlign = case verticalAlignment:
+  let yAlignment = case yAlign:
     of Bottom: bounds.height - (lineHeight * lineInfo.len.float)
     of Center: 0.5 * (bounds.height - (lineHeight * lineInfo.len.float))
     of Top: 0.0
 
-  var y = lineHeight + canvas.atlas.glyphBoundingBox[0].y
+  var y = 2 + lineHeight + atlas.glyphBoundingBox[0].y
 
+  # Go through every line and draw quads textured with the appropriate glyph.
   for info in lineInfo:
     template calculateLineWidth(): float =
       var lineWidth = 0.0
       for i in info.firstIndex .. info.lastIndex:
         let rune =
-          if canvas.atlas.glyphInfoTable.hasKey(runes[i]):
+          if atlas.glyphInfoTable.hasKey(runes[i]):
             runes[i]
           else:
             128.Rune
-        let glyphInfo = canvas.atlas.glyphInfoTable[rune]
+        let glyphInfo = atlas.glyphInfoTable[rune]
 
         lineWidth += glyphInfo.xAdvance
 
@@ -338,7 +347,7 @@ func drawText*(canvas: Canvas,
 
       lineWidth
 
-    let xAlign = case horizontalAlignment:
+    let xAlignment = case xAlign:
       of Left: 0.0
       of Center: 0.5 * (bounds.width - calculateLineWidth())
       of Right: bounds.width - calculateLineWidth()
@@ -346,29 +355,40 @@ func drawText*(canvas: Canvas,
     var x = 0.0
     for i in info.firstIndex .. info.lastIndex:
       let rune =
-        if canvas.atlas.glyphInfoTable.hasKey(runes[i]):
+        if atlas.glyphInfoTable.hasKey(runes[i]):
           runes[i]
         else:
           128.Rune
 
-      let glyphInfo = canvas.atlas.glyphInfoTable[rune]
+      let glyphInfo = atlas.glyphInfoTable[rune]
 
       let quad = (
-        (bounds.x + xAlign + x + glyphInfo.xOffset).round,
-        (bounds.y + yAlign + y + glyphInfo.yOffset).round,
-        glyphInfo.width.float,
-        glyphInfo.height.float,
+        x: (bounds.x + xAlignment + x + glyphInfo.xOffset).round,
+        y: (bounds.y + yAlignment + y + glyphInfo.yOffset).round,
+        width: glyphInfo.width.float,
+        height: glyphInfo.height.float,
       )
 
-      let uv = (
-        glyphInfo.x.float / canvas.atlas.width.float,
-        glyphInfo.y.float / canvas.atlas.height.float,
-        glyphInfo.width.float / canvas.atlas.width.float,
-        glyphInfo.height.float / canvas.atlas.height.float,
-      )
+      let quadIsEntirelyOutOfBounds =
+        clip and
+        (quad.x + quad.width < bounds.x or
+         quad.x > bounds.x + bounds.width or
+         quad.y + quad.height < bounds.y or
+         quad.y > bounds.y + bounds.height)
 
-      canvas.addQuad(quad, uv, color)
+      if not quadIsEntirelyOutOfBounds:
+        let uv = (
+          glyphInfo.x.float / atlas.width.float,
+          glyphInfo.y.float / atlas.height.float,
+          glyphInfo.width.float / atlas.width.float,
+          glyphInfo.height.float / atlas.height.float,
+        )
 
-      x += glyphInfo.xAdvance
+        canvas.addQuad(quad, uv, color)
+
+        x += glyphInfo.xAdvance
 
     y += lineHeight
+
+  if clip:
+    canvas.popClipRect()

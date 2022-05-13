@@ -20,7 +20,7 @@ gfx.enableBlend()
 gfx.setBackgroundColor(0.1, 0.1, 0.1, 1)
 
 let canvas = newCanvas()
-# canvas.loadFont("experiments/Roboto-Regular_1.ttf", 32)
+# canvas.loadFont("experiments/Roboto-Regular_1.ttf", 16)
 canvas.loadFont("experiments/consola.ttf", 13)
 
 let whitePixelUv = (
@@ -28,44 +28,10 @@ let whitePixelUv = (
   y: canvas.atlas.whitePixel.y / canvas.atlas.height,
 )
 
-let text = """proc render*(canvas: Canvas) =
-  if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
-    return
-
-  gfx.enableBlend()
-  gfx.enableClipping()
-  gfx.disableFaceCulling()
-  gfx.disableDepthTesting()
-
-  canvas.shader.select()
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
-  canvas.atlasTexture.select()
-  canvas.vertexBuffer.select()
-  canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
-  canvas.indexBuffer.select()
-  canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
-
-  for drawCall in canvas.drawCalls:
-    if drawCall.indexCount == 0:
-      continue
-
-    # OpenGl clip rects are placed from the bottom left.
-    let crX = drawCall.clipRect.x
-    let crYFlipped = canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height)
-    let crWidth = drawCall.clipRect.width
-    let crHeight = drawCall.clipRect.height
-    gfx.setClipRect(
-      crX,
-      crYFlipped,
-      crWidth,
-      crHeight,
-    )
-
-    gfx.drawTriangles(
-      drawCall.indexCount,
-      canvas.indexBuffer.kind,
-      drawCall.indexOffset,
-    )"""
+let phrase = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLNOPQRSTUVWXYZ 1234567890 "
+var text = ""
+for i in 0 ..< 1000:
+  text.add phrase[i mod phrase.len]
 
 var size = vec2(128, 128)
 

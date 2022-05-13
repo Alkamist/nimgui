@@ -6,14 +6,13 @@ import ./stb_truetype
 export tables
 
 type
-  GlyphInfo* = object
-    x*, y*: int
-    width*, height*: int
-    xOffset*, yOffset*: float
-    xAdvance*: float
+  GlyphInfo = tuple
+    x, y: int
+    width, height: int
+    xOffset, yOffset: float
+    xAdvance: float
 
   CanvasAtlas* = ref object
-    lineHeight*: float
     width*, height*: int
     data*: seq[uint8]
     whitePixel*: tuple[x, y: int]
@@ -52,8 +51,6 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
     (fontScale * x0.float, fontScale * y0.float),
     (fontScale * x1.float, fontScale * y1.float),
   )
-
-  atlas.lineHeight = pixelHeight
 
   let charsPerRowGuess = numChars.float.sqrt.ceil
   let widthHeightGuess = (charsPerRowGuess * pixelHeight).ceil.int
@@ -103,15 +100,14 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
 
   for i, data in chardata:
     let rune = (firstChar + i).Rune
-    echo rune
-    atlas.glyphInfoTable[rune] = GlyphInfo(
+    atlas.glyphInfoTable[rune] = (
       x: data.x0.int,
       y: data.y0.int,
       width: data.x1.int - data.x0.int,
       height: data.y1.int - data.y0.int,
-      xOffset: data.xoff,
-      yOffset: data.yoff,
-      xAdvance: data.xadvance,
+      xOffset: data.xoff.float,
+      yOffset: data.yoff.float,
+      xAdvance: data.xadvance.float,
     )
 
 proc newCanvasAtlas*(fontData: string, pixelHeight: float): CanvasAtlas =

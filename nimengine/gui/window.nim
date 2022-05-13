@@ -112,6 +112,8 @@ method draw*(window: WindowWidget) =
   let canvas = window.canvas
   let x = window.absoluteX.round
   let y = window.absoluteY.round
+  let w = window.width.round
+  let h = window.height.round
 
   let parentIsFocused =
     window.parent != nil and
@@ -122,20 +124,20 @@ method draw*(window: WindowWidget) =
     window.parent.children[0] == window
 
   if parentIsFocused and isTopMost:
-    canvas.fillRect (x + 5, y + 5, window.width, window.height), (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
+    canvas.fillRect (x + 5, y + 5, w, h), (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
 
-  canvas.outlineRect (x, y, window.width, window.height), window.colors.border
+  canvas.outlineRect (x, y, w, h), window.colors.border
 
   let body = (
     x: x + 1,
     y: y + window.titleBarHeight,
-    width: window.width - 2,
-    height: window.height - window.titleBarHeight - 1,
+    width: w - 2,
+    height: h - window.titleBarHeight - 1,
   )
   let titleBar = (
     x: x + 1,
     y: y + 1,
-    width: window.width - 2,
+    width: w - 2,
     height: window.titleBarHeight - 1,
   )
 
@@ -159,10 +161,10 @@ method draw*(window: WindowWidget) =
   window.drawChildren()
 
   const resizeInset = 4.0
-  let resizeLeft = (x + window.width - window.resizeHandleSize + resizeInset).round
-  let resizeRight = (x + window.width - resizeInset).round
-  let resizeBottom = (y + window.height - resizeInset).round
-  let resizeTop = (y + window.height - window.resizeHandleSize + resizeInset).round
+  let resizeLeft = (x + w - window.resizeHandleSize + resizeInset).round
+  let resizeRight = (x + w - resizeInset).round
+  let resizeBottom = (y + h - resizeInset).round
+  let resizeTop = (y + h - window.resizeHandleSize + resizeInset).round
   let resizeHandlePoints = [
     (resizeLeft, resizeBottom),
     (resizeRight, resizeTop),

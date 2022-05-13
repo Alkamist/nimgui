@@ -51,16 +51,18 @@ method draw*(button: ButtonWidget) =
   let canvas = button.canvas
   let x = button.absoluteX.round
   let y = button.absoluteY.round
+  let w = button.width.round
+  let h = button.height.round
 
   let buttonColor =
     if button.isDown: button.colors.down
     elif button.mouseIsOver: button.colors.hovered
     else: button.colors.background
 
-  canvas.fillRect (x, y, button.width, button.height), buttonColor
+  canvas.fillRect (x, y, w, h), buttonColor
   canvas.drawText(
     button.label,
-    (x, y, button.width, button.height),
+    (x, y, w, h),
     button.colors.text,
     xAlign = Center,
     yAlign = Center,

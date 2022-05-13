@@ -30,8 +30,8 @@ for i in 0 ..< 5:
     parent.title = "Window"
     parent.x = i.float * width
     parent.y = j.float * height
-    parent.width = 300
-    parent.height = 200
+    parent.width = width * 0.95
+    parent.height = height * 0.95
 
     let child = newWindowWidget()
     child.title = "Child Window"

@@ -53,6 +53,8 @@ func orthoProjection(left, right, top, bottom: float32): array[4, array[4, float
   ]
 
 type
+  CanvasError* = object of CatchableError
+
   Vec2 = tuple[x, y: float]
   Rect2 = tuple[x, y, width, height: float]
   Color = tuple[r, g, b, a: float]
@@ -93,6 +95,9 @@ type
     drawCalls: seq[DrawCall]
     clipRectStack: seq[Rect2]
     atlas: CanvasAtlas
+
+func error(canvas: Canvas, msg: string) =
+  raise newException(CanvasError, msg)
 
 func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
@@ -252,6 +257,9 @@ func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.addVertex(quad.right, quad.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
 
 func beginFrame*(canvas: Canvas, width, height: float) =
+  if canvas.atlas == nil:
+    canvas.error "There is no atlas loaded. Make sure to load a font with loadFont."
+
   canvas.width = width
   canvas.height = height
   canvas.vertexWrite = 0

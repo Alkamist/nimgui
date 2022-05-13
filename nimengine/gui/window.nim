@@ -1,5 +1,6 @@
 {.experimental: "overloadableEnums".}
 
+import std/math
 import ./theme
 import ./widget
 
@@ -133,10 +134,10 @@ method draw*(window: WindowWidget) =
   window.drawChildren()
 
   let resizeInset = 4.0
-  let resizeLeft = (window.x + window.width - window.resizeHandleSize + resizeInset).round
-  let resizeRight = (window.x + window.width - resizeInset).round
-  let resizeBottom = (window.y + window.height - resizeInset).round
-  let resizeTop = (window.y + window.height - window.resizeHandleSize + resizeInset).round
+  let resizeLeft = (x + window.width - window.resizeHandleSize + resizeInset).round
+  let resizeRight = (x + window.width - resizeInset).round
+  let resizeBottom = (y + window.height - resizeInset).round
+  let resizeTop = (y + window.height - window.resizeHandleSize + resizeInset).round
   let resizeHandlePoints = [
     (resizeLeft, resizeBottom),
     (resizeRight, resizeTop),

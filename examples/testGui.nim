@@ -18,6 +18,7 @@ let height = window.height / 5.0
 for i in 0 ..< 5:
   for j in 0 ..< 5:
     let b = newButtonWidget()
+    b.label = "Ayy Lmao"
     b.x = 20
     b.y = 40
     b.width = 100

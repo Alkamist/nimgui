@@ -163,11 +163,29 @@ func addDrawCall(canvas: Canvas) =
     currentDrawCall.indexOffset = indexOffset
 
 func pushClipRect*(canvas: Canvas, rect: Rect2) =
-  canvas.clipRectStack.add rect
+  let lastRect =
+    if canvas.clipRectStack.len > 0:
+      canvas.clipRectStack[canvas.clipRectStack.len - 1]
+    else:
+      (0.0, 0.0, canvas.width, canvas.height)
+
+  let leftX = max(rect.x, lastRect.x)
+  let rightX = min(rect.x + rect.width, lastRect.x + lastRect.width)
+  let topY = max(rect.y, lastRect.y)
+  let bottomY = min(rect.y + rect.height, lastRect.y + lastRect.height)
+
+  let intersection = (
+    x: leftX,
+    y: topY,
+    width: max(rightX - leftX, 0.0),
+    height: max(bottomY - topY, 0.0),
+  )
+
+  canvas.clipRectStack.add intersection
   canvas.addDrawCall()
 
 func popClipRect*(canvas: Canvas) =
-  canvas.clipRectStack.del(canvas.clipRectStack.len - 1)
+  canvas.clipRectStack.setLen(canvas.clipRectStack.len - 1)
   canvas.addDrawCall()
 
 func reserve*(canvas: Canvas, vertexCount, indexCount: int) =
@@ -254,11 +272,12 @@ proc render*(canvas: Canvas) =
   gfx.disableDepthTesting()
 
   canvas.shader.select()
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
   canvas.atlasTexture.select()
   canvas.vertexBuffer.select()
-  canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.select()
+
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
+  canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
   for drawCall in canvas.drawCalls:

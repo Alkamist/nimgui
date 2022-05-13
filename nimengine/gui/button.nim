@@ -1,5 +1,6 @@
 {.experimental: "overloadableEnums".}
 
+import std/math
 import ./theme
 import ./widget
 
@@ -8,6 +9,7 @@ type
     background*: Color
     hovered*: Color
     down*: Color
+    text*: Color
 
   ButtonWidget* = ref object of Widget
     colors*: ButtonColors
@@ -22,6 +24,7 @@ func defaultButtonColors(): ButtonColors =
     background: defaultColors.button,
     hovered: defaultColors.buttonHovered,
     down: defaultColors.buttonDown,
+    text: defaultColors.buttonText,
   )
 
 func newButtonWidget*(): ButtonWidget =
@@ -55,3 +58,12 @@ method draw*(button: ButtonWidget) =
     else: button.colors.background
 
   canvas.fillRect (x, y, button.width, button.height), buttonColor
+  canvas.drawText(
+    button.label,
+    (x, y, button.width, button.height),
+    button.colors.text,
+    xAlign = Center,
+    yAlign = Center,
+    wordWrap = false,
+    clip = true,
+  )

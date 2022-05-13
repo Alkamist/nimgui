@@ -1,5 +1,4 @@
 import ../gmath
-export gmath
 
 type
   Color* = tuple[r, g, b, a: float]
@@ -18,4 +17,5 @@ const defaultColors* = (
   button: button,
   buttonHovered: button.lightened(0.2),
   buttonDown: border,
+  buttonText: rgb(245, 245, 245),
 )

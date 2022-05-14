@@ -82,6 +82,7 @@ type
     indexCount: int
 
   Canvas* = ref object
+    scale*: float
     width*, height*: float
     vertexData: seq[Vertex]
     vertexWrite: int
@@ -95,6 +96,11 @@ type
     drawCalls: seq[DrawCall]
     clipRectStack: seq[Rect2]
     atlas: CanvasAtlas
+    atlasFontData: string
+    atlasFontSize: float
+    atlasFontFirstChar: int
+    atlasFontNumChars: int
+    previousScale: float
 
 func error(canvas: Canvas, msg: string) =
   raise newException(CanvasError, msg)
@@ -127,7 +133,7 @@ proc `=destroy`*(canvas: var type Canvas()[]) =
   glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
 
 proc newCanvas*(): Canvas =
-  result = Canvas()
+  result = Canvas(previousScale: 1.0, scale: 1.0)
 
   # Stop OpenGl from crashing on later versions.
   glGenVertexArrays(1, result.vertexArrayId.addr)
@@ -138,9 +144,12 @@ proc newCanvas*(): Canvas =
   result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
   result.indexBuffer = newIndexBuffer(UInt32)
 
-proc loadFont*(canvas: Canvas, location: string, pixelHeight: float) =
-  let fontData = readFile(location)
-  canvas.atlas = newCanvasAtlas(fontData, pixelHeight)
+proc loadFont*(canvas: Canvas, fontData: string, fontSize: float, firstChar = 0, numChars = 128) =
+  canvas.atlasFontData = fontData
+  canvas.atlasFontSize = fontSize
+  canvas.atlasFontFirstChar = firstChar
+  canvas.atlasFontNumChars = numChars
+  canvas.atlas = newCanvasAtlas(fontData, fontSize, firstChar, numChars)
   canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
 func addDrawCall(canvas: Canvas) =
@@ -256,10 +265,12 @@ func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.addVertex(quad.right, quad.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
   canvas.addVertex(quad.right, quad.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
 
-func beginFrame*(canvas: Canvas, width, height: float) =
+proc beginFrame*(canvas: Canvas, width, height, scale: float) =
   if canvas.atlas == nil:
     canvas.error "There is no atlas loaded. Make sure to load a font with loadFont."
 
+  canvas.previousScale = canvas.scale
+  canvas.scale = scale
   canvas.width = width
   canvas.height = height
   canvas.vertexWrite = 0
@@ -269,6 +280,15 @@ func beginFrame*(canvas: Canvas, width, height: float) =
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
   canvas.pushClipRect (0.0, 0.0, canvas.width, canvas.height)
+
+  if canvas.scale != canvas.previousScale:
+    canvas.atlas = newCanvasAtlas(
+      canvas.atlasFontData,
+      canvas.atlasFontSize * canvas.scale,
+      canvas.atlasFontFirstChar,
+      canvas.atlasFontNumChars,
+    )
+    canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
 proc render*(canvas: Canvas) =
   if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
@@ -284,7 +304,7 @@ proc render*(canvas: Canvas) =
   canvas.vertexBuffer.select()
   canvas.indexBuffer.select()
 
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width / canvas.scale, 0, canvas.height / canvas.scale))
   canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
@@ -293,10 +313,12 @@ proc render*(canvas: Canvas) =
       continue
 
     # OpenGl clip rects are placed from the bottom left.
-    let crX = drawCall.clipRect.x
-    let crYFlipped = canvas.height - (drawCall.clipRect.y + drawCall.clipRect.height)
-    let crWidth = drawCall.clipRect.width
-    let crHeight = drawCall.clipRect.height
+    let crX = drawCall.clipRect.x * canvas.scale
+    let crY = drawCall.clipRect.y * canvas.scale
+    let crHeight = drawCall.clipRect.height * canvas.scale
+    let crYFlipped = canvas.height - (crY + crHeight)
+    let crWidth = drawCall.clipRect.width * canvas.scale
+
     gfx.setClipRect(
       crX,
       crYFlipped,
@@ -472,6 +494,13 @@ func drawText*(canvas: Canvas,
                clip = true) =
   let atlas = canvas.atlas
 
+  let bounds = (
+    x: bounds.x * canvas.scale,
+    y: bounds.y * canvas.scale,
+    width: bounds.width * canvas.scale,
+    height: bounds.height * canvas.scale,
+  )
+
   if clip:
     canvas.pushClipRect bounds
 
@@ -577,10 +606,10 @@ func drawText*(canvas: Canvas,
       let glyphInfo = atlas.glyphInfoTable[rune]
 
       let quad = (
-        x: (bounds.x + xAlignment + x + glyphInfo.xOffset).round,
-        y: (bounds.y + yAlignment + y + glyphInfo.yOffset).round,
-        width: glyphInfo.width.float,
-        height: glyphInfo.height.float,
+        x: ((bounds.x + xAlignment + x + glyphInfo.xOffset) / canvas.scale).round,
+        y: ((bounds.y + yAlignment + y + glyphInfo.yOffset) / canvas.scale).round,
+        width: glyphInfo.width.float / canvas.scale,
+        height: glyphInfo.height.float / canvas.scale,
       )
 
       let quadIsEntirelyOutOfBounds =

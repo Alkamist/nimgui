@@ -1,3 +1,5 @@
+{.experimental: "overloadableEnums".}
+
 import pkg/nimengine
 
 let window = newWindow()
@@ -8,6 +10,7 @@ openGlContext.select()
 gfx.setBackgroundColor(0.1, 0.1, 0.1, 1.0)
 
 let canvas = gfx.newCanvas()
+canvas.scale = 2.0
 canvas.loadFont("examples/consola.ttf", 13)
 # canvas.loadFont("examples/Roboto-Regular_1.ttf", 13)
 

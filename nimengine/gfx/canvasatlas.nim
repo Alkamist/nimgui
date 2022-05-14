@@ -40,14 +40,14 @@ func addWhitePixels(atlas: CanvasAtlas) =
   atlas.whitePixel.x = 1
   atlas.whitePixel.y = (atlas.height - 1)
 
-proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstChar = 0, numChars = 128) =
+proc loadFont(atlas: CanvasAtlas, fontData: string, fontSize: float, firstChar, numChars: int) =
   if stbtt_InitFont(atlas.stbFontInfo.addr, fontData.cstring, 0) == 0:
     echo "Failed to load font."
 
   var x0, y0, x1, y1: cint
   stbtt_GetFontBoundingBox(atlas.stbFontInfo.addr, x0.addr, y0.addr, x1.addr, y1.addr)
 
-  let fontScale = stbtt_ScaleForPixelHeight(atlas.stbFontInfo.addr, pixelHeight)
+  let fontScale = stbtt_ScaleForPixelHeight(atlas.stbFontInfo.addr, fontSize)
 
   atlas.glyphBoundingBox = (
     (fontScale * x0.float, fontScale * y0.float),
@@ -55,7 +55,7 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
   )
 
   let charsPerRowGuess = numChars.float.sqrt.ceil
-  let widthHeightGuess = (charsPerRowGuess * pixelHeight).ceil.int
+  let widthHeightGuess = (charsPerRowGuess * fontSize).ceil.int
 
   atlas.width = widthHeightGuess
   atlas.height = widthHeightGuess
@@ -71,7 +71,7 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
     let retVal = stbtt_BakeFontBitmap(
       data = fontData.cstring,
       offset = 0,
-      pixel_height = pixelHeight,
+      pixel_height = fontSize,
       pixels = rawAlphas[0].addr,
       pw = atlas.width.cint,
       ph = atlas.height.cint,
@@ -90,7 +90,7 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, pixelHeight: float, firstCha
     else:
       let charactersMissing = numChars + retVal
       let rowsMissingGuess = (charactersMissing.float / charsPerRowGuess).ceil
-      atlas.height += (rowsMissingGuess * pixelHeight).ceil.int
+      atlas.height += (rowsMissingGuess * fontSize).ceil.int
 
   # Convert the raw alphas to white pixels.
   for i, alpha in rawAlphas:
@@ -127,8 +127,8 @@ proc calculateUvs(atlas: CanvasAtlas) =
     atlas.glyphInfoTable[rune].uv.width = atlas.glyphInfoTable[rune].width / atlas.width
     atlas.glyphInfoTable[rune].uv.height = atlas.glyphInfoTable[rune].height / atlas.height
 
-proc newCanvasAtlas*(fontData: string, pixelHeight: float): CanvasAtlas =
+proc newCanvasAtlas*(fontData: string, fontSize: float, firstChar = 0, numChars = 128): CanvasAtlas =
   result = CanvasAtlas()
-  result.loadFont(fontData, pixelHeight)
+  result.loadFont(fontData, fontSize, firstChar, numChars)
   result.addWhitePixels()
   result.calculateUvs()

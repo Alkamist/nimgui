@@ -48,7 +48,7 @@ proc updateBounds(client: Client) =
   GetClientRect(client.hwnd, rect.addr)
   ClientToScreen(client.hwnd, cast[ptr POINT](rect.left.addr))
   ClientToScreen(client.hwnd, cast[ptr POINT](rect.right.addr))
-  client.posPixels = (rect.left.int, rect.top.int)
+  client.positionPixels = (rect.left.int, rect.top.int)
   client.sizePixels = ((rect.right - rect.left).int, (rect.bottom - rect.top).int)
 
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
@@ -177,11 +177,8 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       else: Unknown
 
 proc update*(client: Client) =
-  client.prePoll()
-  client.pollEvents()
-  client.postPoll()
-  if client.onFrame != nil:
-    client.onFrame()
+  client.processFrame:
+    client.pollEvents()
 
 proc close*(client: Client) =
   if client.isOpen:
@@ -260,13 +257,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   of WM_TIMER:
     if wParam == client.platform.moveTimer:
-      client.prePoll()
-      client.postPoll()
-      if client.onFrame != nil:
-        client.onFrame()
+      client.processFrame:
+        client.updateBounds()
 
   of WM_WINDOWPOSCHANGED:
-    client.updateBounds()
+    client.processFrame:
+      client.updateBounds()
     return 0
 
   of WM_CLOSE:
@@ -282,7 +278,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     client.dpi = GetDpiForWindow(client.hwnd).float
 
   of WM_MOUSEMOVE:
-    client.mousePosPixels = (GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))
+    client.mousePositionPixels = (GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))
 
   of WM_MOUSEWHEEL:
     client.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float

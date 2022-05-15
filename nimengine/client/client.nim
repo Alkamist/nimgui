@@ -7,7 +7,6 @@ when defined(windows):
   type
     PlatformData* = object
       moveTimer*: UINT_PTR
-      isInFrame*: bool
 
 type
   MouseButton* = enum
@@ -128,17 +127,15 @@ type
 
   Client* = ref object
     onFrame*: proc()
-
-    # During poll.
+    isProcessingFrame*: bool
     isOpen*: bool
     handle*: pointer
     isChild*: bool
     time*: float
-    defaultDpi*: float
     dpi*: float
-    posPixels*: tuple[x, y: int]
+    positionPixels*: tuple[x, y: int]
     sizePixels*: tuple[x, y: int]
-    mousePosPixels*: tuple[x, y: int]
+    mousePositionPixels*: tuple[x, y: int]
     mouseWheel*: tuple[x, y: float]
     text*: string
     mouseDown*: array[MouseButton, bool]
@@ -148,42 +145,79 @@ type
     keyPresses*: seq[KeyboardKey]
     keyReleases*: seq[KeyboardKey]
 
-    # Post poll.
-    delta*: float
-    scale*: float
-    aspectRatio*: float
-    pos*: tuple[x, y: float]
-    size*: tuple[x, y: float]
-    mouseDeltaPixels*: tuple[x, y: int]
-    mousePos*: tuple[x, y: float]
-    mouseDelta*: tuple[x, y: float]
-    mousePressed*: array[MouseButton, bool]
-    mouseReleased*: array[MouseButton, bool]
-    keyPressed*: array[KeyboardKey, bool]
-    keyReleased*: array[KeyboardKey, bool]
-
-    # Pre poll.
     previousTime*: float
-    previousMousePosPixels*: tuple[x, y: int]
+    previousMousePositionPixels*: tuple[x, y: int]
     previousMouseDown*: array[MouseButton, bool]
     previousKeyDown*: array[KeyboardKey, bool]
 
-    # Platform specific.
     platform*: PlatformData
 
 proc newClientBase*(): Client =
   let time = cpuTime()
   Client(
     dpi: 96.0,
-    defaultDpi: 96.0,
-    scale: 1.0,
     time: time,
     previousTime: time,
   )
 
-proc prePoll*(client: Client) =
+func densityPixelsPerPixel*(client: Client): float =
+  const densityPixelDpi = 160.0
+  densityPixelDpi / client.dpi
+
+func delta*(client: Client): float =
+  client.time - client.previousTime
+
+func aspectRatio*(client: Client): float =
+  client.sizePixels.x / client.sizePixels.y
+
+func mouseDeltaPixels*(client: Client): tuple[x, y: int] =
+  (client.mousePositionPixels.x - client.previousMousePositionPixels.x,
+   client.mousePositionPixels.y - client.previousMousePositionPixels.y)
+
+func position*(client: Client): tuple[x, y: float] =
+  let dp = client.densityPixelsPerPixel
+  (client.positionPixels.x.float / dp,
+   client.positionPixels.y.float / dp)
+
+func mousePosition*(client: Client): tuple[x, y: float] =
+  let dp = client.densityPixelsPerPixel
+  (client.mousePositionPixels.x.float / dp,
+   client.mousePositionPixels.y.float / dp)
+
+func mouseDelta*(client: Client): tuple[x, y: float] =
+  let delta = client.mouseDeltaPixels
+  let dp = client.densityPixelsPerPixel
+  (delta.x.float / dp, delta.y.float / dp)
+
+func size*(client: Client): tuple[x, y: float] =
+  let dp = client.densityPixelsPerPixel
+  (client.sizePixels.x.float / dp, client.sizePixels.y.float / dp)
+
+func mouseDown*(client: Client, button: MouseButton): bool =
+  client.mouseDown[button]
+
+func mousePressed*(client: Client, button: MouseButton): bool =
+  client.mouseDown[button] and not client.previousMouseDown[button]
+
+func mouseReleased*(client: Client, button: MouseButton): bool =
+  client.previousMouseDown[button] and not client.mouseDown[button]
+
+func keyDown*(client: Client, key: KeyboardKey): bool =
+  client.keyDown[key]
+
+func keyPressed*(client: Client, key: KeyboardKey): bool =
+  client.keyDown[key] and not client.previousKeyDown[key]
+
+func keyReleased*(client: Client, key: KeyboardKey): bool =
+  client.previousKeyDown[key] and not client.keyDown[key]
+
+func mouseMoved*(client: Client): bool =
+  let delta = client.mouseDeltaPixels
+  delta.x != 0 and delta.y != 0
+
+template processFrame*(client: Client, code: untyped): untyped =
   client.previousTime = client.time
-  client.previousMousePosPixels = client.mousePosPixels
+  client.previousMousePositionPixels = client.mousePositionPixels
   client.previousMouseDown = client.mouseDown
   client.previousKeyDown = client.keyDown
   client.mouseWheel = (0.0, 0.0)
@@ -195,32 +229,7 @@ proc prePoll*(client: Client) =
 
   client.time = cpuTime()
 
-proc postPoll*(client: Client) =
-  client.delta = client.time - client.previousTime
+  code
 
-  # client.scale = client.dpi / client.defaultDpi
-
-  client.aspectRatio = client.sizePixels.x / client.sizePixels.y
-
-  client.pos.x = client.posPixels.x.float / client.scale
-  client.pos.y = client.posPixels.y.float / client.scale
-
-  client.size.x = client.sizePixels.x.float / client.scale
-  client.size.y = client.sizePixels.y.float / client.scale
-
-  client.mouseDeltaPixels.x = client.mousePosPixels.x - client.previousMousePosPixels.x
-  client.mouseDeltaPixels.y = client.mousePosPixels.y - client.previousMousePosPixels.y
-
-  client.mousePos.x = client.mousePosPixels.x.float / client.scale
-  client.mousePos.y = client.mousePosPixels.y.float / client.scale
-
-  client.mouseDelta.x = client.mouseDeltaPixels.x.float / client.scale
-  client.mouseDelta.y = client.mouseDeltaPixels.y.float / client.scale
-
-  for button in MouseButton:
-    client.mousePressed[button] = client.mouseDown[button] and not client.previousMouseDown[button]
-    client.mouseReleased[button] = client.previousMouseDown[button] and not client.mouseDown[button]
-
-  for key in KeyboardKey:
-    client.keyPressed[key] = client.keyDown[key] and not client.previousKeyDown[key]
-    client.keyReleased[key] = client.previousKeyDown[key] and not client.keyDown[key]
+  if client.onFrame != nil:
+    client.onFrame()

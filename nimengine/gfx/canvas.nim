@@ -81,8 +81,8 @@ type
     indexCount: int
 
   Canvas* = ref object
-    scale*: float
-    width*, height*: float
+    densityPixelsPerPixel*: float
+    size*: tuple[x, y: float]
     vertexData: seq[Vertex]
     vertexWrite: int
     indexData: seq[Index]
@@ -99,7 +99,7 @@ type
     atlasFontSize: float
     atlasFontFirstChar: int
     atlasFontNumChars: int
-    previousScale: float
+    previousDensityPixelsPerPixel: float
 
 func error(canvas: Canvas, msg: string) =
   raise newException(CanvasError, msg)
@@ -132,7 +132,7 @@ proc `=destroy`*(canvas: var type Canvas()[]) =
   glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
 
 proc newCanvas*(): Canvas =
-  result = Canvas(previousScale: 1.0, scale: 1.0)
+  result = Canvas(previousDensityPixelsPerPixel: 1.0, densityPixelsPerPixel: 1.0)
 
   # Stop OpenGl from crashing on later versions.
   glGenVertexArrays(1, result.vertexArrayId.addr)
@@ -180,7 +180,7 @@ func pushClipRect*(canvas: Canvas, rect: Rect2) =
     if canvas.clipRectStack.len > 0:
       canvas.clipRectStack[canvas.clipRectStack.len - 1]
     else:
-      (0.0, 0.0, canvas.width, canvas.height)
+      (0.0, 0.0, canvas.size.x, canvas.size.y)
 
   let leftX = max(rect.x, lastRect.x)
   let rightX = min(rect.x + rect.width, lastRect.x + lastRect.width)
@@ -264,26 +264,25 @@ func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.addVertex(quad.right, quad.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
   canvas.addVertex(quad.right, quad.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
 
-proc beginFrame*(canvas: Canvas, width, height, scale: float) =
+proc beginFrame*(canvas: Canvas, size: tuple[x, y: float], densityPixelsPerPixel: float) =
   if canvas.atlas == nil:
     canvas.error "There is no atlas loaded. Make sure to load a font with loadFont."
 
-  canvas.previousScale = canvas.scale
-  canvas.scale = scale
-  canvas.width = width
-  canvas.height = height
+  canvas.previousDensityPixelsPerPixel = canvas.densityPixelsPerPixel
+  canvas.densityPixelsPerPixel = densityPixelsPerPixel
+  canvas.size = size
   canvas.vertexWrite = 0
   canvas.indexWrite = 0
   canvas.vertexData.setLen(0)
   canvas.indexData.setLen(0)
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
-  canvas.pushClipRect (0.0, 0.0, canvas.width, canvas.height)
+  canvas.pushClipRect (0.0, 0.0, size.x, size.y)
 
-  if canvas.scale != canvas.previousScale:
+  if canvas.densityPixelsPerPixel != canvas.previousDensityPixelsPerPixel:
     canvas.atlas = newCanvasAtlas(
       canvas.atlasFontData,
-      canvas.atlasFontSize * canvas.scale,
+      canvas.atlasFontSize * canvas.densityPixelsPerPixel,
       canvas.atlasFontFirstChar,
       canvas.atlasFontNumChars,
     )
@@ -303,7 +302,7 @@ proc render*(canvas: Canvas) =
   canvas.vertexBuffer.select()
   canvas.indexBuffer.select()
 
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x, 0, canvas.size.y))
   canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
@@ -311,19 +310,18 @@ proc render*(canvas: Canvas) =
     if drawCall.indexCount == 0:
       continue
 
-    # OpenGl clip rects are placed from the bottom left.
-    let scale = canvas.scale.float32
-    let crX = drawCall.clipRect.x.float32 * scale
-    let crY = drawCall.clipRect.y.float32 * scale
-    let crHeight = drawCall.clipRect.height.float32 * scale
-    let crYFlipped = canvas.height.float32 * scale - (crY + crHeight)
-    let crWidth = drawCall.clipRect.width.float32 * scale
+    let dp = canvas.densityPixelsPerPixel
+    let crX = drawCall.clipRect.x * dp
+    let crY = drawCall.clipRect.y * dp
+    let crHeight = drawCall.clipRect.height * dp
+    let crWidth = drawCall.clipRect.width * dp
+    let crYFlipped = canvas.size.y * dp - (crY + crHeight)
 
     gfx.setClipRect(
-      crX,
+      crX + 0.5,
       crYFlipped + 0.5,
-      crWidth + 0.5,
-      crHeight + 1.0,
+      crWidth + 0.7,
+      crHeight + 0.5,
     )
 
     gfx.drawTriangles(
@@ -493,15 +491,16 @@ func drawText*(canvas: Canvas,
                wordWrap = true,
                clip = true) =
   let atlas = canvas.atlas
+  let dp = canvas.densityPixelsPerPixel
 
   if clip:
     canvas.pushClipRect bounds
 
   let bounds = (
-    x: bounds.x * canvas.scale,
-    y: bounds.y * canvas.scale,
-    width: bounds.width * canvas.scale,
-    height: bounds.height * canvas.scale,
+    x: bounds.x * dp,
+    y: bounds.y * dp,
+    width: bounds.width * dp,
+    height: bounds.height * dp,
   )
 
   const newLine = "\n".runeAt(0)
@@ -606,21 +605,27 @@ func drawText*(canvas: Canvas,
       let glyphInfo = atlas.glyphInfoTable[rune]
 
       let quad = (
-        x: (bounds.x + xAlignment + x + glyphInfo.xOffset) / canvas.scale,
-        y: (bounds.y + yAlignment + y + glyphInfo.yOffset) / canvas.scale,
-        width: glyphInfo.width.float / canvas.scale,
-        height: glyphInfo.height.float / canvas.scale,
+        x: bounds.x + xAlignment + x + glyphInfo.xOffset,
+        y: bounds.y + yAlignment + y + glyphInfo.yOffset,
+        width: glyphInfo.width.float,
+        height: glyphInfo.height.float,
       )
 
-      # let quadIsEntirelyOutOfBounds =
-      #   clip and
-      #   (quad.x + quad.width < bounds.x or
-      #    quad.x > bounds.x + bounds.width or
-      #    quad.y + quad.height < bounds.y or
-      #    quad.y > bounds.y + bounds.height)
+      let quadIsEntirelyOutOfBounds =
+        clip and
+        (quad.x + quad.width < bounds.x or
+         quad.x > bounds.x + bounds.width or
+         quad.y + quad.height < bounds.y or
+         quad.y > bounds.y + bounds.height)
 
-      # if not quadIsEntirelyOutOfBounds:
-      canvas.addQuad(quad, glyphInfo.uv, color)
+      if not quadIsEntirelyOutOfBounds:
+        let quadScaled = (
+          x: quad.x / dp,
+          y: quad.y / dp,
+          width: quad.width / dp,
+          height: quad.height / dp,
+        )
+        canvas.addQuad(quadScaled, glyphInfo.uv, color)
 
       x += glyphInfo.xAdvance
 

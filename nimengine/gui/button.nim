@@ -1,6 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-import std/math
 import ./theme
 import ./widget
 
@@ -31,13 +30,15 @@ func newButtonWidget*(): ButtonWidget =
   ButtonWidget(colors: defaultButtonColors())
 
 method update*(button: ButtonWidget) =
-  if button.mouseIsOver and button.mousePressed[Left]:
+  let client = button.client
+
+  if button.mouseIsOver and client.mousePressed(Left):
     button.isDown = true
 
     if button.onPressed != nil:
       button.onPressed()
 
-  if button.isDown and button.mouseReleased[Left]:
+  if button.isDown and client.mouseReleased(Left):
     button.isDown = false
 
     if button.onReleased != nil:
@@ -49,10 +50,10 @@ method update*(button: ButtonWidget) =
 
 method draw*(button: ButtonWidget) =
   let canvas = button.canvas
-  let x = button.absoluteX.round
-  let y = button.absoluteY.round
-  let w = button.width.round
-  let h = button.height.round
+  let x = button.absolutePosition.x
+  let y = button.absolutePosition.y
+  let w = button.size.x
+  let h = button.size.y
 
   let buttonColor =
     if button.isDown: button.colors.down
@@ -60,12 +61,12 @@ method draw*(button: ButtonWidget) =
     else: button.colors.background
 
   canvas.fillRect (x, y, w, h), buttonColor
-  canvas.drawText(
-    button.label,
-    (x, y, w, h),
-    button.colors.text,
-    xAlign = Center,
-    yAlign = Center,
-    wordWrap = false,
-    clip = true,
-  )
+  # canvas.drawText(
+  #   button.label,
+  #   (x, y, w, h),
+  #   button.colors.text,
+  #   xAlign = Center,
+  #   yAlign = Center,
+  #   wordWrap = false,
+  #   clip = true,
+  # )

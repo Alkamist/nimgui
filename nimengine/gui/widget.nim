@@ -10,10 +10,10 @@ type
     canvas*: Canvas
     children*: seq[Widget]
     parent*: Widget
-    x*, y*: float
-    absoluteX*, absoluteY*: float
-    width*, height*: float
-    mouseX*, mouseY*: float
+    position*: tuple[x, y: float]
+    absolutePosition*: tuple[x, y: float]
+    size*: tuple[x, y: float]
+    mousePosition*: tuple[x, y: float]
     mouseIsInside*: bool
     mouseIsOver*: bool
     isFocused*: bool
@@ -34,22 +34,11 @@ method update*(widget: Widget) {.base, locks: "unknown".} =
     widget.mouseIsInside = true
     widget.mouseIsOver = true
     widget.isFocused = true
-  widget.width = widget.canvas.width
-  widget.height = widget.canvas.height
+  widget.size = widget.canvas.size
   widget.updateChildren()
 
 method draw*(widget: Widget) {.base, locks: "unknown".} =
   widget.drawChildren()
-
-template mouseDown*(widget: Widget): untyped = widget.client.mouseDown
-template mousePressed*(widget: Widget): untyped = widget.client.mousePressed
-template mouseReleased*(widget: Widget): untyped = widget.client.mouseReleased
-template keyDown*(widget: Widget): untyped = widget.client.keyDown
-template keyPressed*(widget: Widget): untyped = widget.client.keyPressed
-template keyReleased*(widget: Widget): untyped = widget.client.keyReleased
-
-template mouseXChange*(widget: Widget): untyped = widget.client.mouseDelta.x
-template mouseYChange*(widget: Widget): untyped = widget.client.mouseDelta.y
 
 func updateChildren*(widget: Widget) =
   var mouseOverIsSet = false
@@ -65,15 +54,15 @@ func updateChildren*(widget: Widget) =
     child.client = widget.client
     child.canvas = widget.canvas
 
-    child.absoluteX = widget.absoluteX + child.x
-    child.absoluteY = widget.absoluteY + child.y
+    child.absolutePosition.x = widget.absolutePosition.x + child.position.x
+    child.absolutePosition.y = widget.absolutePosition.y + child.position.y
 
-    child.mouseX = widget.client.mousePos.x - child.absoluteX
-    child.mouseY = widget.client.mousePos.y - child.absoluteY
+    child.mousePosition.x = widget.client.mousePosition.x - child.absolutePosition.x
+    child.mousePosition.y = widget.client.mousePosition.y - child.absolutePosition.y
 
     child.mouseIsInside =
-      child.mouseX >= 0 and child.mouseX <= child.width and
-      child.mouseY >= 0 and child.mouseY <= child.height
+      child.mousePosition.x >= 0 and child.mousePosition.x <= child.size.x and
+      child.mousePosition.y >= 0 and child.mousePosition.y <= child.size.y
 
     if not mouseOverIsSet and child.mouseIsInside and widget.mouseIsOver:
       widget.mouseOver = child

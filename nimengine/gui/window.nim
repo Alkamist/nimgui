@@ -1,6 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-import std/math
 import ./theme
 import ./widget
 
@@ -55,65 +54,67 @@ func newWindowWidget*(): WindowWidget =
   )
 
 method requestFocus*(window: WindowWidget): bool =
-  window.mousePressed[Left] and window.mouseIsOver
+  window.client.mousePressed(Left) and window.mouseIsOver
 
 method releaseFocus*(window: WindowWidget): bool =
-  window.mousePressed[Left] and not window.mouseIsOver
+  window.client.mousePressed(Left) and not window.mouseIsOver
 
 method update*(window: WindowWidget) =
+  let client = window.client
+
   window.titleBarIsHovered =
     window.isMovable and
     (not window.isBeingResized) and
     window.mouseIsOver and
-    window.mouseX >= 0 and window.mouseX <= window.width and
-    window.mouseY >= 0 and window.mouseY <= window.titleBarHeight
+    window.mousePosition.x >= 0 and window.mousePosition.x <= window.size.x and
+    window.mousePosition.y >= 0 and window.mousePosition.y <= window.titleBarHeight
 
   window.resizeHandleIsHovered =
     window.isResizable and
     window.mouseIsOver and
-    window.mouseX >= (window.width - window.resizeHandleSize) and window.mouseX <= window.width and
-    window.mouseY >= (window.height - window.resizeHandleSize) and window.mouseY <= window.height
+    window.mousePosition.x >= (window.size.x - window.resizeHandleSize) and window.mousePosition.x <= window.size.x and
+    window.mousePosition.y >= (window.size.y - window.resizeHandleSize) and window.mousePosition.y <= window.size.y
 
   # Press title bar.
-  if window.titleBarIsHovered and window.mousePressed[Left]:
+  if window.titleBarIsHovered and client.mousePressed(Left):
     window.isBeingMoved = true
 
   # Release title bar.
-  if window.isBeingMoved and window.mouseReleased[Left]:
+  if window.isBeingMoved and client.mouseReleased(Left):
     window.isBeingMoved = false
 
   # Move window.
   if window.isBeingMoved:
-    window.x += window.mouseXChange
-    window.y += window.mouseYChange
+    window.position.x += client.mouseDelta.x
+    window.position.y += client.mouseDelta.y
 
   # Press resize handle.
-  if window.resizeHandleIsHovered and window.mousePressed[Left]:
+  if window.resizeHandleIsHovered and client.mousePressed(Left):
     window.isBeingResized = true
-    window.resizeStartX = window.mouseX
-    window.resizeStartY = window.mouseY
-    window.resizeStartWidth = window.width
-    window.resizeStartHeight = window.height
+    window.resizeStartX = window.mousePosition.x
+    window.resizeStartY = window.mousePosition.y
+    window.resizeStartWidth = window.size.x
+    window.resizeStartHeight = window.size.y
 
   # Release resize handle.
-  if window.isBeingResized and window.mouseReleased[Left]:
+  if window.isBeingResized and client.mouseReleased(Left):
     window.isBeingResized = false
 
   # Resize window.
   if window.isBeingResized:
-    let resizeWidth = window.resizeStartWidth + (window.mouseX - window.resizeStartX)
-    let resizeHeight = window.resizeStartHeight + (window.mouseY - window.resizeStartY)
-    window.width = resizeWidth.max(window.minWidth)
-    window.height = resizeHeight.max(window.minHeight)
+    let resizeWidth = window.resizeStartWidth + (window.mousePosition.x - window.resizeStartX)
+    let resizeHeight = window.resizeStartHeight + (window.mousePosition.y - window.resizeStartY)
+    window.size.x = resizeWidth.max(window.minWidth)
+    window.size.y = resizeHeight.max(window.minHeight)
 
   window.updateChildren()
 
 method draw*(window: WindowWidget) =
   let canvas = window.canvas
-  let x = window.absoluteX
-  let y = window.absoluteY
-  let w = window.width
-  let h = window.height
+  let x = window.absolutePosition.x
+  let y = window.absolutePosition.y
+  let w = window.size.x
+  let h = window.size.y
 
   let parentIsFocused =
     window.parent != nil and

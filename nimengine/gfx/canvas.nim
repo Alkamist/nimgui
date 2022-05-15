@@ -1,6 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-import std/math
 import std/unicode
 import opengl
 
@@ -304,7 +303,7 @@ proc render*(canvas: Canvas) =
   canvas.vertexBuffer.select()
   canvas.indexBuffer.select()
 
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width / canvas.scale, 0, canvas.height / canvas.scale))
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.width, 0, canvas.height))
   canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
@@ -316,7 +315,7 @@ proc render*(canvas: Canvas) =
     let crX = drawCall.clipRect.x * canvas.scale
     let crY = drawCall.clipRect.y * canvas.scale
     let crHeight = drawCall.clipRect.height * canvas.scale
-    let crYFlipped = canvas.height - (crY + crHeight)
+    let crYFlipped = canvas.height * canvas.scale - (crY + crHeight)
     let crWidth = drawCall.clipRect.width * canvas.scale
 
     gfx.setClipRect(
@@ -494,15 +493,15 @@ func drawText*(canvas: Canvas,
                clip = true) =
   let atlas = canvas.atlas
 
+  if clip:
+    canvas.pushClipRect bounds
+
   let bounds = (
     x: bounds.x * canvas.scale,
     y: bounds.y * canvas.scale,
     width: bounds.width * canvas.scale,
     height: bounds.height * canvas.scale,
   )
-
-  if clip:
-    canvas.pushClipRect bounds
 
   const newLine = "\n".runeAt(0)
 
@@ -606,23 +605,23 @@ func drawText*(canvas: Canvas,
       let glyphInfo = atlas.glyphInfoTable[rune]
 
       let quad = (
-        x: ((bounds.x + xAlignment + x + glyphInfo.xOffset) / canvas.scale).round,
-        y: ((bounds.y + yAlignment + y + glyphInfo.yOffset) / canvas.scale).round,
+        x: (bounds.x + xAlignment + x + glyphInfo.xOffset) / canvas.scale,
+        y: (bounds.y + yAlignment + y + glyphInfo.yOffset) / canvas.scale,
         width: glyphInfo.width.float / canvas.scale,
         height: glyphInfo.height.float / canvas.scale,
       )
 
-      let quadIsEntirelyOutOfBounds =
-        clip and
-        (quad.x + quad.width < bounds.x or
-         quad.x > bounds.x + bounds.width or
-         quad.y + quad.height < bounds.y or
-         quad.y > bounds.y + bounds.height)
+      # let quadIsEntirelyOutOfBounds =
+      #   clip and
+      #   (quad.x + quad.width < bounds.x or
+      #    quad.x > bounds.x + bounds.width or
+      #    quad.y + quad.height < bounds.y or
+      #    quad.y > bounds.y + bounds.height)
 
-      if not quadIsEntirelyOutOfBounds:
-        canvas.addQuad(quad, glyphInfo.uv, color)
+      # if not quadIsEntirelyOutOfBounds:
+      canvas.addQuad(quad, glyphInfo.uv, color)
 
-        x += glyphInfo.xAdvance
+      x += glyphInfo.xAdvance
 
     y += lineHeight
 

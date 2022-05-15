@@ -198,7 +198,7 @@ proc prePoll*(client: Client) =
 proc postPoll*(client: Client) =
   client.delta = client.time - client.previousTime
 
-  client.scale = client.dpi / client.defaultDpi
+  # client.scale = client.dpi / client.defaultDpi
 
   client.aspectRatio = client.sizePixels.x / client.sizePixels.y
 

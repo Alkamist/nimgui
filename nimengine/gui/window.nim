@@ -110,10 +110,10 @@ method update*(window: WindowWidget) =
 
 method draw*(window: WindowWidget) =
   let canvas = window.canvas
-  let x = window.absoluteX.round
-  let y = window.absoluteY.round
-  let w = window.width.round
-  let h = window.height.round
+  let x = window.absoluteX
+  let y = window.absoluteY
+  let w = window.width
+  let h = window.height
 
   let parentIsFocused =
     window.parent != nil and
@@ -161,10 +161,10 @@ method draw*(window: WindowWidget) =
   window.drawChildren()
 
   const resizeInset = 4.0
-  let resizeLeft = (x + w - window.resizeHandleSize + resizeInset).round
-  let resizeRight = (x + w - resizeInset).round
-  let resizeBottom = (y + h - resizeInset).round
-  let resizeTop = (y + h - window.resizeHandleSize + resizeInset).round
+  let resizeLeft = x + w - window.resizeHandleSize + resizeInset
+  let resizeRight = x + w - resizeInset
+  let resizeBottom = y + h - resizeInset
+  let resizeTop = y + h - window.resizeHandleSize + resizeInset
   let resizeHandlePoints = [
     (resizeLeft, resizeBottom),
     (resizeRight, resizeTop),

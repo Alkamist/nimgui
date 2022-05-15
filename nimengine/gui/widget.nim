@@ -1,15 +1,15 @@
-import ../input
+import ../client
 import ../gfx/canvas
 
-export input
+export client
 export canvas
 
 type
   Widget* = ref object of RootObj
+    client*: Client
+    canvas*: Canvas
     children*: seq[Widget]
     parent*: Widget
-    canvas*: Canvas
-    input*: Input
     x*, y*: float
     absoluteX*, absoluteY*: float
     width*, height*: float
@@ -20,8 +20,8 @@ type
     mouseOver*: Widget
     focus*: Widget
 
-func newWidget*(canvas: Canvas, input: Input): Widget =
-  Widget(canvas: canvas, input: input)
+func newWidget*(client: Client, canvas: Canvas): Widget =
+  Widget(client: client, canvas: canvas)
 
 func updateChildren*(widget: Widget)
 func drawChildren*(widget: Widget)
@@ -41,15 +41,15 @@ method update*(widget: Widget) {.base, locks: "unknown".} =
 method draw*(widget: Widget) {.base, locks: "unknown".} =
   widget.drawChildren()
 
-template mouseDown*(widget: Widget): untyped = widget.input.mouseDown
-template mousePressed*(widget: Widget): untyped = widget.input.mousePressed
-template mouseReleased*(widget: Widget): untyped = widget.input.mouseReleased
-template keyDown*(widget: Widget): untyped = widget.input.keyDown
-template keyPressed*(widget: Widget): untyped = widget.input.keyPressed
-template keyReleased*(widget: Widget): untyped = widget.input.keyReleased
+template mouseDown*(widget: Widget): untyped = widget.client.mouseDown
+template mousePressed*(widget: Widget): untyped = widget.client.mousePressed
+template mouseReleased*(widget: Widget): untyped = widget.client.mouseReleased
+template keyDown*(widget: Widget): untyped = widget.client.keyDown
+template keyPressed*(widget: Widget): untyped = widget.client.keyPressed
+template keyReleased*(widget: Widget): untyped = widget.client.keyReleased
 
-template mouseXChange*(widget: Widget): untyped = widget.input.mouseXChange
-template mouseYChange*(widget: Widget): untyped = widget.input.mouseYChange
+template mouseXChange*(widget: Widget): untyped = widget.client.mouseDelta.x
+template mouseYChange*(widget: Widget): untyped = widget.client.mouseDelta.y
 
 func updateChildren*(widget: Widget) =
   var mouseOverIsSet = false
@@ -62,14 +62,14 @@ func updateChildren*(widget: Widget) =
     let child = widget.children[i]
 
     child.parent = widget
-    child.input = widget.input
+    child.client = widget.client
     child.canvas = widget.canvas
 
     child.absoluteX = widget.absoluteX + child.x
     child.absoluteY = widget.absoluteY + child.y
 
-    child.mouseX = widget.input.mouseX - child.absoluteX
-    child.mouseY = widget.input.mouseY - child.absoluteY
+    child.mouseX = widget.client.mousePos.x - child.absoluteX
+    child.mouseY = widget.client.mousePos.y - child.absoluteY
 
     child.mouseIsInside =
       child.mouseX >= 0 and child.mouseX <= child.width and

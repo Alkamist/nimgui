@@ -1,66 +1,62 @@
 {.experimental: "overloadableEnums".}
 
-import pkg/nimengine
+import std/math
+import nimengine
 
-let window = newWindow()
+const fontData = staticRead("examples/consola.ttf")
 
-let openGlContext = gfx.newOpenGlContext(window.platform.handle)
+let client = newClient()
+
+let openGlContext = newOpenGlContext(client.handle)
 openGlContext.select()
 
-gfx.setBackgroundColor(0.1, 0.1, 0.1, 1.0)
+setBackgroundColor(0.1, 0.5, 0.1, 1.0)
 
-let canvas = gfx.newCanvas()
-canvas.scale = 2.0
-canvas.loadFont("examples/consola.ttf", 13)
-# canvas.loadFont("examples/Roboto-Regular_1.ttf", 13)
+let canvas = newCanvas()
+canvas.loadFont(fontData, 13)
 
-let gui = newWidget(canvas, window.input)
+let gui = newWidget(client, canvas)
 
-let width = window.width / 5.0
-let height = window.height / 5.0
+let parent = newWindowWidget()
+parent.title = "Window"
+parent.x = 50
+parent.y = 50
+parent.width = 400
+parent.height = 300
 
-for i in 0 ..< 5:
-  for j in 0 ..< 5:
-    let button = newButtonWidget()
-    button.label = "Button"
-    button.x = 20
-    button.y = 40
-    button.width = 100
-    button.height = 80
-    button.onClicked = proc() = echo "Clicked"
+let button = newButtonWidget()
+button.label = "Button"
+button.x = 20
+button.y = 40
+button.width = 100
+button.height = 80
+button.onClicked = proc() = echo "Clicked"
 
-    let parent = newWindowWidget()
-    parent.title = "Window"
-    parent.x = i.float * width
-    parent.y = j.float * height
-    parent.width = width * 0.95
-    parent.height = height * 0.95
+parent.children.add button
+gui.children.add parent
 
-    let child = newWindowWidget()
-    child.title = "Child Window"
-    child.x = 50
-    child.y = 50
-    child.width = 200
-    child.height = 200
+var scale = 1.0
 
-    parent.children.add(child)
-    child.children.add(button)
-    gui.children.add(parent)
+proc onFrame() =
+  if client.mouseWheel.y != 0.0:
+    scale *= 2.0.pow(client.mouseWheel.y * 0.5)
+    scale = scale.max(0.1)
+    client.scale = scale
 
-proc render() =
-  gfx.setViewport(0, 0, window.width, window.height)
-  gfx.setClipRect(0, 0, window.width, window.height)
-  gfx.clearBackground()
+  setViewport(0, 0, client.sizePixels.x.float, client.sizePixels.y.float)
+  setClipRect(0, 0, client.sizePixels.x.float, client.sizePixels.y.float)
+  clearBackground()
 
-  canvas.beginFrame(window.width, window.height)
+  canvas.beginFrame(client.size.x, client.size.y, scale)
+
+  gui.update()
   gui.draw()
+
   canvas.render()
 
   openGlContext.swapBuffers()
 
-window.onResize = render
+client.onFrame = onFrame
 
-while not window.isClosed:
-  window.pollEvents()
-  gui.update()
-  render()
+while client.isOpen:
+  client.update()

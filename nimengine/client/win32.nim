@@ -260,6 +260,8 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   of WM_TIMER:
     if wParam == client.platform.moveTimer:
+      client.prePoll()
+      client.postPoll()
       if client.onFrame != nil:
         client.onFrame()
 

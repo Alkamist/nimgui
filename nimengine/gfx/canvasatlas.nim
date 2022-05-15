@@ -31,10 +31,11 @@ func addWhitePixels(atlas: CanvasAtlas) =
     let y = atlas.height + extraRow
     for x in 0 ..< 3:
       let i4 = (y * atlas.width + x) * 4
-      atlas.data[i4] = 255
-      atlas.data[i4 + 1] = 255
-      atlas.data[i4 + 2] = 255
-      atlas.data[i4 + 3] = 255
+      if i4 + 3 < atlas.data.len:
+        atlas.data[i4] = 255
+        atlas.data[i4 + 1] = 255
+        atlas.data[i4 + 2] = 255
+        atlas.data[i4 + 3] = 255
 
   atlas.height += extraPixelRows
   atlas.whitePixel.x = 1

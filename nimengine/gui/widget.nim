@@ -1,6 +1,8 @@
+import ../tmath
 import ../client
 import ../gfx/canvas
 
+export tmath
 export client
 export canvas
 
@@ -54,15 +56,10 @@ func updateChildren*(widget: Widget) =
     child.client = widget.client
     child.canvas = widget.canvas
 
-    child.absolutePosition.x = widget.absolutePosition.x + child.position.x
-    child.absolutePosition.y = widget.absolutePosition.y + child.position.y
+    child.absolutePosition = widget.absolutePosition + child.position
+    child.mousePosition = widget.client.mousePosition - child.absolutePosition
 
-    child.mousePosition.x = widget.client.mousePosition.x - child.absolutePosition.x
-    child.mousePosition.y = widget.client.mousePosition.y - child.absolutePosition.y
-
-    child.mouseIsInside =
-      child.mousePosition.x >= 0 and child.mousePosition.x <= child.size.x and
-      child.mousePosition.y >= 0 and child.mousePosition.y <= child.size.y
+    child.mouseIsInside = ((0.0, 0.0), child.size).contains(child.mousePosition)
 
     if not mouseOverIsSet and child.mouseIsInside and widget.mouseIsOver:
       widget.mouseOver = child

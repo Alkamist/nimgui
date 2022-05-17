@@ -1,13 +1,10 @@
-import ../gmath
+import ../tmath
 
-type
-  Color* = tuple[r, g, b, a: float]
-
-func rgb*(r, g, b: uint8): Color =
+func rgb(r, g, b: uint8): tuple[r, g, b, a: float] =
   (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: 1.0)
 
 const main = rgb(54, 57, 63)
-const button = main.lightened(0.15)
+const button = main.lighten(0.15)
 const border = rgb(15, 15, 16)
 const text = rgb(245, 245, 245)
 
@@ -17,6 +14,6 @@ const defaultColors* = (
   text: text,
   border: border,
   button: button,
-  buttonHovered: button.lightened(0.2),
+  buttonHovered: button.lighten(0.2),
   buttonDown: border,
 )

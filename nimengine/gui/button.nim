@@ -5,10 +5,10 @@ import ./widget
 
 type
   ButtonColors* = object
-    background*: Color
-    hovered*: Color
-    down*: Color
-    text*: Color
+    background*: tuple[r, g, b, a: float]
+    hovered*: tuple[r, g, b, a: float]
+    down*: tuple[r, g, b, a: float]
+    text*: tuple[r, g, b, a: float]
 
   ButtonWidget* = ref object of Widget
     colors*: ButtonColors
@@ -54,19 +54,20 @@ method draw*(button: ButtonWidget) =
   let y = button.absolutePosition.y
   let w = button.size.x
   let h = button.size.y
+  let rect = (position: (x: x, y: y), size: (x: w, y: h))
 
   let buttonColor =
     if button.isDown: button.colors.down
     elif button.mouseIsOver: button.colors.hovered
     else: button.colors.background
 
-  canvas.fillRect (x, y, w, h), buttonColor
-  # canvas.drawText(
-  #   button.label,
-  #   (x, y, w, h),
-  #   button.colors.text,
-  #   xAlign = Center,
-  #   yAlign = Center,
-  #   wordWrap = false,
-  #   clip = true,
-  # )
+  canvas.fillRect rect, buttonColor
+  canvas.drawText(
+    button.label,
+    rect,
+    button.colors.text,
+    xAlign = Center,
+    yAlign = Center,
+    wordWrap = false,
+    clip = true,
+  )

@@ -1,6 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import std/times
+export times
 
 when defined(windows):
   import winim/lean as win32

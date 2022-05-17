@@ -3,7 +3,7 @@
 import std/unicode
 import opengl
 
-import ../gmath
+import ../tmath
 
 import ./wrappers/functions as gfx
 import ./wrappers/shader
@@ -54,10 +54,6 @@ func orthoProjection(left, right, top, bottom: float32): array[4, array[4, float
 type
   CanvasError* = object of CatchableError
 
-  Vec2 = tuple[x, y: float]
-  Rect2 = tuple[x, y, width, height: float]
-  Color = tuple[r, g, b, a: float]
-
   HorizontalAlignment* = enum
     Left
     Center
@@ -76,7 +72,7 @@ type
     r*, g*, b*, a*: float32
 
   DrawCall = object
-    clipRect: Rect2
+    clipRect: tuple[position, size: tuple[x, y: float]]
     indexOffset: int
     indexCount: int
 
@@ -93,7 +89,7 @@ type
     indexBuffer: IndexBuffer
     vertexArrayId: GLuint
     drawCalls: seq[DrawCall]
-    clipRectStack: seq[Rect2]
+    clipRectStack: seq[tuple[position, size: tuple[x, y: float]]]
     atlas: CanvasAtlas
     atlasFontData: string
     atlasFontSize: float
@@ -104,9 +100,9 @@ type
 func error(canvas: Canvas, msg: string) =
   raise newException(CanvasError, msg)
 
-func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
+func closedNormals(poly: openArray[tuple[x, y: float]]): seq[tuple[x, y: float]] =
   ## Assumes clockwise winding of polygon.
-  result = newSeq[Vec2](poly.len)
+  result = newSeq[tuple[x, y: float]](poly.len)
   for i in 0 ..< result.len:
     let nextPointIndex =
       if i == result.len - 1:
@@ -117,16 +113,16 @@ func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
     let point = poly[i]
     let nextPoint = poly[nextPointIndex]
 
-    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
+    result[i] = (nextPoint - point).rotate(-0.5 * Pi).normalize
 
-func openNormals(poly: openArray[Vec2]): seq[Vec2] =
+func openNormals(poly: openArray[tuple[x, y: float]]): seq[tuple[x, y: float]] =
   ## Assumes clockwise winding of polygon.
-  result = newSeq[Vec2](poly.len - 1)
+  result = newSeq[tuple[x, y: float]](poly.len - 1)
   for i in 0 ..< result.len:
     let point = poly[i]
     let nextPoint = poly[i + 1]
 
-    result[i] = (nextPoint - point).rotated(-0.5 * Pi).normalized
+    result[i] = (nextPoint - point).rotate(-0.5 * Pi).normalize
 
 proc `=destroy`*(canvas: var type Canvas()[]) =
   glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
@@ -143,13 +139,15 @@ proc newCanvas*(): Canvas =
   result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
   result.indexBuffer = newIndexBuffer(UInt32)
 
-proc loadFont*(canvas: Canvas, fontData: string, fontSize: float, firstChar = 0, numChars = 128) =
+proc loadFont*(canvas: Canvas,
+               fontData: string, fontSize: float,
+               firstChar = 0, numChars = 128) =
   canvas.atlasFontData = fontData
   canvas.atlasFontSize = fontSize
   canvas.atlasFontFirstChar = firstChar
   canvas.atlasFontNumChars = numChars
   canvas.atlas = newCanvasAtlas(fontData, fontSize, firstChar, numChars)
-  canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
+  canvas.atlasTexture.upload(canvas.atlas.size.x, canvas.atlas.size.y, canvas.atlas.data)
 
 func addDrawCall(canvas: Canvas) =
   if canvas.clipRectStack.len == 0:
@@ -175,23 +173,22 @@ func addDrawCall(canvas: Canvas) =
     currentDrawCall.clipRect = currentClipRect
     currentDrawCall.indexOffset = indexOffset
 
-func pushClipRect*(canvas: Canvas, rect: Rect2) =
+func pushClipRect*(canvas: Canvas,
+                   rect: tuple[position, size: tuple[x, y: float]]) =
   let lastRect =
     if canvas.clipRectStack.len > 0:
       canvas.clipRectStack[canvas.clipRectStack.len - 1]
     else:
-      (0.0, 0.0, canvas.size.x, canvas.size.y)
+      ((0.0, 0.0), (canvas.size.x, canvas.size.y))
 
-  let leftX = max(rect.x, lastRect.x)
-  let rightX = min(rect.x + rect.width, lastRect.x + lastRect.width)
-  let topY = max(rect.y, lastRect.y)
-  let bottomY = min(rect.y + rect.height, lastRect.y + lastRect.height)
+  let leftX = max(rect.position.x, lastRect.position.x)
+  let rightX = min(rect.position.x + rect.size.x, lastRect.position.x + lastRect.size.x)
+  let topY = max(rect.position.y, lastRect.position.y)
+  let bottomY = min(rect.position.y + rect.size.y, lastRect.position.y + lastRect.size.y)
 
   let intersection = (
-    x: leftX,
-    y: topY,
-    width: max(rightX - leftX, 0.0),
-    height: max(bottomY - topY, 0.0),
+    (leftX, topY),
+    (max(rightX - leftX, 0.0), max(bottomY - topY, 0.0)),
   )
 
   canvas.clipRectStack.add intersection
@@ -224,7 +221,9 @@ func addVertex*(canvas: Canvas, x, y, u, v, r, g, b, a: float) =
   )
   inc canvas.vertexWrite
 
-func addVertex*(canvas: Canvas, position, uv: Vec2, color: Color) =
+func addVertex*(canvas: Canvas,
+                position, uv: tuple[x, y: float],
+                color: tuple[r, g, b, a: float]) =
   canvas.vertexData[canvas.vertexWrite] = Vertex(
     x: position.x, y: position.y,
     u: uv.x, v: uv.y,
@@ -232,10 +231,12 @@ func addVertex*(canvas: Canvas, position, uv: Vec2, color: Color) =
   )
   inc canvas.vertexWrite
 
-func addVertex*(canvas: Canvas, position: Vec2, color: Color) =
+func addVertex*(canvas: Canvas,
+                position: tuple[x, y: float],
+                color: tuple[r, g, b, a: float]) =
   canvas.vertexData[canvas.vertexWrite] = Vertex(
     x: position.x, y: position.y,
-    u: canvas.atlas.whitePixelUv.x, v: canvas.atlas.whitePixelUv.y,
+    u: canvas.atlas.whitePixelUv.position.x, v: canvas.atlas.whitePixelUv.position.y,
     r: color.r, g: color.g, b: color.b, a: color.a,
   )
   inc canvas.vertexWrite
@@ -244,7 +245,9 @@ func addIndex*(canvas: Canvas, index: int) =
   canvas.indexData[canvas.indexWrite] = (canvas.vertexWrite + index).Index
   inc canvas.indexWrite
 
-func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
+func addQuad*(canvas: Canvas,
+              quad, uv: tuple[position, size: tuple[x, y: float]],
+              color: tuple[r, g, b, a: float]) =
   canvas.reserve(4, 6)
   canvas.addIndex(0)
   canvas.addIndex(2)
@@ -253,8 +256,8 @@ func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.addIndex(3)
   canvas.addIndex(2)
 
-  proc lrtb(rect: Rect2): tuple[left, right, top, bottom: float] =
-    (rect.x, rect.x + rect.width, rect.y, rect.y + rect.height)
+  proc lrtb(rect: tuple[position, size: tuple[x, y: float]]): tuple[left, right, top, bottom: float] =
+    (rect.position.x, rect.position.x + rect.size.x, rect.position.y, rect.position.y + rect.size.y)
 
   let quad = quad.lrtb
   let uv = uv.lrtb
@@ -264,7 +267,9 @@ func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.addVertex(quad.right, quad.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
   canvas.addVertex(quad.right, quad.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
 
-proc beginFrame*(canvas: Canvas, size: tuple[x, y: float], densityPixelsPerPixel: float) =
+proc beginFrame*(canvas: Canvas,
+                 size: tuple[x, y: float],
+                 densityPixelsPerPixel: float) =
   if canvas.atlas == nil:
     canvas.error "There is no atlas loaded. Make sure to load a font with loadFont."
 
@@ -277,7 +282,7 @@ proc beginFrame*(canvas: Canvas, size: tuple[x, y: float], densityPixelsPerPixel
   canvas.indexData.setLen(0)
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
-  canvas.pushClipRect (0.0, 0.0, size.x, size.y)
+  canvas.pushClipRect ((0.0, 0.0), (size.x, size.y))
 
   if canvas.densityPixelsPerPixel != canvas.previousDensityPixelsPerPixel:
     canvas.atlas = newCanvasAtlas(
@@ -286,7 +291,7 @@ proc beginFrame*(canvas: Canvas, size: tuple[x, y: float], densityPixelsPerPixel
       canvas.atlasFontFirstChar,
       canvas.atlasFontNumChars,
     )
-    canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
+    canvas.atlasTexture.upload(canvas.atlas.size.x, canvas.atlas.size.y, canvas.atlas.data)
 
 proc render*(canvas: Canvas) =
   if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
@@ -311,16 +316,16 @@ proc render*(canvas: Canvas) =
       continue
 
     let dp = canvas.densityPixelsPerPixel
-    let crX = drawCall.clipRect.x * dp
-    let crY = drawCall.clipRect.y * dp
-    let crHeight = drawCall.clipRect.height * dp
-    let crWidth = drawCall.clipRect.width * dp
+    let crX = drawCall.clipRect.position.x * dp
+    let crY = drawCall.clipRect.position.y * dp
+    let crHeight = drawCall.clipRect.size.y * dp
+    let crWidth = drawCall.clipRect.size.x * dp
     let crYFlipped = canvas.size.y * dp - (crY + crHeight)
 
     gfx.setClipRect(
       crX + 0.5,
       crYFlipped + 0.5,
-      crWidth + 0.7,
+      crWidth + 0.5,
       crHeight + 0.5,
     )
 
@@ -330,28 +335,36 @@ proc render*(canvas: Canvas) =
       drawCall.indexOffset,
     )
 
-func fillRect*(canvas: Canvas, quad: Rect2, color: Color) =
+func fillRect*(canvas: Canvas,
+               quad: tuple[position, size: tuple[x, y: float]],
+               color: tuple[r, g, b, a: float]) =
   canvas.addQuad(quad, canvas.atlas.whitePixelUv, color)
 
-func outlineRect*(canvas: Canvas, quad: Rect2, color: Color, thickness = 1.0) =
-  let left = quad.x
+func outlineRect*(canvas: Canvas,
+                  quad: tuple[position, size: tuple[x, y: float]],
+                  color: tuple[r, g, b, a: float],
+                  thickness = 1.0) =
+  let left = quad.position.x
   let leftInner = left + thickness
-  let right = left + quad.width
+  let right = left + quad.size.x
   let rightInner = right - thickness
-  let top = quad.y
-  let bottom = top + quad.height
+  let top = quad.position.y
+  let bottom = top + quad.size.y
   let bottomInner = bottom - thickness
 
   let sideHeight = bottom - top
   let topBottomWidth = rightInner - leftInner
 
-  canvas.fillRect((left, top, thickness, sideHeight), color)
-  canvas.fillRect((rightInner, top, thickness, sideHeight), color)
+  canvas.fillRect ((left, top), (thickness, sideHeight)), color
+  canvas.fillRect ((rightInner, top), (thickness, sideHeight)), color
 
-  canvas.fillRect((leftInner, top, topBottomWidth, thickness), color)
-  canvas.fillRect((leftInner, bottomInner, topBottomWidth, thickness), color)
+  canvas.fillRect ((leftInner, top), (topBottomWidth, thickness)), color
+  canvas.fillRect ((leftInner, bottomInner), (topBottomWidth, thickness)), color
 
-func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
+func fillPolyLineOpen*(canvas: Canvas,
+                       points: openArray[tuple[x, y: float]],
+                       color: tuple[r, g, b, a: float],
+                       thickness = 1.0) =
   const bias = (x: 1.0, y: 0.0)
 
   if points.len < 2:
@@ -384,7 +397,7 @@ func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, th
     let previousNormal = normals[i - 1]
     let normal = normals[i]
 
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let expanderNormal = previousNormal.lerp(normal, 0.5).normalize
     let theta = previousNormal.angleTo(expanderNormal)
     let expanderLength = halfThickness / cos(theta)
     let expander = expanderNormal * expanderLength
@@ -401,7 +414,10 @@ func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, th
   canvas.addVertex(aEnd, color)
   canvas.addVertex(bEnd, color)
 
-func fillPolyLineClosed*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
+func fillPolyLineClosed*(canvas: Canvas,
+                         points: openArray[tuple[x, y: float]],
+                         color: tuple[r, g, b, a: float],
+                         thickness = 1.0) =
   const bias = (x: 1.0, y: 0.0)
 
   if points.len < 2:
@@ -437,7 +453,7 @@ func fillPolyLineClosed*(canvas: Canvas, points: openArray[Vec2], color: Color, 
     let previousNormal = normals[previousNormalIndex]
     let normal = normals[i]
 
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let expanderNormal = previousNormal.lerp(normal, 0.5).normalize
     let theta = previousNormal.angleTo(expanderNormal)
     let miterLength = halfThickness / cos(theta)
     let expander = expanderNormal * miterLength
@@ -448,7 +464,9 @@ func fillPolyLineClosed*(canvas: Canvas, points: openArray[Vec2], color: Color, 
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
 
-func fillConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color) =
+func fillConvexPoly*(canvas: Canvas,
+                     points: openArray[tuple[x, y: float]],
+                     color: tuple[r, g, b, a: float]) =
   const bias = (x: 1.0, y: 0.0)
 
   ## Assumes clockwise winding of polygon.
@@ -473,7 +491,7 @@ func fillConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color) =
     let previousNormal = normals[previousNormalIndex]
     let normal = normals[i]
 
-    let expanderNormal = previousNormal.lerped(normal, 0.5).normalized
+    let expanderNormal = previousNormal.lerp(normal, 0.5).normalize
     let theta = previousNormal.angleTo(expanderNormal)
     let expander = expanderNormal * 0.5 / cos(theta)
 
@@ -484,8 +502,8 @@ func fillConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color) =
 
 func drawText*(canvas: Canvas,
                text: string,
-               bounds: Rect2,
-               color: Color,
+               bounds: tuple[position, size: tuple[x, y: float]],
+               color: tuple[r, g, b, a: float],
                xAlign = HorizontalAlignment.Left,
                yAlign = VerticalAlignment.Center,
                wordWrap = true,
@@ -497,10 +515,8 @@ func drawText*(canvas: Canvas,
     canvas.pushClipRect bounds
 
   let bounds = (
-    x: bounds.x * dp,
-    y: bounds.y * dp,
-    width: bounds.width * dp,
-    height: bounds.height * dp,
+    position: (x: bounds.position.x * dp, y: bounds.position.y * dp),
+    size: (x: bounds.size.x * dp, y: bounds.size.y * dp),
   )
 
   const newLine = "\n".runeAt(0)
@@ -542,7 +558,7 @@ func drawText*(canvas: Canvas,
         lineInfo.add (i, runes.len - 1)
         continue
 
-      let outOfBounds = x + glyphInfo.xAdvance > bounds.width
+      let outOfBounds = x + glyphInfo.xAdvance > bounds.size.x
 
       if wordWrap and outOfBounds and i > 0:
         inc wrapCount
@@ -564,8 +580,8 @@ func drawText*(canvas: Canvas,
   let lineHeight = atlas.glyphBoundingBox[1].y
 
   let yAlignment = case yAlign:
-    of Bottom: bounds.height - (lineHeight * lineInfo.len.float)
-    of Center: 0.5 * (bounds.height - (lineHeight * lineInfo.len.float))
+    of Bottom: bounds.size.y - (lineHeight * lineInfo.len.float)
+    of Center: 0.5 * (bounds.size.y - (lineHeight * lineInfo.len.float))
     of Top: 0.0
 
   var y = 2 + lineHeight + atlas.glyphBoundingBox[0].y
@@ -584,15 +600,15 @@ func drawText*(canvas: Canvas,
 
         lineWidth += glyphInfo.xAdvance
 
-        if i == info.firstIndex: lineWidth -= glyphInfo.xOffset
-        if i == info.lastIndex: lineWidth += glyphInfo.xOffset
+        if i == info.firstIndex: lineWidth -= glyphInfo.offset.x
+        if i == info.lastIndex: lineWidth += glyphInfo.offset.x
 
       lineWidth
 
     let xAlignment = case xAlign:
       of Left: 0.0
-      of Center: 0.5 * (bounds.width - calculateLineWidth())
-      of Right: bounds.width - calculateLineWidth()
+      of Center: 0.5 * (bounds.size.x - calculateLineWidth())
+      of Right: bounds.size.x - calculateLineWidth()
 
     var x = 0.0
     for i in info.firstIndex .. info.lastIndex:
@@ -605,25 +621,23 @@ func drawText*(canvas: Canvas,
       let glyphInfo = atlas.glyphInfoTable[rune]
 
       let quad = (
-        x: bounds.x + xAlignment + x + glyphInfo.xOffset,
-        y: bounds.y + yAlignment + y + glyphInfo.yOffset,
-        width: glyphInfo.width.float,
-        height: glyphInfo.height.float,
+        position: (x: bounds.position.x + xAlignment + x + glyphInfo.offset.x,
+                   y: bounds.position.y + yAlignment + y + glyphInfo.offset.y),
+        size: (x: glyphInfo.size.x.float,
+               y: glyphInfo.size.y.float),
       )
 
       let quadIsEntirelyOutOfBounds =
         clip and
-        (quad.x + quad.width < bounds.x or
-         quad.x > bounds.x + bounds.width or
-         quad.y + quad.height < bounds.y or
-         quad.y > bounds.y + bounds.height)
+        (quad.position.x + quad.size.x < bounds.position.x or
+         quad.position.x > bounds.position.x + bounds.size.x or
+         quad.position.y + quad.size.y < bounds.position.y or
+         quad.position.y > bounds.position.y + bounds.size.y)
 
       if not quadIsEntirelyOutOfBounds:
         let quadScaled = (
-          x: quad.x / dp,
-          y: quad.y / dp,
-          width: quad.width / dp,
-          height: quad.height / dp,
+          position: (x: quad.position.x / dp, y: quad.position.y / dp),
+          size: (x: quad.size.x / dp, y: quad.size.y / dp),
         )
         canvas.addQuad(quadScaled, glyphInfo.uv, color)
 

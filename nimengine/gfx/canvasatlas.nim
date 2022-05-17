@@ -7,39 +7,38 @@ export tables
 
 type
   GlyphInfo = tuple
-    x, y: int
-    width, height: int
-    xOffset, yOffset: float
+    position: tuple[x, y: int]
+    size: tuple[x, y: int]
+    offset: tuple[x, y: float]
     xAdvance: float
-    uv: tuple[x, y, width, height: float]
+    uv: tuple[position, size: tuple[x, y: float]]
 
   CanvasAtlas* = ref object
-    width*, height*: int
+    size*: tuple[x, y: int]
     data*: seq[uint8]
-    whitePixel*: tuple[x, y: int]
-    whitePixelUv*: tuple[x, y, width, height: float]
+    whitePixelPosition*: tuple[x, y: int]
+    whitePixelUv*: tuple[position, size: tuple[x, y: float]]
     glyphInfoTable*: Table[Rune, GlyphInfo]
-    glyphBoundingBox*: (tuple[x, y: float], tuple[x, y: float])
+    glyphBoundingBox*: tuple[position, size: tuple[x, y: float]]
     stbFontInfo: stbtt_fontinfo
 
 func addWhitePixels(atlas: CanvasAtlas) =
   let extraPixelRows = 6
   let endOfFont = atlas.data.len
-  atlas.data.setLen(endOfFont + atlas.width * extraPixelRows * 4)
+  atlas.data.setLen(endOfFont + atlas.size.x * extraPixelRows * 4)
 
   for extraRow in 3 ..< extraPixelRows:
-    let y = atlas.height + extraRow
+    let y = atlas.size.y + extraRow
     for x in 0 ..< 3:
-      let i4 = (y * atlas.width + x) * 4
+      let i4 = (y * atlas.size.x + x) * 4
       if i4 + 3 < atlas.data.len:
         atlas.data[i4] = 255
         atlas.data[i4 + 1] = 255
         atlas.data[i4 + 2] = 255
         atlas.data[i4 + 3] = 255
 
-  atlas.height += extraPixelRows
-  atlas.whitePixel.x = 1
-  atlas.whitePixel.y = (atlas.height - 1)
+  atlas.size.y += extraPixelRows
+  atlas.whitePixelPosition = (1, (atlas.size.y - 1))
 
 proc loadFont(atlas: CanvasAtlas, fontData: string, fontSize: float, firstChar, numChars: int) =
   if stbtt_InitFont(atlas.stbFontInfo.addr, fontData.cstring, 0) == 0:
@@ -58,24 +57,24 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, fontSize: float, firstChar, 
   let charsPerRowGuess = numChars.float.sqrt.ceil
   let widthHeightGuess = (charsPerRowGuess * fontSize).ceil.int
 
-  atlas.width = widthHeightGuess
-  atlas.height = widthHeightGuess
+  atlas.size.x = widthHeightGuess
+  atlas.size.y = widthHeightGuess
 
   var rawAlphas: seq[uint8]
   var chardata = newSeq[stbtt_bakedchar](numChars)
 
   const maxLoops = 8
   for _ in 0 ..< maxLoops:
-    rawAlphas.setLen(atlas.width * atlas.height)
-    atlas.data = newSeq[uint8](atlas.width * atlas.height * 4)
+    rawAlphas.setLen(atlas.size.x * atlas.size.y)
+    atlas.data = newSeq[uint8](atlas.size.x * atlas.size.y * 4)
 
     let retVal = stbtt_BakeFontBitmap(
       data = fontData.cstring,
       offset = 0,
       pixel_height = fontSize,
       pixels = rawAlphas[0].addr,
-      pw = atlas.width.cint,
-      ph = atlas.height.cint,
+      pw = atlas.size.x.cint,
+      ph = atlas.size.y.cint,
       first_char = firstChar.cint,
       num_chars = numChars.cint,
       chardata = chardata[0].addr,
@@ -83,15 +82,15 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, fontSize: float, firstChar, 
 
     # All characters fit, so trim the excess.
     if retVal > 0:
-      atlas.height = retVal
-      rawAlphas.setLen(atlas.width * atlas.height)
+      atlas.size.y = retVal
+      rawAlphas.setLen(atlas.size.x * atlas.size.y)
       break
 
     # Characters are missing so try again with a taller image.
     else:
       let charactersMissing = numChars + retVal
       let rowsMissingGuess = (charactersMissing.float / charsPerRowGuess).ceil
-      atlas.height += (rowsMissingGuess * fontSize).ceil.int
+      atlas.size.y += (rowsMissingGuess * fontSize).ceil.int
 
   # Convert the raw alphas to white pixels.
   for i, alpha in rawAlphas:
@@ -103,30 +102,26 @@ proc loadFont(atlas: CanvasAtlas, fontData: string, fontSize: float, firstChar, 
 
   for i, data in chardata:
     let rune = (firstChar + i).Rune
-
-    let width = data.x1.float - data.x0.float
-    let height = data.y1.float - data.y0.float
-
     atlas.glyphInfoTable[rune] = (
-      x: data.x0.int,
-      y: data.y0.int,
-      width: width.int,
-      height: height.int,
-      xOffset: data.xoff.float,
-      yOffset: data.yoff.float,
+      position: (data.x0.int, data.y0.int),
+      size: ((data.x1.float - data.x0.float).int, (data.y1.float - data.y0.float).int),
+      offset: (data.xoff.float, data.yoff.float),
       xAdvance: data.xadvance.float,
-      uv: (x: 0.0, y: 0.0, width: 0.0, height: 0.0),
+      uv: (position: (0.0, 0.0), size: (0.0, 0.0)),
     )
 
 proc calculateUvs(atlas: CanvasAtlas) =
-  atlas.whitePixelUv.x = atlas.whitePixel.x / atlas.width
-  atlas.whitePixelUv.y = atlas.whitePixel.y / atlas.height
+  atlas.whitePixelUv = (
+    position: (atlas.whitePixelPosition.x / atlas.size.x,
+               atlas.whitePixelPosition.y / atlas.size.y),
+    size: (0.0, 0.0),
+  )
 
   for rune in atlas.glyphInfoTable.keys:
-    atlas.glyphInfoTable[rune].uv.x = atlas.glyphInfoTable[rune].x / atlas.width
-    atlas.glyphInfoTable[rune].uv.y = atlas.glyphInfoTable[rune].y / atlas.height
-    atlas.glyphInfoTable[rune].uv.width = atlas.glyphInfoTable[rune].width / atlas.width
-    atlas.glyphInfoTable[rune].uv.height = atlas.glyphInfoTable[rune].height / atlas.height
+    atlas.glyphInfoTable[rune].uv.position.x = atlas.glyphInfoTable[rune].position.x / atlas.size.x
+    atlas.glyphInfoTable[rune].uv.position.y = atlas.glyphInfoTable[rune].position.y / atlas.size.y
+    atlas.glyphInfoTable[rune].uv.size.x = atlas.glyphInfoTable[rune].size.x / atlas.size.x
+    atlas.glyphInfoTable[rune].uv.size.y = atlas.glyphInfoTable[rune].size.y / atlas.size.y
 
 proc newCanvasAtlas*(fontData: string, fontSize: float, firstChar = 0, numChars = 128): CanvasAtlas =
   result = CanvasAtlas()

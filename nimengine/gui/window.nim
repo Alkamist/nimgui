@@ -5,13 +5,13 @@ import ./widget
 
 type
   WindowColors* = object
-    background*: Color
-    title*: Color
-    titleBar*: Color
-    border*: Color
-    resizeHandle*: Color
-    resizeHandleHovered*: Color
-    resizeHandlePressed*: Color
+    background*: tuple[r, g, b, a: float]
+    title*: tuple[r, g, b, a: float]
+    titleBar*: tuple[r, g, b, a: float]
+    border*: tuple[r, g, b, a: float]
+    resizeHandle*: tuple[r, g, b, a: float]
+    resizeHandleHovered*: tuple[r, g, b, a: float]
+    resizeHandlePressed*: tuple[r, g, b, a: float]
 
   WindowWidget* = ref object of Widget
     colors*: WindowColors
@@ -115,6 +115,7 @@ method draw*(window: WindowWidget) =
   let y = window.absolutePosition.y
   let w = window.size.x
   let h = window.size.y
+  let rect = (position: (x: x, y: y), size: (x: w, y: h))
 
   let parentIsFocused =
     window.parent != nil and
@@ -125,29 +126,27 @@ method draw*(window: WindowWidget) =
     window.parent.children[0] == window
 
   if parentIsFocused and isTopMost:
-    canvas.fillRect (x + 5, y + 5, w, h), (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
+    let shadowRect = rect.translate (5.0, 5.0)
+    let shadowColor = (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
+    canvas.fillRect shadowRect, shadowColor
 
-  canvas.outlineRect (x, y, w, h), window.colors.border
-
-  let body = (
-    x: x + 1,
-    y: y + window.titleBarHeight,
-    width: w - 2,
-    height: h - window.titleBarHeight - 1,
-  )
-  let titleBar = (
-    x: x + 1,
-    y: y + 1,
-    width: w - 2,
-    height: window.titleBarHeight - 1,
+  let titleBarRect = (
+    position: rect.position,
+    size: (x: w, y: window.titleBarHeight),
   )
 
-  canvas.fillRect titleBar, window.colors.titleBar
+  canvas.fillRect rect, window.colors.background
+  canvas.fillRect titleBarRect, window.colors.titleBar
 
   const titleInset = 10.0
+  let titleTextRect = (
+    position: titleBarRect.position + (titleInset, 0.0),
+    size: titleBarRect.size - (2.0 * titleInset, 0.0),
+  )
+
   canvas.drawText(
     window.title,
-    (titleBar.x + titleInset, titleBar.y, titleBar.width - titleInset * 2.0, titleBar.height),
+    titleTextRect,
     window.colors.title,
     xAlign = Left,
     yAlign = Center,
@@ -155,9 +154,10 @@ method draw*(window: WindowWidget) =
     clip = true,
   )
 
-  canvas.pushClipRect body
-
-  canvas.fillRect body, window.colors.background
+  canvas.pushClipRect (
+    position: rect.position + (0.0, titleBarRect.size.y),
+    size: rect.size - (0.0, titleBarRect.size.y),
+  )
 
   window.drawChildren()
 
@@ -178,3 +178,5 @@ method draw*(window: WindowWidget) =
   canvas.fillConvexPoly(resizeHandlePoints, resizeHandleColor)
 
   canvas.popClipRect()
+
+  canvas.outlineRect rect, window.colors.border

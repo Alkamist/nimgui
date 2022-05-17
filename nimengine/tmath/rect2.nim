@@ -7,20 +7,18 @@ export vec2
 type
   SomeRect2*[T: SomeVec2] = tuple[position, size: T]
 
-template translate*(a: SomeRect2, b: SomeVec2): auto =
-  var aT = a
-  let bT = b
-  aT[0] += bT
-  aT
+template position*(a: SomeRect2): untyped = a[0]
+template size*(a: SomeRect2): untyped = a[1]
 
-template contains*(a: SomeRect2, b: SomeVec2): bool =
-  let aT = a
-  let bT = b
-  let rX = aT[0][0]
-  let rY = aT[0][1]
-  let rW = aT[1][0]
-  let rH = aT[1][1]
-  let x = bT[0]
-  let y = bT[1]
-  x >= rX and x <= rX + rW and
-  y >= rY and y <= ry + rH
+{.push inline.}
+
+func translate*(a: SomeRect2, b: SomeVec2): auto =
+  var res = a
+  res[0] += b
+  res
+
+func contains*(a: SomeRect2, b: SomeVec2): bool =
+  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
+  b.y >= a.position.y and b.y <= a.position.y + a.size.y
+
+{.pop.}

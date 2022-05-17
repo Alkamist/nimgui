@@ -1,37 +1,46 @@
 import std/math
 export math
 
-template `~=`*[A, B: SomeInteger](a: A, b: B): bool =
+const epsilon = 0.000001
+
+{.push inline.}
+
+func asFloat*(a: float): float = a
+func asFloat*(a: float32): float32 = a
+func asFloat*(a: SomeNumber): float = a.float
+func asFloat32*(a: float32): float32 = a
+func asFloat32*(a: SomeNumber): float32 = a.float32
+func asInt*(a: int): int = a
+func asInt*(a: SomeNumber): int = a.int
+func asInt64*(a: int64): int64 = a
+func asInt64*(a: SomeNumber): int64 = a.int64
+func asInt32*(a: int32): int32 = a
+func asInt32*(a: SomeNumber): int32 = a.int32
+func asInt16*(a: int16): int16 = a
+func asInt16*(a: SomeNumber): int16 = a.int16
+func asInt8*(a: int8): int8 = a
+func asInt8*(a: SomeNumber): int8 = a.int8
+func asUInt*(a: uint): uint = a
+func asUInt*(a: SomeNumber): uint = a.uint
+func asUInt64*(a: uint64): uint64 = a
+func asUInt64*(a: SomeNumber): uint64 = a.uint64
+func asUInt32*(a: uint32): uint32 = a
+func asUInt32*(a: SomeNumber): uint32 = a.uint32
+func asUInt16*(a: uint16): uint16 = a
+func asUInt16*(a: SomeNumber): uint16 = a.uint16
+func asUInt8*(a: uint8): uint8 = a
+func asUInt8*(a: SomeNumber): uint8 = a.uint8
+
+func `~=`*[A, B: SomeInteger](a: A, b: B): bool =
   a == b
 
-template `~=`*[A: SomeInteger, B: SomeFloat](a: A, b: B): bool =
-  (a.float - b.float).abs <= 0.000001
+func `~=`*[A: SomeInteger, B: SomeFloat](a: A, b: B): bool =
+  (a.asFloat - b.asFloat).abs <= epsilon
 
-template `~=`*[A: SomeFloat, B: SomeInteger](a: A, b: B): bool =
-  (a.float - b.float).abs <= 0.000001
+func `~=`*[A: SomeFloat, B: SomeInteger](a: A, b: B): bool =
+  (a.asFloat - b.asFloat).abs <= epsilon
 
-template asFloat*(a: float): float = a
-template asFloat*(a: float32): float32 = a
-template asFloat*(a: SomeNumber): float = a.float
-template asFloat32*(a: float32): float32 = a
-template asFloat32*(a: SomeNumber): float32 = a.float32
-template asInt*(a: int): int = a
-template asInt*(a: SomeNumber): int = a.int
-template asInt64*(a: int64): int64 = a
-template asInt64*(a: SomeNumber): int64 = a.int64
-template asInt32*(a: int32): int32 = a
-template asInt32*(a: SomeNumber): int32 = a.int32
-template asInt16*(a: int16): int16 = a
-template asInt16*(a: SomeNumber): int16 = a.int16
-template asInt8*(a: int8): int8 = a
-template asInt8*(a: SomeNumber): int8 = a.int8
-template asUInt*(a: uint): uint = a
-template asUInt*(a: SomeNumber): uint = a.uint
-template asUInt64*(a: uint64): uint64 = a
-template asUInt64*(a: SomeNumber): uint64 = a.uint64
-template asUInt32*(a: uint32): uint32 = a
-template asUInt32*(a: SomeNumber): uint32 = a.uint32
-template asUInt16*(a: uint16): uint16 = a
-template asUInt16*(a: SomeNumber): uint16 = a.uint16
-template asUInt8*(a: uint8): uint8 = a
-template asUInt8*(a: SomeNumber): uint8 = a.uint8
+func `~=`*[A, B: SomeFloat](a: A, b: B): bool =
+  (a.asFloat - b.asFloat).abs <= epsilon
+
+{.pop.}

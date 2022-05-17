@@ -13,10 +13,8 @@ type
     children*: seq[Widget]
     parent*: Widget
     position*: tuple[x, y: float]
-    absolutePosition*: tuple[x, y: float]
     size*: tuple[x, y: float]
-    mousePosition*: tuple[x, y: float]
-    mouseIsInside*: bool
+    relativePosition*: tuple[x, y: float]
     mouseIsOver*: bool
     isFocused*: bool
     mouseOver*: Widget
@@ -24,6 +22,9 @@ type
 
 func newWidget*(client: Client, canvas: Canvas): Widget =
   Widget(client: client, canvas: canvas)
+
+func rect*(widget: Widget): tuple[position, size: tuple[x, y: float]] =
+  (widget.position, widget.size)
 
 func updateChildren*(widget: Widget)
 func drawChildren*(widget: Widget)
@@ -33,7 +34,6 @@ method releaseFocus*(widget: Widget): bool {.base.} = false
 
 method update*(widget: Widget) {.base, locks: "unknown".} =
   if widget.parent == nil:
-    widget.mouseIsInside = true
     widget.mouseIsOver = true
     widget.isFocused = true
   widget.size = widget.canvas.size
@@ -56,12 +56,11 @@ func updateChildren*(widget: Widget) =
     child.client = widget.client
     child.canvas = widget.canvas
 
-    child.absolutePosition = widget.absolutePosition + child.position
-    child.mousePosition = widget.client.mousePosition - child.absolutePosition
+    child.position = widget.position + child.relativePosition
 
-    child.mouseIsInside = ((0.0, 0.0), child.size).contains(child.mousePosition)
+    let mouseIsInside = child.rect.contains(child.client.mousePosition)
 
-    if not mouseOverIsSet and child.mouseIsInside and widget.mouseIsOver:
+    if not mouseOverIsSet and mouseIsInside and widget.mouseIsOver:
       widget.mouseOver = child
       mouseOverIsSet = true
 

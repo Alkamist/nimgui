@@ -77,7 +77,7 @@ type
     indexCount: int
 
   Canvas* = ref object
-    densityPixelsPerPixel*: float
+    scale*: float
     size*: tuple[x, y: float]
     vertexData: seq[Vertex]
     vertexWrite: int
@@ -95,7 +95,7 @@ type
     atlasFontSize: float
     atlasFontFirstChar: int
     atlasFontNumChars: int
-    previousDensityPixelsPerPixel: float
+    previousScale: float
 
 func error(canvas: Canvas, msg: string) =
   raise newException(CanvasError, msg)
@@ -128,7 +128,7 @@ proc `=destroy`*(canvas: var type Canvas()[]) =
   glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
 
 proc newCanvas*(): Canvas =
-  result = Canvas(previousDensityPixelsPerPixel: 1.0, densityPixelsPerPixel: 1.0)
+  result = Canvas(previousScale: 1.0, scale: 1.0)
 
   # Stop OpenGl from crashing on later versions.
   glGenVertexArrays(1, result.vertexArrayId.addr)
@@ -179,7 +179,7 @@ func pushClipRect*(canvas: Canvas,
     if canvas.clipRectStack.len > 0:
       canvas.clipRectStack[canvas.clipRectStack.len - 1]
     else:
-      ((0.0, 0.0), (canvas.size.x, canvas.size.y))
+      ((0.0, 0.0), canvas.size)
 
   let leftX = max(rect.position.x, lastRect.position.x)
   let rightX = min(rect.position.x + rect.size.x, lastRect.position.x + lastRect.size.x)
@@ -269,12 +269,12 @@ func addQuad*(canvas: Canvas,
 
 proc beginFrame*(canvas: Canvas,
                  size: tuple[x, y: float],
-                 densityPixelsPerPixel: float) =
+                 scale: float) =
   if canvas.atlas == nil:
     canvas.error "There is no atlas loaded. Make sure to load a font with loadFont."
 
-  canvas.previousDensityPixelsPerPixel = canvas.densityPixelsPerPixel
-  canvas.densityPixelsPerPixel = densityPixelsPerPixel
+  canvas.previousScale = canvas.scale
+  canvas.scale = scale
   canvas.size = size
   canvas.vertexWrite = 0
   canvas.indexWrite = 0
@@ -282,12 +282,12 @@ proc beginFrame*(canvas: Canvas,
   canvas.indexData.setLen(0)
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
-  canvas.pushClipRect ((0.0, 0.0), (size.x, size.y))
+  canvas.pushClipRect ((0.0, 0.0), size)
 
-  if canvas.densityPixelsPerPixel != canvas.previousDensityPixelsPerPixel:
+  if canvas.scale != canvas.previousScale:
     canvas.atlas = newCanvasAtlas(
       canvas.atlasFontData,
-      canvas.atlasFontSize * canvas.densityPixelsPerPixel,
+      canvas.atlasFontSize * canvas.scale,
       canvas.atlasFontFirstChar,
       canvas.atlasFontNumChars,
     )
@@ -307,7 +307,7 @@ proc render*(canvas: Canvas) =
   canvas.vertexBuffer.select()
   canvas.indexBuffer.select()
 
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x, 0, canvas.size.y))
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x / canvas.scale, 0, canvas.size.y / canvas.scale))
   canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
@@ -315,12 +315,11 @@ proc render*(canvas: Canvas) =
     if drawCall.indexCount == 0:
       continue
 
-    let dp = canvas.densityPixelsPerPixel
-    let crX = drawCall.clipRect.position.x * dp
-    let crY = drawCall.clipRect.position.y * dp
-    let crHeight = drawCall.clipRect.size.y * dp
-    let crWidth = drawCall.clipRect.size.x * dp
-    let crYFlipped = canvas.size.y * dp - (crY + crHeight)
+    let crX = drawCall.clipRect.position.x * canvas.scale
+    let crY = drawCall.clipRect.position.y * canvas.scale
+    let crHeight = drawCall.clipRect.size.y * canvas.scale
+    let crWidth = drawCall.clipRect.size.x * canvas.scale
+    let crYFlipped = canvas.size.y - (crY + crHeight)
 
     gfx.setClipRect(
       crX + 0.5,
@@ -509,7 +508,7 @@ func drawText*(canvas: Canvas,
                wordWrap = true,
                clip = true) =
   let atlas = canvas.atlas
-  let dp = canvas.densityPixelsPerPixel
+  let dp = canvas.scale
 
   if clip:
     canvas.pushClipRect bounds

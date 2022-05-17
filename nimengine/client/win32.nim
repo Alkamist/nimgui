@@ -293,23 +293,23 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     SetCapture(client.hwnd)
     let button = toMouseButton(msg, wParam)
     client.mousePresses.add button
-    client.mouseDown[button] = true
+    client.mouseDownStates[button] = true
 
   of WM_LBUTTONUP, WM_MBUTTONUP, WM_RBUTTONUP, WM_XBUTTONUP:
     ReleaseCapture()
     let button = toMouseButton(msg, wParam)
     client.mouseReleases.add button
-    client.mouseDown[toMouseButton(msg, wParam)] = false
+    client.mouseDownStates[toMouseButton(msg, wParam)] = false
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     let key = toKeyboardKey(wParam, lParam)
     client.keyPresses.add key
-    client.keyDown[key] = true
+    client.keyDownStates[key] = true
 
   of WM_KEYUP, WM_SYSKEYUP:
     let key = toKeyboardKey(wParam, lParam)
     client.keyReleases.add key
-    client.keyDown[key] = false
+    client.keyDownStates[key] = false
 
   of WM_CHAR, WM_SYSCHAR:
     if wParam > 0 and wParam < 0x10000:

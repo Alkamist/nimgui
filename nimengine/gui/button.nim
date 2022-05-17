@@ -50,11 +50,7 @@ method update*(button: ButtonWidget) =
 
 method draw*(button: ButtonWidget) =
   let canvas = button.canvas
-  let x = button.absolutePosition.x
-  let y = button.absolutePosition.y
-  let w = button.size.x
-  let h = button.size.y
-  let rect = (position: (x: x, y: y), size: (x: w, y: h))
+  let rect = button.rect
 
   let buttonColor =
     if button.isDown: button.colors.down

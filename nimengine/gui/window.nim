@@ -26,10 +26,8 @@ type
     isBeingResized*: bool
     resizeHandleIsHovered: bool
     titleBarIsHovered: bool
-    resizeStartX: float
-    resizeStartY: float
-    resizeStartWidth: float
-    resizeStartHeight: float
+    resizeMouseStart: tuple[x, y: float]
+    resizeSizeStart: tuple[x, y: float]
 
 func defaultWindowColors(): WindowColors =
   WindowColors(
@@ -53,6 +51,19 @@ func newWindowWidget*(): WindowWidget =
     minHeight: 60,
   )
 
+func titleBarRect*(window: WindowWidget): tuple[position, size: tuple[x, y: float]] =
+  (window.position, (window.size.x, window.titleBarHeight))
+
+func resizeHandleRect*(window: WindowWidget): tuple[position, size: tuple[x, y: float]] =
+  (window.position + window.size - window.resizeHandleSize,
+   (window.resizeHandleSize, window.resizeHandleSize))
+
+func bodyRect*(window: WindowWidget): tuple[position, size: tuple[x, y: float]] =
+  let rect = window.rect
+  let titleBarRect = window.titleBarRect
+  (rect.position + (0.0, titleBarRect.size.y),
+   rect.size - (0.0, titleBarRect.size.y))
+
 method requestFocus*(window: WindowWidget): bool =
   window.client.mousePressed(Left) and window.mouseIsOver
 
@@ -66,14 +77,12 @@ method update*(window: WindowWidget) =
     window.isMovable and
     (not window.isBeingResized) and
     window.mouseIsOver and
-    window.mousePosition.x >= 0 and window.mousePosition.x <= window.size.x and
-    window.mousePosition.y >= 0 and window.mousePosition.y <= window.titleBarHeight
+    window.titleBarRect.contains(client.mousePosition)
 
   window.resizeHandleIsHovered =
     window.isResizable and
     window.mouseIsOver and
-    window.mousePosition.x >= (window.size.x - window.resizeHandleSize) and window.mousePosition.x <= window.size.x and
-    window.mousePosition.y >= (window.size.y - window.resizeHandleSize) and window.mousePosition.y <= window.size.y
+    window.resizeHandleRect.contains(client.mousePosition)
 
   # Press title bar.
   if window.titleBarIsHovered and client.mousePressed(Left):
@@ -85,16 +94,13 @@ method update*(window: WindowWidget) =
 
   # Move window.
   if window.isBeingMoved:
-    window.position.x += client.mouseDelta.x
-    window.position.y += client.mouseDelta.y
+    window.relativePosition += client.mouseDelta
 
   # Press resize handle.
   if window.resizeHandleIsHovered and client.mousePressed(Left):
     window.isBeingResized = true
-    window.resizeStartX = window.mousePosition.x
-    window.resizeStartY = window.mousePosition.y
-    window.resizeStartWidth = window.size.x
-    window.resizeStartHeight = window.size.y
+    window.resizeMouseStart = client.mousePosition
+    window.resizeSizeStart = window.size
 
   # Release resize handle.
   if window.isBeingResized and client.mouseReleased(Left):
@@ -102,20 +108,16 @@ method update*(window: WindowWidget) =
 
   # Resize window.
   if window.isBeingResized:
-    let resizeWidth = window.resizeStartWidth + (window.mousePosition.x - window.resizeStartX)
-    let resizeHeight = window.resizeStartHeight + (window.mousePosition.y - window.resizeStartY)
-    window.size.x = resizeWidth.max(window.minWidth)
-    window.size.y = resizeHeight.max(window.minHeight)
+    let size = window.resizeSizeStart + client.mousePosition - window.resizeMouseStart
+    window.size = (size.x.max(window.minWidth), size.y.max(window.minHeight))
 
   window.updateChildren()
 
 method draw*(window: WindowWidget) =
   let canvas = window.canvas
-  let x = window.absolutePosition.x
-  let y = window.absolutePosition.y
-  let w = window.size.x
-  let h = window.size.y
-  let rect = (position: (x: x, y: y), size: (x: w, y: h))
+  let rect = window.rect
+  let titleBarRect = window.titleBarRect
+  let resizeHandleRect = window.resizeHandleRect
 
   let parentIsFocused =
     window.parent != nil and
@@ -126,14 +128,9 @@ method draw*(window: WindowWidget) =
     window.parent.children[0] == window
 
   if parentIsFocused and isTopMost:
-    let shadowRect = rect.translate (5.0, 5.0)
+    let shadowRect = rect.translate (x: 5.0, y: 5.0)
     let shadowColor = (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
     canvas.fillRect shadowRect, shadowColor
-
-  let titleBarRect = (
-    position: rect.position,
-    size: (x: w, y: window.titleBarHeight),
-  )
 
   canvas.fillRect rect, window.colors.background
   canvas.fillRect titleBarRect, window.colors.titleBar
@@ -154,18 +151,15 @@ method draw*(window: WindowWidget) =
     clip = true,
   )
 
-  canvas.pushClipRect (
-    position: rect.position + (0.0, titleBarRect.size.y),
-    size: rect.size - (0.0, titleBarRect.size.y),
-  )
+  canvas.pushClipRect window.bodyRect
 
   window.drawChildren()
 
   const resizeInset = 4.0
-  let resizeLeft = x + w - window.resizeHandleSize + resizeInset
-  let resizeRight = x + w - resizeInset
-  let resizeBottom = y + h - resizeInset
-  let resizeTop = y + h - window.resizeHandleSize + resizeInset
+  let resizeLeft = resizeHandleRect.position.x + resizeInset
+  let resizeRight = resizeHandleRect.position.x + resizeHandleRect.size.x - resizeInset
+  let resizeBottom = resizeHandleRect.position.y + resizeHandleRect.size.y - resizeInset
+  let resizeTop = resizeHandleRect.position.y + resizeInset
   let resizeHandlePoints = [
     (resizeLeft, resizeBottom),
     (resizeRight, resizeTop),

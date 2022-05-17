@@ -139,8 +139,8 @@ type
     mousePositionPixels*: tuple[x, y: int]
     mouseWheel*: tuple[x, y: float]
     text*: string
-    mouseDown*: array[MouseButton, bool]
-    keyDown*: array[KeyboardKey, bool]
+    mouseDownStates*: array[MouseButton, bool]
+    keyDownStates*: array[KeyboardKey, bool]
     mousePresses*: seq[MouseButton]
     mouseReleases*: seq[MouseButton]
     keyPresses*: seq[KeyboardKey]
@@ -150,8 +150,8 @@ type
     previousPositionPixels*: tuple[x, y: int]
     previousSizePixels*: tuple[x, y: int]
     previousMousePositionPixels*: tuple[x, y: int]
-    previousMouseDown*: array[MouseButton, bool]
-    previousKeyDown*: array[KeyboardKey, bool]
+    previousMouseDownStates*: array[MouseButton, bool]
+    previousKeyDownStates*: array[KeyboardKey, bool]
 
     platform*: PlatformData
 
@@ -164,8 +164,8 @@ proc newClientBase*(): Client =
     previousTime: time,
   )
 
-func densityPixelsPerPixel*(client: Client): float =
-  client.densityPixelDpi / client.dpi
+func scale*(client: Client): float =
+  client.dpi / client.densityPixelDpi
 
 func delta*(client: Client): float =
   client.time - client.previousTime
@@ -176,7 +176,7 @@ func aspectRatio*(client: Client): float =
 # Mouse position
 
 func mousePosition*(client: Client): tuple[x, y: float] =
-  let dp = client.densityPixelsPerPixel
+  let dp = client.scale
   (client.mousePositionPixels.x.float / dp,
    client.mousePositionPixels.y.float / dp)
 
@@ -186,7 +186,7 @@ func mouseDeltaPixels*(client: Client): tuple[x, y: int] =
 
 func mouseDelta*(client: Client): tuple[x, y: float] =
   let delta = client.mouseDeltaPixels
-  let dp = client.densityPixelsPerPixel
+  let dp = client.scale
   (delta.x.float / dp, delta.y.float / dp)
 
 func mouseMoved*(client: Client): bool =
@@ -196,7 +196,7 @@ func mouseMoved*(client: Client): bool =
 # Position
 
 func position*(client: Client): tuple[x, y: float] =
-  let dp = client.densityPixelsPerPixel
+  let dp = client.scale
   (client.positionPixels.x.float / dp,
    client.positionPixels.y.float / dp)
 
@@ -206,7 +206,7 @@ func positionDeltaPixels*(client: Client): tuple[x, y: int] =
 
 func positionDelta*(client: Client): tuple[x, y: float] =
   let delta = client.positionDeltaPixels
-  let dp = client.densityPixelsPerPixel
+  let dp = client.scale
   (delta.x.float / dp, delta.y.float / dp)
 
 func moved*(client: Client): bool =
@@ -216,7 +216,7 @@ func moved*(client: Client): bool =
 # Size
 
 func size*(client: Client): tuple[x, y: float] =
-  let dp = client.densityPixelsPerPixel
+  let dp = client.scale
   (client.sizePixels.x.float / dp, client.sizePixels.y.float / dp)
 
 func sizeDeltaPixels*(client: Client): tuple[x, y: int] =
@@ -225,7 +225,7 @@ func sizeDeltaPixels*(client: Client): tuple[x, y: int] =
 
 func sizeDelta*(client: Client): tuple[x, y: float] =
   let delta = client.sizeDeltaPixels
-  let dp = client.densityPixelsPerPixel
+  let dp = client.scale
   (delta.x.float / dp, delta.y.float / dp)
 
 func resized*(client: Client): bool =
@@ -235,24 +235,24 @@ func resized*(client: Client): bool =
 # Mouse buttons
 
 func mouseDown*(client: Client, button: MouseButton): bool =
-  client.mouseDown[button]
+  client.mouseDownStates[button]
 
 func mousePressed*(client: Client, button: MouseButton): bool =
-  client.mouseDown[button] and not client.previousMouseDown[button]
+  client.mouseDownStates[button] and not client.previousMouseDownStates[button]
 
 func mouseReleased*(client: Client, button: MouseButton): bool =
-  client.previousMouseDown[button] and not client.mouseDown[button]
+  client.previousMouseDownStates[button] and not client.mouseDownStates[button]
 
 # Keyboard keys
 
 func keyDown*(client: Client, key: KeyboardKey): bool =
-  client.keyDown[key]
+  client.keyDownStates[key]
 
 func keyPressed*(client: Client, key: KeyboardKey): bool =
-  client.keyDown[key] and not client.previousKeyDown[key]
+  client.keyDownStates[key] and not client.previousKeyDownStates[key]
 
 func keyReleased*(client: Client, key: KeyboardKey): bool =
-  client.previousKeyDown[key] and not client.keyDown[key]
+  client.previousKeyDownStates[key] and not client.keyDownStates[key]
 
 # State updating
 
@@ -261,8 +261,8 @@ template processFrame*(client: Client, code: untyped): untyped =
   client.previousPositionPixels = client.positionPixels
   client.previousSizePixels = client.sizePixels
   client.previousMousePositionPixels = client.mousePositionPixels
-  client.previousMouseDown = client.mouseDown
-  client.previousKeyDown = client.keyDown
+  client.previousMouseDownStates = client.mouseDownStates
+  client.previousKeyDownStates = client.keyDownStates
   client.mouseWheel = (0.0, 0.0)
   client.text = ""
   client.mousePresses.setLen(0)

@@ -224,22 +224,20 @@ func addVertex*(canvas: Canvas, x, y, u, v, r, g, b, a: float) =
 func addVertex*(canvas: Canvas,
                 position, uv: tuple[x, y: float],
                 color: tuple[r, g, b, a: float]) =
-  canvas.vertexData[canvas.vertexWrite] = Vertex(
-    x: position.x, y: position.y,
-    u: uv.x, v: uv.y,
-    r: color.r, g: color.g, b: color.b, a: color.a,
+  canvas.addVertex(
+    position.x, position.y,
+    uv.x, uv.y,
+    color.r, color.g, color.b, color.a,
   )
-  inc canvas.vertexWrite
 
 func addVertex*(canvas: Canvas,
                 position: tuple[x, y: float],
                 color: tuple[r, g, b, a: float]) =
-  canvas.vertexData[canvas.vertexWrite] = Vertex(
-    x: position.x, y: position.y,
-    u: canvas.atlas.whitePixelUv.position.x, v: canvas.atlas.whitePixelUv.position.y,
-    r: color.r, g: color.g, b: color.b, a: color.a,
+  canvas.addVertex(
+    position,
+    canvas.atlas.whitePixelUv.position,
+    color,
   )
-  inc canvas.vertexWrite
 
 func addIndex*(canvas: Canvas, index: int) =
   canvas.indexData[canvas.indexWrite] = (canvas.vertexWrite + index).Index
@@ -259,13 +257,13 @@ func addQuad*(canvas: Canvas,
   proc lrtb(rect: tuple[position, size: tuple[x, y: float]]): tuple[left, right, top, bottom: float] =
     (rect.position.x, rect.position.x + rect.size.x, rect.position.y, rect.position.y + rect.size.y)
 
-  let quad = quad.lrtb
+  let q = quad.lrtb
   let uv = uv.lrtb
 
-  canvas.addVertex(quad.left, quad.bottom, uv.left, uv.bottom, color.r, color.g, color.b, color.a)
-  canvas.addVertex(quad.left, quad.top, uv.left, uv.top, color.r, color.g, color.b, color.a)
-  canvas.addVertex(quad.right, quad.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
-  canvas.addVertex(quad.right, quad.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
+  canvas.addVertex(q.left, q.bottom, uv.left, uv.bottom, color.r, color.g, color.b, color.a)
+  canvas.addVertex(q.left, q.top, uv.left, uv.top, color.r, color.g, color.b, color.a)
+  canvas.addVertex(q.right, q.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
+  canvas.addVertex(q.right, q.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
 
 proc beginFrame*(canvas: Canvas,
                  size: tuple[x, y: float],
@@ -307,7 +305,7 @@ proc render*(canvas: Canvas) =
   canvas.vertexBuffer.select()
   canvas.indexBuffer.select()
 
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x / canvas.scale, 0, canvas.size.y / canvas.scale))
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x, 0, canvas.size.y))
   canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
@@ -315,17 +313,15 @@ proc render*(canvas: Canvas) =
     if drawCall.indexCount == 0:
       continue
 
-    let crX = drawCall.clipRect.position.x * canvas.scale
-    let crY = drawCall.clipRect.position.y * canvas.scale
-    let crHeight = drawCall.clipRect.size.y * canvas.scale
-    let crWidth = drawCall.clipRect.size.x * canvas.scale
-    let crYFlipped = canvas.size.y - (crY + crHeight)
+    let p = (drawCall.clipRect.position * canvas.scale).round
+    let p1 = ((drawCall.clipRect.position + drawCall.clipRect.size) * canvas.scale).round
+    let s = p1 - p
 
     gfx.setClipRect(
-      crX + 0.5,
-      crYFlipped + 0.5,
-      crWidth + 0.5,
-      crHeight + 0.5,
+      p.x,
+      canvas.size.y - (p.y + s.y),
+      s.x,
+      s.y,
     )
 
     gfx.drawTriangles(
@@ -337,12 +333,17 @@ proc render*(canvas: Canvas) =
 func fillRect*(canvas: Canvas,
                quad: tuple[position, size: tuple[x, y: float]],
                color: tuple[r, g, b, a: float]) =
+  let quad = ((quad.position * canvas.scale).round, (quad.size * canvas.scale).round)
   canvas.addQuad(quad, canvas.atlas.whitePixelUv, color)
 
 func outlineRect*(canvas: Canvas,
                   quad: tuple[position, size: tuple[x, y: float]],
                   color: tuple[r, g, b, a: float],
                   thickness = 1.0) =
+  let quad = ((quad.position * canvas.scale).round, (quad.size * canvas.scale).round)
+  let thickness = (thickness * canvas.scale).round
+  let uv = canvas.atlas.whitePixelUv
+
   let left = quad.position.x
   let leftInner = left + thickness
   let right = left + quad.size.x
@@ -354,11 +355,11 @@ func outlineRect*(canvas: Canvas,
   let sideHeight = bottom - top
   let topBottomWidth = rightInner - leftInner
 
-  canvas.fillRect ((left, top), (thickness, sideHeight)), color
-  canvas.fillRect ((rightInner, top), (thickness, sideHeight)), color
+  canvas.addQuad ((left, top), (thickness, sideHeight)), uv, color
+  canvas.addQuad ((rightInner, top), (thickness, sideHeight)), uv, color
 
-  canvas.fillRect ((leftInner, top), (topBottomWidth, thickness)), color
-  canvas.fillRect ((leftInner, bottomInner), (topBottomWidth, thickness)), color
+  canvas.addQuad ((leftInner, top), (topBottomWidth, thickness)), uv, color
+  canvas.addQuad ((leftInner, bottomInner), (topBottomWidth, thickness)), uv, color
 
 func fillPolyLineOpen*(canvas: Canvas,
                        points: openArray[tuple[x, y: float]],
@@ -417,8 +418,6 @@ func fillPolyLineClosed*(canvas: Canvas,
                          points: openArray[tuple[x, y: float]],
                          color: tuple[r, g, b, a: float],
                          thickness = 1.0) =
-  const bias = (x: 1.0, y: 0.0)
-
   if points.len < 2:
     return
 
@@ -444,7 +443,7 @@ func fillPolyLineClosed*(canvas: Canvas,
   canvas.addIndex(1)
 
   # Add vertices.
-  let halfThickness = 0.5 * thickness
+  let thickness = (thickness * canvas.scale).round
   let normals = points.closedNormals
 
   for i in 0 ..< normals.len:
@@ -454,11 +453,11 @@ func fillPolyLineClosed*(canvas: Canvas,
 
     let expanderNormal = previousNormal.lerp(normal, 0.5).normalize
     let theta = previousNormal.angleTo(expanderNormal)
-    let miterLength = halfThickness / cos(theta)
-    let expander = expanderNormal * miterLength
+    let cosTheta = cos(theta)
+    let expander = expanderNormal * thickness / cosTheta
 
-    let a = points[i] + expander + bias
-    let b = points[i] - expander + bias
+    let a = (points[i] * canvas.scale).round
+    let b = a - expander
 
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
@@ -466,8 +465,6 @@ func fillPolyLineClosed*(canvas: Canvas,
 func fillConvexPoly*(canvas: Canvas,
                      points: openArray[tuple[x, y: float]],
                      color: tuple[r, g, b, a: float]) =
-  const bias = (x: 1.0, y: 0.0)
-
   ## Assumes clockwise winding of polygon.
   if points.len < 3:
     return
@@ -483,21 +480,8 @@ func fillConvexPoly*(canvas: Canvas,
     canvas.addIndex(i - 1)
 
   # Add vertices.
-  let normals = points.closedNormals
-
   for i in 0 ..< vertexCount:
-    let previousNormalIndex = if i == 0: normals.len - 1 else: i - 1
-    let previousNormal = normals[previousNormalIndex]
-    let normal = normals[i]
-
-    let expanderNormal = previousNormal.lerp(normal, 0.5).normalize
-    let theta = previousNormal.angleTo(expanderNormal)
-    let expander = expanderNormal * 0.5 / cos(theta)
-
-    # The polygon needs to be expanded slightly to be
-    # inclusive of all pixels when rendered and match up
-    # with addPolyLine.
-    canvas.addVertex(points[i] + expander + bias, color)
+    canvas.addVertex((points[i] * canvas.scale).round, color)
 
 func drawText*(canvas: Canvas,
                text: string,

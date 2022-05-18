@@ -75,6 +75,9 @@ func rotate*(a: SomeVec2, phi: SomeNumber): auto =
   (x: a.x * cs - a.y * sn,
    y: a.x * sn + a.y * cs)
 
+func round*[A: SomeVec2](a: A): auto =
+  (x: a.x.round, y: a.y.round)
+
 func angle*(a: SomeVec2): auto =
   let a = a.asFloat
   arctan2(a.y, a.x)

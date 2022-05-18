@@ -8,12 +8,12 @@ const fontData = staticRead("examples/consola.ttf")
 
 let client = newClient()
 
-let openGlContext = newOpenGlContext(client.handle)
+let openGlContext = gfx.newOpenGlContext(client.handle)
 openGlContext.select()
 
 setBackgroundColor(0.1, 0.5, 0.1, 1.0)
 
-let canvas = newCanvas()
+let canvas = gfx.newCanvas()
 canvas.loadFont(fontData, 13)
 
 let gui = newWidget(client, canvas)
@@ -63,9 +63,9 @@ proc onFrame() =
     client.dpi = client.dpi.min(1024.0).max(96.0)
 
   let sizePixels = client.sizePixels.asFloat
-  setViewport(0, 0, sizePixels.x, sizePixels.y)
-  setClipRect(0, 0, sizePixels.x, sizePixels.y)
-  clearBackground()
+  gfx.setViewport(0, 0, sizePixels.x, sizePixels.y)
+  gfx.setClipRect(0, 0, sizePixels.x, sizePixels.y)
+  gfx.clearBackground()
 
   canvas.beginFrame(sizePixels, client.scale)
 
@@ -79,6 +79,7 @@ proc onFrame() =
     xAlign = Left,
     yAlign = Top,
     clip = false,
+    wordWrap = false,
   )
 
   canvas.render()

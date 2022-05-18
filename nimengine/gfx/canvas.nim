@@ -149,6 +149,9 @@ proc loadFont*(canvas: Canvas,
   canvas.atlas = newCanvasAtlas(fontData, fontSize, firstChar, numChars)
   canvas.atlasTexture.upload(canvas.atlas.size.x, canvas.atlas.size.y, canvas.atlas.data)
 
+func pixelThickness*(canvas: Canvas): float =
+  1.0 / canvas.scale
+
 func addDrawCall(canvas: Canvas) =
   if canvas.clipRectStack.len == 0:
     return
@@ -335,7 +338,7 @@ func fillRect*(canvas: Canvas,
                color: tuple[r, g, b, a: float]) =
   canvas.addQuad(quad, canvas.atlas.whitePixelUv, color)
 
-func outlineRect*(canvas: Canvas,
+func strokeRect*(canvas: Canvas,
                   quad: tuple[position, size: tuple[x, y: float]],
                   color: tuple[r, g, b, a: float],
                   thickness = 1.0) =

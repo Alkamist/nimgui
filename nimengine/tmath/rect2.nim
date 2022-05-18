@@ -12,9 +12,18 @@ template size*(a: SomeRect2): untyped = a[1]
 
 {.push inline.}
 
+func round*(a: SomeRect2): auto =
+  (a.position.round, a.size.round)
+
 func translate*(a: SomeRect2, b: SomeVec2): auto =
   var res = a
-  res[0] += b
+  res.position += b
+  res
+
+func expand*(a: SomeRect2, b: SomeVec2): auto =
+  var res = a
+  res.position -= b
+  res.size += b * 2.0
   res
 
 func contains*(a: SomeRect2, b: SomeVec2): bool =

@@ -173,4 +173,4 @@ method draw*(window: WindowWidget) =
 
   canvas.popClipRect()
 
-  canvas.outlineRect rect, window.colors.border
+  canvas.strokeRect rect, window.colors.border, canvas.pixelThickness * canvas.scale.round.max(1.0)

@@ -305,7 +305,7 @@ proc render*(canvas: Canvas) =
   canvas.vertexBuffer.select()
   canvas.indexBuffer.select()
 
-  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x, 0, canvas.size.y))
+  canvas.shader.setUniform("ProjMtx", orthoProjection(0, canvas.size.x / canvas.scale, 0, canvas.size.y / canvas.scale))
   canvas.vertexBuffer.upload(StreamDraw, canvas.vertexData)
   canvas.indexBuffer.upload(StreamDraw, canvas.indexData)
 
@@ -333,15 +333,12 @@ proc render*(canvas: Canvas) =
 func fillRect*(canvas: Canvas,
                quad: tuple[position, size: tuple[x, y: float]],
                color: tuple[r, g, b, a: float]) =
-  let quad = ((quad.position * canvas.scale).round, (quad.size * canvas.scale).round)
   canvas.addQuad(quad, canvas.atlas.whitePixelUv, color)
 
 func outlineRect*(canvas: Canvas,
                   quad: tuple[position, size: tuple[x, y: float]],
                   color: tuple[r, g, b, a: float],
                   thickness = 1.0) =
-  let quad = ((quad.position * canvas.scale).round, (quad.size * canvas.scale).round)
-  let thickness = (thickness * canvas.scale).round
   let uv = canvas.atlas.whitePixelUv
 
   let left = quad.position.x
@@ -365,8 +362,6 @@ func fillPolyLineOpen*(canvas: Canvas,
                        points: openArray[tuple[x, y: float]],
                        color: tuple[r, g, b, a: float],
                        thickness = 1.0) =
-  const bias = (x: 1.0, y: 0.0)
-
   if points.len < 2:
     return
 
@@ -384,12 +379,11 @@ func fillPolyLineOpen*(canvas: Canvas,
     canvas.addIndex(i)
 
   # Add vertices.
-  let halfThickness = 0.5 * thickness
   let normals = points.openNormals
 
-  let startExpander = normals[0] * halfThickness
-  let aStart = points[0] + startExpander + bias
-  let bStart = points[0] - startExpander + bias
+  let startExpander = normals[0] * thickness
+  let aStart = points[0]
+  let bStart = points[0] - startExpander
   canvas.addVertex(aStart, color)
   canvas.addVertex(bStart, color)
 
@@ -399,18 +393,18 @@ func fillPolyLineOpen*(canvas: Canvas,
 
     let expanderNormal = previousNormal.lerp(normal, 0.5).normalize
     let theta = previousNormal.angleTo(expanderNormal)
-    let expanderLength = halfThickness / cos(theta)
+    let expanderLength = thickness / cos(theta)
     let expander = expanderNormal * expanderLength
 
-    let a = points[i] + expander + bias
-    let b = points[i] - expander + bias
+    let a = points[i]
+    let b = points[i] - expander
 
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
 
-  let endExpander = normals[normals.len - 1] * halfThickness
-  let aEnd = points[points.len - 1] + endExpander + bias
-  let bEnd = points[points.len - 1] - endExpander + bias
+  let endExpander = normals[normals.len - 1] * thickness
+  let aEnd = points[points.len - 1]
+  let bEnd = points[points.len - 1] - endExpander
   canvas.addVertex(aEnd, color)
   canvas.addVertex(bEnd, color)
 
@@ -443,7 +437,6 @@ func fillPolyLineClosed*(canvas: Canvas,
   canvas.addIndex(1)
 
   # Add vertices.
-  let thickness = (thickness * canvas.scale).round
   let normals = points.closedNormals
 
   for i in 0 ..< normals.len:
@@ -456,8 +449,8 @@ func fillPolyLineClosed*(canvas: Canvas,
     let cosTheta = cos(theta)
     let expander = expanderNormal * thickness / cosTheta
 
-    let a = (points[i] * canvas.scale).round
-    let b = a - expander
+    let a = points[i]
+    let b = points[i] - expander
 
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
@@ -481,7 +474,7 @@ func fillConvexPoly*(canvas: Canvas,
 
   # Add vertices.
   for i in 0 ..< vertexCount:
-    canvas.addVertex((points[i] * canvas.scale).round, color)
+    canvas.addVertex(points[i], color)
 
 func drawText*(canvas: Canvas,
                text: string,

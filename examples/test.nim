@@ -34,24 +34,10 @@ proc onFrame() =
   let s = (x: 200.0, y: 200.0)
 
   let r = (position: p, size: s)
-  let br = (position: p - 3.0, size: s + 6.0)
 
   canvas.pushClipRect r
 
-  let points = [
-    r.position,
-    (r.position.x + r.size.x, r.position.y),
-    r.position + r.size,
-    (r.position.x, r.position.y + r.size.y)
-  ]
-  let pointsBr = [
-    br.position,
-    (br.position.x + br.size.x, br.position.y),
-    br.position + br.size,
-    (br.position.x, br.position.y + br.size.y)
-  ]
-  canvas.fillConvexPoly pointsBr, (1.0, 0.0, 0.0, 1.0)
-  canvas.fillPolyLineClosed points, (1.0, 1.0, 1.0, 1.0), 1.0 / canvas.scale
+  canvas.outlineRect r, (1.0, 0.0, 0.0, 1.0), 1.0 / canvas.scale
 
   canvas.popClipRect
 

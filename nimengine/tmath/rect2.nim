@@ -4,22 +4,27 @@ export common
 import ./vec2
 export vec2
 
+# type
+#   SomeRect2*[T: SomeVec2] = tuple[position, size: T]
+
 type
-  SomeRect2*[T: SomeVec2] = tuple[position, size: T]
+  SomeRect2* = concept r
+    r.position is SomeVec2
+    r.size is SomeVec2
 
 template position*(tr: SomeRect2): untyped = tr[0]
 template size*(tr: SomeRect2): untyped = tr[1]
 
-template round*(tr: SomeRect2): auto =
+template round*(tr: SomeRect2): untyped =
   let r = tr
   (position: r.position.round, size: r.size.round)
 
-template translate*(tr: SomeRect2, tv: SomeVec2): auto =
+template translate*(tr: SomeRect2, tv: SomeVec2): untyped =
   var res = tr
   res.position += tv
   res
 
-template expand*(tr: SomeRect2, tv: SomeVec2): auto =
+template expand*(tr: SomeRect2, tv: SomeVec2): untyped =
   let v = tv
   var res = tr
   res.position -= v

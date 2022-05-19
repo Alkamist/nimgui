@@ -1,37 +1,90 @@
 import ./common
 export common
 
+# type
+#   SomeVec2* = concept v
+#     v.x is SomeNumber
+#     v.y is SomeNumber
+
 type
-  SomeVec2* = tuple[x, y: float] or tuple[x, y: float64] or tuple[x, y: float32] or
-              tuple[x, y: int] or tuple[x, y: int64] or tuple[x, y: int32] or tuple[x, y: int16] or tuple[x, y: int8] or
-              tuple[x, y: uint] or tuple[x, y: uint64] or tuple[x, y: uint32] or tuple[x, y: uint16] or tuple[x, y: uint8]
+  SomeVec2*[T] = tuple[x, y: T]
 
-template x*(a: SomeVec2): untyped = a[0]
-template y*(a: SomeVec2): untyped = a[1]
+template x*(tv: SomeVec2): untyped = tv[0]
+template y*(tv: SomeVec2): untyped = tv[1]
 
-{.push inline.}
+template asFloat*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asFloat, y: v.y.asFloat)
 
-func asFloat*(a: SomeVec2): auto = (x: a.x.asFloat, y: a.y.asFloat)
-func asFloat32*(a: SomeVec2): auto = (x: a.x.asFloat32, y: a.y.asFloat32)
-func asInt*(a: SomeVec2): auto = (x: a.x.asInt, y: a.y.asInt)
-func asInt32*(a: SomeVec2): auto = (x: a.x.asInt32, y: a.y.asInt32)
-func asInt16*(a: SomeVec2): auto = (x: a.x.asInt16, y: a.y.asInt16)
-func asInt8*(a: SomeVec2): auto = (x: a.x.asInt8, y: a.y.asInt8)
-func asUInt*(a: SomeVec2): auto = (x: a.x.asUInt, y: a.y.asUInt)
-func asUInt32*(a: SomeVec2): auto = (x: a.x.asUInt32, y: a.y.asUInt32)
-func asUInt16*(a: SomeVec2): auto = (x: a.x.asUInt16, y: a.y.asUInt16)
-func asUInt8*(a: SomeVec2): auto = (x: a.x.asUInt8, y: a.y.asUInt8)
+template asFloat64*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asFloat64, y: v.y.asFloat64)
 
-func `+`*(a: SomeVec2): auto = a
-func `-`*(a: SomeVec2): auto = (x: -a.x, y: -a.y)
+template asFloat32*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asFloat32, y: v.y.asFloat32)
+
+template asInt*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asInt, y: v.y.asInt)
+
+template asInt64*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asInt64, y: v.y.asInt64)
+
+template asInt32*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asInt32, y: v.y.asInt32)
+
+template asInt16*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asInt16, y: v.y.asInt16)
+
+template asInt8*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asInt8, y: v.y.asInt8)
+
+template asUInt*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asUInt, y: v.y.asUInt)
+
+template asUInt64*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asUInt64, y: v.y.asUInt64)
+
+template asUInt32*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asUInt32, y: v.y.asUInt32)
+
+template asUInt16*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asUInt16, y: v.y.asUInt16)
+
+template asUInt8*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.asUInt8, y: v.y.asUInt8)
+
+template `+`*(tv: SomeVec2): auto =
+  tv
+
+template `-`*(tv: SomeVec2): auto =
+  let v = tv
+  (x: -v.x, y: -v.y)
 
 template vec2BinaryOperator(op: untyped): untyped =
-  func op*[A, B: SomeVec2](a: A, b: B): auto = (x: op(a.x, b.x), y: op(a.y, b.y))
-  func op*(a: SomeVec2, b: SomeNumber): auto = (x: op(a.x, b), y: op(a.y, b))
+  template op*[A, B: SomeVec2](ta: A, tb: B): auto =
+    let a = ta
+    let b = tb
+    (x: op(a.x, b.x), y: op(a.y, b.y))
+
+  template op*(ta: SomeVec2, tb: SomeNumber): auto =
+    let a = ta
+    let b = tb
+    (x: op(a.x, b), y: op(a.y, b))
 
 template vec2BinaryEqualsOperator(opEq, op: untyped): untyped =
-  func opEq*[A, B: SomeVec2](a: var A, b: B) = a = op(a, b)
-  func opEq*(a: var SomeVec2, b: SomeNumber) = a = op(a, b)
+  template opEq*[A, B: SomeVec2](ta: var A, tb: B) = ta = op(ta, tb)
+  template opEq*(ta: var SomeVec2, tb: SomeNumber) = ta = op(ta, tb)
 
 vec2BinaryOperator(`+`)
 vec2BinaryEqualsOperator(`+=`, `+`)
@@ -44,49 +97,66 @@ vec2BinaryEqualsOperator(`/=`, `/`)
 vec2BinaryOperator(`div`)
 vec2BinaryOperator(`mod`)
 
-func `+`*(a: SomeNumber, b: SomeVec2): auto = (x: a + b.x, y: a + b.y)
-func `*`*(a: SomeNumber, b: SomeVec2): auto = (x: a * b.x, y: a * b.y)
+template `+`*(ta: SomeNumber, tb: SomeVec2): auto =
+  let a = ta
+  let b = tb
+  (x: a + b.x, y: a + b.y)
 
-func `~=`*[A, B: SomeVec2](a: A, b: B): bool = a.x ~= b.x and a.y ~= b.y
+template `*`*(ta: SomeNumber, tb: SomeVec2): auto =
+  let a = ta
+  let b = tb
+  (x: a * b.x, y: a * b.y)
 
-func length*(a: SomeVec2): auto =
-  let a = a.asFloat
-  (a.x * a.x + a.y * a.y).sqrt
+template `~=`*[A, B: SomeVec2](ta: A, tb: B): bool =
+  let a = ta
+  let b = tb
+  a.x ~= b.x and a.y ~= b.y
 
-func lengthSquared*(a: SomeVec2): auto =
-  a.x * a.x + a.y * a.y
+template length*(tv: SomeVec2): auto =
+  let v = tv.asFloat
+  (v.x * v.x + v.y * v.y).sqrt
 
-func dot*[A, B: SomeVec2](a: A, b: B): auto =
+template lengthSquared*(tv: SomeVec2): auto =
+  let v = tv
+  v.x * v.x + v.y * v.y
+
+template dot*[A, B: SomeVec2](ta: A, tb: B): auto =
+  let a = ta
+  let b = tb
   a.x * b.x + a.y * b.y
 
-func cross*[A, B: SomeVec2](a: A, b: B): auto =
+template cross*[A, B: SomeVec2](ta: A, tb: B): auto =
+  let a = ta
+  let b = tb
   a.x * b.y - a.y * b.x
 
-func distanceTo*[A, B: SomeVec2](a: A, b: B): auto =
+template distanceTo*[A, B: SomeVec2](ta: A, tb: B): auto =
   (a - b).length
 
-func distanceSquaredTo*[A, B: SomeVec2](a: A, b: B): auto =
+template distanceSquaredTo*[A, B: SomeVec2](ta: A, tb: B): auto =
   (a - b).lengthSquared
 
-func rotate*(a: SomeVec2, phi: SomeNumber): auto =
-  let a = a.asFloat
+template rotate*(tv: SomeVec2, tphi: SomeNumber): auto =
+  let v = tv.asFloat
+  let phi = tphi.asFloat
   let sn = sin(phi)
   let cs = cos(phi)
-  (x: a.x * cs - a.y * sn,
-   y: a.x * sn + a.y * cs)
+  (x: v.x * cs - v.y * sn,
+                 y: v.x * sn + v.y * cs)
 
-func round*[A: SomeVec2](a: A): auto =
-  (x: a.x.round, y: a.y.round)
+template round*(tv: SomeVec2): auto =
+  let v = tv
+  (x: v.x.round, y: v.y.round)
 
-func angle*(a: SomeVec2): auto =
-  let a = a.asFloat
-  arctan2(a.y, a.x)
+template angle*(tv: SomeVec2): auto =
+  let v = tv.asFloat
+  arctan2(v.y, v.x)
 
-func isNormalized*(a: SomeVec2): bool =
-  a.lengthSquared ~= 1.0
+template isNormalized*(tv: SomeVec2): bool =
+  v.lengthSquared ~= 1.0
 
-func normalize*(a: SomeVec2): auto =
-  var res = a.asFloat
+template normalize*(tv: SomeVec2): auto =
+  var res = tv.asFloat
   let lengthSquared = res.lengthSquared
   if lengthSquared == 0:
     res.x = 0
@@ -96,53 +166,51 @@ func normalize*(a: SomeVec2): auto =
     res /= length
   res
 
-func lerp*[A, B: SomeVec2](a: A, b: B, weight: SomeNumber): auto =
-  let a = a.asFloat
-  let b = b.asFloat
-  let weight = weight.asFloat
+template lerp*[A, B: SomeVec2](ta: A, tb: B, tweight: SomeNumber): auto =
+  let a = ta.asFloat
+  let b = tb.asFloat
+  let weight = tweight.asFloat
   a * (1.0 - weight) + b * weight
 
-func slide*[A, B: SomeVec2](a: A, b: B): auto =
-  let a = a.asFloat
-  let b = b.asFloat
+template slide*[A, B: SomeVec2](ta: A, tb: B): auto =
+  let a = ta.asFloat
+  let b = tb.asFloat
   if not b.isNormalized:
     let bNormalized = b.normalize
     a - bNormalized * a.dot(bNormalized)
   else:
     a - b * a.dot(b)
 
-func reflect*[A, B: SomeVec2](a: A, b: B): auto =
-  let a = a.asFloat
-  let b = b.asFloat
+template reflect*[A, B: SomeVec2](ta: A, tb: B): auto =
+  let a = ta.asFloat
+  let b = tb.asFloat
   if not b.isNormalized:
     let bNormalized = b.normalize
     bNormalized * a.dot(bNormalized) * 2.0 - a
   else:
     b * a.dot(b) * 2.0 - a
 
-func bounce*[A, B: SomeVec2](a: A, b: B): auto =
-  -a.reflect(b)
+template bounce*[A, B: SomeVec2](ta: A, tb: B): auto =
+  -ta.reflect(tb)
 
-func project*[A, B: SomeVec2](a: A, b: B): auto =
-  let a = a.asFloat
-  let b = b.asFloat
+template project*[A, B: SomeVec2](ta: A, tb: B): auto =
+  let a = ta.asFloat
+  let b = tb.asFloat
   b * (a.dot(b) / b.lengthSquared)
 
-func angleTo*[A, B: SomeVec2](a: A, b: B): auto =
-  let a = a.asFloat
-  let b = b.asFloat
+template angleTo*[A, B: SomeVec2](ta: A, tb: B): auto =
+  let a = ta.asFloat
+  let b = tb.asFloat
   arctan2(a.cross(b), a.dot(b))
 
-func directionTo*[A, B: SomeVec2](a: A, b: B): auto =
-  (b - a).normalize
+template directionTo*[A, B: SomeVec2](ta: A, tb: B): auto =
+  (tb - ta).normalize
 
-func limit*(a: SomeVec2, limit: SomeNumber): auto =
-  var res = a.asFloat
-  let limit = limit.asFloat
+template limit*(ta: SomeVec2, tlimit: SomeNumber): auto =
+  var res = ta.asFloat
+  let limit = tlimit.asFloat
   let length = res.length
   if length > 0.0 and limit < length:
     res /= length
     res *= limit
   res
-
-{.pop.}

@@ -32,19 +32,19 @@ let gui = newWidget(client, canvas)
 # parent.children.add button
 # gui.children.add parent
 
-let size = client.size / 5.0
+let size = client.size / 2.1
 
-for i in 0 ..< 5:
-  for j in 0 ..< 5:
+for i in 0 ..< 2:
+  for j in 0 ..< 2:
     let button = newButtonWidget()
     button.label = "Button"
     button.relativePosition = (20.0, 40.0)
-    button.size = (200.0, 100.0)
+    button.size = (100.0, 60.0)
     button.onClicked = proc() = echo "Clicked"
 
     let parent = newWindowWidget()
     parent.title = "Window"
-    parent.relativePosition = (i.float * size.x, 20.0 + j.float * size.y)
+    parent.relativePosition = (20.0 + i.float * size.x, 20.0 + j.float * size.y)
     parent.size = size * 0.95
 
     let child = newWindowWidget()

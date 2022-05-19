@@ -30,15 +30,16 @@ proc onFrame() =
 
   canvas.beginFrame(sizePixels, scale)
 
-  let p = parsePath """
-    M 100 100
-    h 100
-    v 100
-    h -100
-    z
-  """
-  # let p = parsePath "M2 100 h100 v100 h100 v100 h-100 v100 h-100 v-100 h-100 v-100 h100 z"
-  canvas.strokePath p, (1.0, 1.0, 1.0, 1.0), 1.0
+  let p = (x: 4.0, y: 4.0)
+  let s = (x: 200.0, y: 200.0)
+
+  let r = (position: p, size: s)
+
+  canvas.pushClipRect r
+
+  canvas.strokeRect r, (1.0, 0.0, 0.0, 1.0), canvas.pixelThickness
+
+  canvas.popClipRect
 
   canvas.render()
 

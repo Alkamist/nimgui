@@ -7,27 +7,27 @@ export vec2
 type
   SomeRect2*[T: SomeVec2] = tuple[position, size: T]
 
-template position*(a: SomeRect2): untyped = a[0]
-template size*(a: SomeRect2): untyped = a[1]
+template position*(tr: SomeRect2): untyped = tr[0]
+template size*(tr: SomeRect2): untyped = tr[1]
 
-{.push inline.}
+template round*(tr: SomeRect2): auto =
+  let r = tr
+  (position: r.position.round, size: r.size.round)
 
-func round*(a: SomeRect2): auto =
-  (a.position.round, a.size.round)
-
-func translate*(a: SomeRect2, b: SomeVec2): auto =
-  var res = a
-  res.position += b
+template translate*(tr: SomeRect2, tv: SomeVec2): auto =
+  var res = tr
+  res.position += tv
   res
 
-func expand*(a: SomeRect2, b: SomeVec2): auto =
-  var res = a
-  res.position -= b
-  res.size += b * 2.0
+template expand*(tr: SomeRect2, tv: SomeVec2): auto =
+  let v = tv
+  var res = tr
+  res.position -= v
+  res.size += v * 2.0
   res
 
-func contains*(a: SomeRect2, b: SomeVec2): bool =
-  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
-  b.y >= a.position.y and b.y <= a.position.y + a.size.y
-
-{.pop.}
+template contains*(tr: SomeRect2, tv: SomeVec2): bool =
+  let r = tr
+  let v = tv
+  v.x >= r.position.x and v.x <= r.position.x + r.size.x and
+  v.y >= r.position.y and v.y <= r.position.y + r.size.y

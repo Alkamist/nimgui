@@ -13,6 +13,9 @@ import ./wrappers/indexbuffer
 import ./wrappers/common
 import ./canvasatlas
 
+import ./path
+export path
+
 const vertexSrc = """
 #version 300 es
 precision highp float;
@@ -485,7 +488,7 @@ func drawText*(canvas: Canvas,
                color: tuple[r, g, b, a: float],
                xAlign = HorizontalAlignment.Left,
                yAlign = VerticalAlignment.Center,
-               wordWrap = true,
+               wordWrap = false,
                clip = true) =
   let atlas = canvas.atlas
   let dp = canvas.scale
@@ -626,3 +629,58 @@ func drawText*(canvas: Canvas,
 
   if clip:
     canvas.popClipRect()
+
+func strokePath*(canvas: Canvas,
+                 path: Path,
+                 color: tuple[r, g, b, a: float],
+                 thickness = 1.0) =
+  var points: seq[tuple[x, y: float]]
+  var start = (x: 0.0, y: 0.0)
+  var at = (x: 0.0, y: 0.0)
+
+  for command in path.commands:
+    template n(i: int): untyped = command.numbers[i]
+    case command.kind:
+    of Move:
+      at = (n(0), n(1))
+      start = at
+      points = @[at]
+    of Line:
+      at = (n(0), n(1))
+      points.add at
+    of HLine:
+      at = (n(0), at[1])
+      points.add at
+    of VLine:
+      at = (at[0], n(0))
+      points.add at
+    # of Cubic:
+    # of SCubic:
+    # of Quad:
+    # of TQuad:
+    # of Arc:
+    of RMove:
+      at += (n(0), n(1))
+      start = at
+      points = @[at]
+    of RLine:
+      at += (n(0), n(1))
+      points.add at
+    of RHLine:
+      at = (at[0] + n(0), at[1])
+      points.add at
+    of RVLine:
+      at = (at[0], at[1] + n(0))
+      points.add at
+    # of RCubic:
+    # of RSCubic:
+    # of RQuad:
+    # of RTQuad:
+    # of RArc:
+    of Close:
+      canvas.fillPolyLineClosed(points, color, thickness)
+      return
+    else:
+      discard
+
+  canvas.fillPolyLineOpen(points, color, thickness)

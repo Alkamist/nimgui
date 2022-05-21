@@ -1,9 +1,6 @@
 import ./common
 export common
 
-# type
-#   SomeVec2*[T] = tuple[x, y: T]
-
 type
   Vec2Tuple[T] = tuple[x, y: T]
 
@@ -216,8 +213,3 @@ template limit*[V: SomeVec2, L: SomeNumber](tv: V, tlimit: L): untyped =
     res /= length
     res *= limit
   res
-
-when isMainModule:
-  let a = (x: 5.0, y: 5.0)
-
-  echo a + (x: 5.0, y: 5.0)

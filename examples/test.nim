@@ -31,10 +31,10 @@ proc onFrame() =
   canvas.beginFrame(sizePixels, scale)
 
   let p = parsePath """
-    M 100 100
-    h 100
-    v 100
-    h -100
+    M 5 5
+    h 5
+    v 5
+    h -5
     z
   """
   # let p = parsePath "M2 100 h100 v100 h100 v100 h-100 v100 h-100 v-100 h-100 v-100 h100 z"

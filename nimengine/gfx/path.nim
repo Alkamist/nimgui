@@ -2,6 +2,7 @@
 
 import std/math
 import std/strutils
+import ../tmath
 
 type
   PathError* = object of CatchableError
@@ -205,69 +206,69 @@ func parsePath*(path: string): Path {.raises: [PathError].} =
 
   finishCommand(result)
 
-# func transform*(path: Path, mat: Mat3) =
-#   if mat == mat3():
-#     return
+func transform*(path: Path, mat: SomeMat3) =
+  if mat == mat3Identity():
+    return
 
-#   if path.commands.len > 0 and path.commands[0].kind == RMove:
-#     path.commands[0].kind = Move
+  if path.commands.len > 0 and path.commands[0].kind == RMove:
+    path.commands[0].kind = Move
 
-#   for command in path.commands.mitems:
-#     var mat = mat
-#     if command.kind.isRelative():
-#       mat.pos = vec2(0)
+  for command in path.commands.mitems:
+    var mat = mat
+    if command.kind.isRelative():
+      mat.pos = vec2(0)
 
-#     case command.kind:
-#     of Close:
-#       discard
-#     of Move, Line, RMove, RLine, TQuad, RTQuad:
-#       var pos = vec2(command.numbers[0], command.numbers[1])
-#       pos = mat * pos
-#       command.numbers[0] = pos.x
-#       command.numbers[1] = pos.y
-#     of HLine, RHLine:
-#       var pos = vec2(command.numbers[0], 0)
-#       pos = mat * pos
-#       command.numbers[0] = pos.x
-#     of VLine, RVLine:
-#       var pos = vec2(0, command.numbers[0])
-#       pos = mat * pos
-#       command.numbers[0] = pos.y
-#     of Cubic, RCubic:
-#       var
-#         ctrl1 = vec2(command.numbers[0], command.numbers[1])
-#         ctrl2 = vec2(command.numbers[2], command.numbers[3])
-#         to = vec2(command.numbers[4], command.numbers[5])
-#       ctrl1 = mat * ctrl1
-#       ctrl2 = mat * ctrl2
-#       to = mat * to
-#       command.numbers[0] = ctrl1.x
-#       command.numbers[1] = ctrl1.y
-#       command.numbers[2] = ctrl2.x
-#       command.numbers[3] = ctrl2.y
-#       command.numbers[4] = to.x
-#       command.numbers[5] = to.y
-#     of SCubic, RSCubic, Quad, RQuad:
-#       var
-#         ctrl = vec2(command.numbers[0], command.numbers[1])
-#         to = vec2(command.numbers[2], command.numbers[3])
-#       ctrl = mat * ctrl
-#       to = mat * to
-#       command.numbers[0] = ctrl.x
-#       command.numbers[1] = ctrl.y
-#       command.numbers[2] = to.x
-#       command.numbers[3] = to.y
-#     of Arc, RArc:
-#       var
-#         radii = vec2(command.numbers[0], command.numbers[1])
-#         to = vec2(command.numbers[5], command.numbers[6])
-#       # Extract the scale from the matrix and only apply that to the radii
-#       radii = scale(vec2(mat[0, 0], mat[1, 1])) * radii
-#       to = mat * to
-#       command.numbers[0] = radii.x
-#       command.numbers[1] = radii.y
-#       command.numbers[5] = to.x
-#       command.numbers[6] = to.y
+    case command.kind:
+    of Close:
+      discard
+    of Move, Line, RMove, RLine, TQuad, RTQuad:
+      var pos = vec2(command.numbers[0], command.numbers[1])
+      pos = mat * pos
+      command.numbers[0] = pos.x
+      command.numbers[1] = pos.y
+    of HLine, RHLine:
+      var pos = vec2(command.numbers[0], 0)
+      pos = mat * pos
+      command.numbers[0] = pos.x
+    of VLine, RVLine:
+      var pos = vec2(0, command.numbers[0])
+      pos = mat * pos
+      command.numbers[0] = pos.y
+    of Cubic, RCubic:
+      var
+        ctrl1 = vec2(command.numbers[0], command.numbers[1])
+        ctrl2 = vec2(command.numbers[2], command.numbers[3])
+        to = vec2(command.numbers[4], command.numbers[5])
+      ctrl1 = mat * ctrl1
+      ctrl2 = mat * ctrl2
+      to = mat * to
+      command.numbers[0] = ctrl1.x
+      command.numbers[1] = ctrl1.y
+      command.numbers[2] = ctrl2.x
+      command.numbers[3] = ctrl2.y
+      command.numbers[4] = to.x
+      command.numbers[5] = to.y
+    of SCubic, RSCubic, Quad, RQuad:
+      var
+        ctrl = vec2(command.numbers[0], command.numbers[1])
+        to = vec2(command.numbers[2], command.numbers[3])
+      ctrl = mat * ctrl
+      to = mat * to
+      command.numbers[0] = ctrl.x
+      command.numbers[1] = ctrl.y
+      command.numbers[2] = to.x
+      command.numbers[3] = to.y
+    of Arc, RArc:
+      var
+        radii = vec2(command.numbers[0], command.numbers[1])
+        to = vec2(command.numbers[5], command.numbers[6])
+      # Extract the scale from the matrix and only apply that to the radii
+      radii = scale(vec2(mat[0, 0], mat[1, 1])) * radii
+      to = mat * to
+      command.numbers[0] = radii.x
+      command.numbers[1] = radii.y
+      command.numbers[5] = to.x
+      command.numbers[6] = to.y
 
 # func scale*(path)
 

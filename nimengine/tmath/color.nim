@@ -2,14 +2,20 @@ import ./common
 export common
 
 type
-  SomeColor*[T: SomeFloat] = tuple[r, g, b, a: T]
+  ColorTuple[T] = tuple[r, g, b, a: T]
 
-template r*(tc: SomeColor): untyped = tc[0]
-template g*(tc: SomeColor): untyped = tc[1]
-template b*(tc: SomeColor): untyped = tc[2]
-template a*(tc: SomeColor): untyped = tc[3]
+  SomeColor* = concept c
+    c.r is SomeFloat
+    c.g is SomeFloat
+    c.b is SomeFloat
+    c.a is SomeFloat
 
-template lerp*[A, B: SomeColor](ta: A, tb: B, tweight: SomeNumber): untyped =
+template r*(tc: ColorTuple): untyped = tc[0]
+template g*(tc: ColorTuple): untyped = tc[1]
+template b*(tc: ColorTuple): untyped = tc[2]
+template a*(tc: ColorTuple): untyped = tc[3]
+
+template lerp*[A, B: SomeColor, W: SomeNumber](ta: A, tb: B, tweight: W): untyped =
   var res = ta
   let b = tb
   let weight = tweight.asFloat
@@ -19,16 +25,16 @@ template lerp*[A, B: SomeColor](ta: A, tb: B, tweight: SomeNumber): untyped =
   res.a += (weight * (b.a - res.a))
   res
 
-template darken*[A: SomeColor](ta: A, tamount: SomeNumber): untyped =
-  var res = ta
+template darken*[C: SomeColor, W: SomeNumber](tc: C, tamount: W): untyped =
+  var res = tc
   let amount = tamount.asFloat
   res.r *= 1.0 - amount
   res.g *= 1.0 - amount
   res.b *= 1.0 - amount
   res
 
-template lighten*[A: SomeColor](ta: A, tamount: SomeNumber): untyped =
-  var res = ta
+template lighten*[C: SomeColor, W: SomeNumber](tc: C, tamount: W): untyped =
+  var res = tc
   let amount = tamount.asFloat
   res.r += (1.0 - res.r) * amount
   res.g += (1.0 - res.g) * amount

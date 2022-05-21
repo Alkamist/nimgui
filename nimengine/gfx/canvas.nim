@@ -14,9 +14,6 @@ import ./wrappers/indexbuffer
 import ./wrappers/common
 import ./canvasatlas
 
-import ./path
-export path
-
 const vertexSrc = """
 #version 300 es
 precision highp float;
@@ -83,6 +80,7 @@ type
   Canvas* = ref object
     scale*: float
     size*: Vec2
+    tesselationTolerance*: float
     vertexData: seq[Vertex]
     vertexWrite: int
     indexData: seq[Index]
@@ -100,6 +98,7 @@ type
     atlasFontFirstChar: int
     atlasFontNumChars: int
     previousScale: float
+    path: seq[Vec2]
 
 func error(canvas: Canvas, msg: string) =
   raise newException(CanvasError, msg)
@@ -132,7 +131,11 @@ proc `=destroy`*(canvas: var type Canvas()[]) =
   glDeleteVertexArrays(1, canvas.vertexArrayId.addr)
 
 proc newCanvas*(): Canvas =
-  result = Canvas(previousScale: 1.0, scale: 1.0)
+  result = Canvas(
+    previousScale: 1.0,
+    scale: 1.0,
+    tesselationTolerance: 1.25,
+  )
 
   # Stop OpenGl from crashing on later versions.
   glGenVertexArrays(1, result.vertexArrayId.addr)
@@ -279,6 +282,7 @@ proc beginFrame*(canvas: Canvas, size: Vec2, scale: float) =
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
   canvas.pushClipRect rect2(vec2(0.0, 0.0), size)
+  canvas.path.setLen(0)
 
   if canvas.scale != canvas.previousScale:
     canvas.atlas = newCanvasAtlas(
@@ -609,54 +613,73 @@ func drawText*(canvas: Canvas,
   if clip:
     canvas.popClipRect()
 
-func strokePath*(canvas: Canvas, path: Path, color: Color, thickness = 1.0) =
-  var points: seq[Vec2]
-  var start = vec2(0, 0)
-  var at = vec2(0, 0)
+func pathBegin*(canvas: Canvas, position: Vec2) =
+  canvas.path = @[position]
 
-  for command in path.commands:
-    template n(i: int): untyped = command.numbers[i]
-    case command.kind:
-    of Move:
-      at = vec2(n(0), n(1))
-      start = at
-      points = @[at]
-    of Line:
-      at = vec2(n(0), n(1))
-      points.add at
-    of HLine:
-      at = vec2(n(0), at.y)
-      points.add at
-    of VLine:
-      at = vec2(at.x, n(0))
-      points.add at
-    # of Cubic:
-    # of SCubic:
-    # of Quad:
-    # of TQuad:
-    # of Arc:
-    of RMove:
-      at += vec2(n(0), n(1))
-      start = at
-      points = @[at]
-    of RLine:
-      at += vec2(n(0), n(1))
-      points.add at
-    of RHLine:
-      at = vec2(at.x + n(0), at.y)
-      points.add at
-    of RVLine:
-      at = vec2(at.x, at.y + n(0))
-      points.add at
-    # of RCubic:
-    # of RSCubic:
-    # of RQuad:
-    # of RTQuad:
-    # of RArc:
-    of Close:
-      canvas.fillPolyLineClosed(points, color, thickness)
-      return
-    else:
-      discard
+func pathEnd*(canvas: Canvas) =
+  canvas.path.setLen(0)
 
-  canvas.fillPolyLineOpen(points, color, thickness)
+func pathFillConvex*(canvas: Canvas, color: Color) =
+  canvas.fillConvexPoly(canvas.path, color)
+
+func pathStroke*(canvas: Canvas, color: Color, thickness = 1.0, closed = false) =
+  if closed:
+    canvas.fillPolyLineClosed(canvas.path, color, thickness)
+  else:
+    canvas.fillPolyLineOpen(canvas.path, color, thickness)
+
+func pathLineTo*(canvas: Canvas, position: Vec2) =
+  canvas.path.add position
+
+func bezierCubicCurveToCasteljau(points: var seq[Vec2], x1, y1, x2, y2, x3, y3, x4, y4, tolerance: float, level: int) =
+  let dx = x4 - x1
+  let dy = y4 - y1
+
+  var d2 = (x2 - x4) * dy - (y2 - y4) * dx
+  var d3 = (x3 - x4) * dy - (y3 - y4) * dx
+  d2 = if d2 >= 0: d2 else: -d2
+  d3 = if d3 >= 0: d3 else: -d3
+
+  if (d2 + d3) * (d2 + d3) < tolerance * (dx * dx + dy * dy):
+    points.add vec2(x4, y4)
+
+  elif level < 10:
+    let x12 = (x1 + x2) * 0.5
+    let y12 = (y1 + y2) * 0.5
+    let x23 = (x2 + x3) * 0.5
+    let y23 = (y2 + y3) * 0.5
+    let x34 = (x3 + x4) * 0.5
+    let y34 = (y3 + y4) * 0.5
+    let x123 = (x12 + x23) * 0.5
+    let y123 = (y12 + y23) * 0.5
+    let x234 = (x23 + x34) * 0.5
+    let y234 = (y23 + y34) * 0.5
+    let x1234 = (x123 + x234) * 0.5
+    let y1234 = (y123 + y234) * 0.5
+    points.bezierCubicCurveToCasteljau(x1, y1, x12, y12, x123, y123, x1234, y1234, tolerance, level + 1)
+    points.bezierCubicCurveToCasteljau(x1234, y1234, x234, y234, x34, y34, x4, y4, tolerance, level + 1)
+
+func bezierCubic(p1, p2, p3, p4: Vec2, t: float): Vec2 =
+  let u = 1.0 - t
+  let w1 = u * u * u
+  let w2 = 3.0 * u * u * t
+  let w3 = 3.0 * u * t * t
+  let w4 = t * t * t
+  vec2(w1 * p1.x + w2 * p2.x + w3 * p3.x + w4 * p4.x,
+       w1 * p1.y + w2 * p2.y + w3 * p3.y + w4 * p4.y)
+
+func pathBezierCubicCurveTo*(canvas: Canvas, p2, p3, p4: Vec2, segments = 0) =
+  let p1 = canvas.path[canvas.path.len - 1]
+  if segments == 0:
+    canvas.path.bezierCubicCurveToCasteljau(
+      p1.x, p1.y,
+      p2.x, p2.y,
+      p3.x, p3.y,
+      p4.x, p4.y,
+      canvas.tesselationTolerance / canvas.scale,
+      0,
+    )
+  else:
+    let step = 1.0 / segments.float
+    for i in 1 .. segments:
+      canvas.path.add bezierCubic(p1, p2, p3, p4, step * i.float)

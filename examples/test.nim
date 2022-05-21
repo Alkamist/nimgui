@@ -29,15 +29,10 @@ proc onFrame() =
 
   canvas.beginFrame(client.sizePixels, scale)
 
-  let p = parsePath """
-    M 1 0
-    l 0 1
-    l -1 0
-    l 0 -1
-    z
-  """
-  p.transform vec2(100, 100).translate * rotate(25.0.degToRad) * vec2(200, 200).scale
-  canvas.strokePath p, rgb(255, 255, 255), 1.0
+  canvas.pathBegin vec2(50, 50)
+  canvas.pathBezierCubicCurveTo(vec2(300, 50), vec2(50, 300), vec2(300, 300))
+  canvas.pathStroke(rgb(255, 255, 255), 5.0)
+  canvas.pathEnd()
 
   canvas.render()
 

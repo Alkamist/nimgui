@@ -29,10 +29,12 @@ proc onFrame() =
 
   canvas.beginFrame(client.sizePixels, scale)
 
-  canvas.pathBegin vec2(50, 50)
-  canvas.pathBezierCubicCurveTo(vec2(300, 50), vec2(50, 300), vec2(300, 300))
-  canvas.pathStroke(rgb(255, 255, 255), 5.0)
-  canvas.pathEnd()
+  var poly = polyLine(canvas.tesselation)
+  poly.add vec2(50, 50)
+  poly.bezierCubicCurveTo(vec2(300, 50), vec2(300, 50), vec2(300, 300))
+  poly.close()
+
+  canvas.strokePolyLine(poly, rgb(255, 255, 255), 5.0)
 
   canvas.render()
 

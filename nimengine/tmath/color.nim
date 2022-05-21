@@ -10,13 +10,13 @@ type
 # func color*(r, g, b, a: float): Color =
 #   (r: r, g: g, b: b, a: a)
 
-func color*(r, g, b, a: float): Color =
+func color*(r, g, b, a = 0.0): Color =
   Color(r: r, g: g, b: b, a: a)
 
-func rgba*(r, g, b, a: uint8): Color =
+func rgba*(r, g, b, a: uint8 = 0): Color =
   color(r.float / 255, g.float / 255, b.float / 255, a.float / 255)
 
-func rgb*(r, g, b: uint8): Color =
+func rgb*(r, g, b: uint8 = 0): Color =
   color(r.float / 255, g.float / 255, b.float / 255, 1.0)
 
 func lerp*(a, b: Color, weight: float): Color =

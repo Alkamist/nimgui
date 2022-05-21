@@ -13,10 +13,10 @@ type
 # func rect2*(position, size: Vec2): Rect2 =
 #   (position: position, size: size)
 
-func rect2*(position, size: Vec2): Rect2 =
+func rect2*(position, size = vec2()): Rect2 =
   Rect2(position: position, size: size)
 
-func rect2*(x, y, width, height: float): Rect2 =
+func rect2*(x, y, width, height = 0.0): Rect2 =
   rect2(vec2(x, y), vec2(width, height))
 
 func round*(r: Rect2): Rect2 =

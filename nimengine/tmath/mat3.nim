@@ -5,61 +5,57 @@ import ./vec2
 export vec2
 
 type
-  SomeMat3* = concept v
-    v[0][0] is SomeFloat
-    v[0][1] is SomeFloat
-    v[0][2] is SomeFloat
-    v[1][0] is SomeFloat
-    v[1][1] is SomeFloat
-    v[1][2] is SomeFloat
-    v[2][0] is SomeFloat
-    v[2][1] is SomeFloat
-    v[2][2] is SomeFloat
+  Mat3*[T]= array[3, array[3, T]]
 
-template position*(tm: SomeMat3): untyped =
+template position*[T](tm: Mat3[T]): untyped =
   let m = tm
   (x: m[2][0], y: m[2][1])
 
-template `position=`*(tm: var SomeMat3, tv: SomeVec2) =
-  let v = tv
-  tm[2][0] = v.x
-  tm[2][1] = v.y
+template `position=`*[A, B](ta: var Mat3[A], tb: Vec2[B]) =
+  let b = tb
+  ta[2][0] = b.x
+  ta[2][1] = b.y
 
-template mat3Identity*(): untyped =
+template mat3Identity*[T](): untyped =
   [
-    [1.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 0.0, 1.0],
+    [1.T, 0.T, 0.T],
+    [0.T, 1.T, 0.T],
+    [0.T, 0.T, 1.T],
   ]
 
-template scale*[V: SomeVec2](tv: V): untyped =
+proc scale*[T](tv: Vec2[T]): Mat3[T] =
   let v = tv
   [
-    [v.x, 0.0, 0.0],
-    [0.0, v.y, 0.0],
-    [0.0, 0.0, 1.0],
+    [v.x, 0.T, 0.T],
+    [0.T, v.y, 0.T],
+    [0.T, 0.T, 1.T],
   ]
 
-template translate*[V: SomeVec2](tv: V): untyped =
+template translate*[T](tv: Vec2[T]): untyped =
   let v = tv
   [
-    [1.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [v.x, v.y, 1.0],
+    [1.T, 0.T, 0.T],
+    [0.T, 1.T, 0.T],
+    [v.x, v.y, 1.T],
   ]
 
-template rotate*[A: SomeFloat](tangle: A): untyped =
+template rotate*(tangle: SomeFloat): untyped =
   let angle = tangle
   let sn = sin(angle)
   let cs = cos(angle)
   [
-    [cs, -sn, 0.0],
-    [sn, cs, 0.0],
-    [0.0, 0.0, 1.0],
+    [cs, -sn, 0.T],
+    [sn, cs, 0.T],
+    [0.T, 0.T, 1.T],
   ]
 
-template `*`*[A: SomeMat3, B: SomeVec2](ta: A, tb: B): auto =
+template `*`*[A, B](ta: Mat3[A], tb: Vec2[B]): auto =
   let a = ta
   let b = tb
   (x: a[0][0] * b.x + a[1][0] * b.y + a[2][0],
    y: a[0][1] * b.x + a[1][1] * b.y + a[2][1])
+
+
+let a = (3.0, 2.0)
+
+echo scale (3.0, 3.0) * a

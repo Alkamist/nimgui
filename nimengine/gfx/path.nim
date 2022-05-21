@@ -206,7 +206,7 @@ func parsePath*(path: string): Path {.raises: [PathError].} =
 
   finishCommand(result)
 
-# func transform*(path: Path, mat: SomeMat3) =
+# func transform*(path: Path, mat: Mat3) =
 #   if mat == mat3Identity():
 #     return
 

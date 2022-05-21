@@ -5,33 +5,37 @@ type
   Color*[T] = tuple
     r, g, b, a: T
 
-template r*[T](tc: Color[T]): untyped = tc[0]
-template g*[T](tc: Color[T]): untyped = tc[1]
-template b*[T](tc: Color[T]): untyped = tc[2]
-template a*[T](tc: Color[T]): untyped = tc[3]
+{.push inline.}
 
-template lerp*[A, B](ta: Color[A], tb: Color[B], tweight: SomeNumber): untyped =
-  var res = ta
-  let b = tb
-  let weight = tweight.asFloat
-  res.r += (weight * (b.r - res.r))
-  res.g += (weight * (b.g - res.g))
-  res.b += (weight * (b.b - res.b))
-  res.a += (weight * (b.a - res.a))
-  res
+func color*[T](r, g, b, a: T): Color[T] =
+  (r: r, g: g, b: b, a: a)
 
-template darken*[T](tc: Color[T], tamount: SomeNumber): untyped =
-  var res = tc
-  let amount = tamount.asFloat
-  res.r *= 1.0 - amount
-  res.g *= 1.0 - amount
-  res.b *= 1.0 - amount
-  res
+func rgba*(r, g, b, a: uint8): Color[float] =
+  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: a.float / 255)
 
-template lighten*[T](tc: Color[T], tamount: SomeNumber): untyped =
-  var res = tc
-  let amount = tamount.asFloat
-  res.r += (1.0 - res.r) * amount
-  res.g += (1.0 - res.g) * amount
-  res.b += (1.0 - res.b) * amount
-  res
+func rgb*(r, g, b, a: uint8): Color[float] =
+  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: 1.0)
+
+func lerp*[A, B](a: Color[A], b: Color[B], weight: SomeNumber): Color[A] =
+  let weight = weight.asFloat
+  result = a
+  result.r += (weight * (b.r - result.r))
+  result.g += (weight * (b.g - result.g))
+  result.b += (weight * (b.b - result.b))
+  result.a += (weight * (b.a - result.a))
+
+func darken*[T](c: Color[T], amount: SomeNumber): Color[T] =
+  let amount = amount.asFloat
+  result = c
+  result.r *= 1.0 - amount
+  result.g *= 1.0 - amount
+  result.b *= 1.0 - amount
+
+func lighten*[T](c: Color[T], amount: SomeNumber): Color[T] =
+  let amount = amount.asFloat
+  result = c
+  result.r += (1.0 - result.r) * amount
+  result.g += (1.0 - result.g) * amount
+  result.b += (1.0 - result.b) * amount
+
+{.pop.}

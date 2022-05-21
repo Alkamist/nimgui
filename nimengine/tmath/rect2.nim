@@ -5,32 +5,29 @@ import ./vec2
 export vec2
 
 type
-  Rect2Tuple[T] = tuple[position, size: T]
+  Rect2*[T] = tuple
+    position, size: Vec2[T]
 
-  SomeRect2* = concept r
-    r.position is SomeVec2
-    r.size is SomeVec2
+template position*[T](tr: Rect2[T]): untyped = tr[0]
+template size*[T](tr: Rect2[T]): untyped = tr[1]
 
-template position*[R: Rect2Tuple](tr: R): untyped = tr[0]
-template size*[R: Rect2Tuple](tr: R): untyped = tr[1]
-
-template round*(tr: SomeRect2): untyped =
+template round*[T](tr: Rect2[T]): untyped =
   let r = tr
   (position: r.position.round, size: r.size.round)
 
-template translate*(tr: SomeRect2, tv: SomeVec2): untyped =
+template translate*[A, B](tr: Rect2[A], tv: Vec2[B]): untyped =
   var res = tr
   res.position += tv
   res
 
-template expand*(tr: SomeRect2, tv: SomeVec2): untyped =
+template expand*[A, B](tr: Rect2[A], tv: Vec2[B]): untyped =
   let v = tv
   var res = tr
   res.position -= v
   res.size += v * 2.0
   res
 
-template contains*(tr: SomeRect2, tv: SomeVec2): bool =
+template contains*[A, B](tr: Rect2[A], tv: Vec2[B]): bool =
   let r = tr
   let v = tv
   v.x >= r.position.x and v.x <= r.position.x + r.size.x and

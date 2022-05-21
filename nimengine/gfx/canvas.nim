@@ -4,6 +4,7 @@ import std/unicode
 import opengl
 
 import ../tmath
+export tmath
 
 import ./wrappers/functions as gfx
 import ./wrappers/shader
@@ -13,8 +14,8 @@ import ./wrappers/indexbuffer
 import ./wrappers/common
 import ./canvasatlas
 
-import ./path
-export path
+# import ./path
+# export path
 
 const vertexSrc = """
 #version 300 es
@@ -75,13 +76,13 @@ type
     r*, g*, b*, a*: float32
 
   DrawCall = object
-    clipRect: tuple[position, size: tuple[x, y: float]]
+    clipRect: Rect2
     indexOffset: int
     indexCount: int
 
   Canvas* = ref object
     scale*: float
-    size*: tuple[x, y: float]
+    size*: Vec2
     vertexData: seq[Vertex]
     vertexWrite: int
     indexData: seq[Index]
@@ -92,7 +93,7 @@ type
     indexBuffer: IndexBuffer
     vertexArrayId: GLuint
     drawCalls: seq[DrawCall]
-    clipRectStack: seq[tuple[position, size: tuple[x, y: float]]]
+    clipRectStack: seq[Rect2]
     atlas: CanvasAtlas
     atlasFontData: string
     atlasFontSize: float
@@ -103,9 +104,9 @@ type
 func error(canvas: Canvas, msg: string) =
   raise newException(CanvasError, msg)
 
-func closedNormals(poly: openArray[tuple[x, y: float]]): seq[tuple[x, y: float]] =
+func closedNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
-  result = newSeq[tuple[x, y: float]](poly.len)
+  result = newSeq[Vec2](poly.len)
   for i in 0 ..< result.len:
     let nextPointIndex =
       if i == result.len - 1:
@@ -118,9 +119,9 @@ func closedNormals(poly: openArray[tuple[x, y: float]]): seq[tuple[x, y: float]]
 
     result[i] = (nextPoint - point).rotate(-0.5 * Pi).normalize
 
-func openNormals(poly: openArray[tuple[x, y: float]]): seq[tuple[x, y: float]] =
+func openNormals(poly: openArray[Vec2]): seq[Vec2] =
   ## Assumes clockwise winding of polygon.
-  result = newSeq[tuple[x, y: float]](poly.len - 1)
+  result = newSeq[Vec2](poly.len - 1)
   for i in 0 ..< result.len:
     let point = poly[i]
     let nextPoint = poly[i + 1]
@@ -142,15 +143,13 @@ proc newCanvas*(): Canvas =
   result.vertexBuffer = newVertexBuffer([Float2, Float2, Float4])
   result.indexBuffer = newIndexBuffer(UInt32)
 
-proc loadFont*(canvas: Canvas,
-               fontData: string, fontSize: float,
-               firstChar = 0, numChars = 128) =
+proc loadFont*(canvas: Canvas, fontData: string, fontSize: float, firstChar = 0, numChars = 128) =
   canvas.atlasFontData = fontData
   canvas.atlasFontSize = fontSize
   canvas.atlasFontFirstChar = firstChar
   canvas.atlasFontNumChars = numChars
   canvas.atlas = newCanvasAtlas(fontData, fontSize, firstChar, numChars)
-  canvas.atlasTexture.upload(canvas.atlas.size.x, canvas.atlas.size.y, canvas.atlas.data)
+  canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
 func pixelThickness*(canvas: Canvas): float =
   1.0 / canvas.scale
@@ -179,22 +178,23 @@ func addDrawCall(canvas: Canvas) =
     currentDrawCall.clipRect = currentClipRect
     currentDrawCall.indexOffset = indexOffset
 
-func pushClipRect*(canvas: Canvas,
-                   rect: tuple[position, size: tuple[x, y: float]]) =
+func pushClipRect*(canvas: Canvas, rect: Rect2) =
   let lastRect =
     if canvas.clipRectStack.len > 0:
       canvas.clipRectStack[canvas.clipRectStack.len - 1]
     else:
-      ((0.0, 0.0), canvas.size)
+      rect2(vec2(0.0, 0.0), canvas.size)
 
   let leftX = max(rect.position.x, lastRect.position.x)
   let rightX = min(rect.position.x + rect.size.x, lastRect.position.x + lastRect.size.x)
   let topY = max(rect.position.y, lastRect.position.y)
   let bottomY = min(rect.position.y + rect.size.y, lastRect.position.y + lastRect.size.y)
 
-  let intersection = (
-    (leftX, topY),
-    (max(rightX - leftX, 0.0), max(bottomY - topY, 0.0)),
+  let intersection = rect2(
+    leftX,
+    topY,
+    max(rightX - leftX, 0.0),
+    max(bottomY - topY, 0.0),
   )
 
   canvas.clipRectStack.add intersection
@@ -227,18 +227,14 @@ func addVertex*(canvas: Canvas, x, y, u, v, r, g, b, a: float) =
   )
   inc canvas.vertexWrite
 
-func addVertex*(canvas: Canvas,
-                position, uv: tuple[x, y: float],
-                color: tuple[r, g, b, a: float]) =
+func addVertex*(canvas: Canvas, position, uv: Vec2, color: Color) =
   canvas.addVertex(
     position.x, position.y,
     uv.x, uv.y,
     color.r, color.g, color.b, color.a,
   )
 
-func addVertex*(canvas: Canvas,
-                position: tuple[x, y: float],
-                color: tuple[r, g, b, a: float]) =
+func addVertex*(canvas: Canvas, position: Vec2, color: Color) =
   canvas.addVertex(
     position,
     canvas.atlas.whitePixelUv.position,
@@ -249,9 +245,7 @@ func addIndex*(canvas: Canvas, index: int) =
   canvas.indexData[canvas.indexWrite] = (canvas.vertexWrite + index).Index
   inc canvas.indexWrite
 
-func addQuad*(canvas: Canvas,
-              quad, uv: tuple[position, size: tuple[x, y: float]],
-              color: tuple[r, g, b, a: float]) =
+func addQuad*(canvas: Canvas, quad, uv: Rect2, color: Color) =
   canvas.reserve(4, 6)
   canvas.addIndex(0)
   canvas.addIndex(2)
@@ -260,7 +254,7 @@ func addQuad*(canvas: Canvas,
   canvas.addIndex(3)
   canvas.addIndex(2)
 
-  proc lrtb(rect: tuple[position, size: tuple[x, y: float]]): tuple[left, right, top, bottom: float] =
+  proc lrtb(rect: Rect2): tuple[left, right, top, bottom: float] =
     (rect.position.x, rect.position.x + rect.size.x, rect.position.y, rect.position.y + rect.size.y)
 
   let q = quad.lrtb
@@ -271,9 +265,7 @@ func addQuad*(canvas: Canvas,
   canvas.addVertex(q.right, q.top, uv.right, uv.top, color.r, color.g, color.b, color.a)
   canvas.addVertex(q.right, q.bottom, uv.right, uv.bottom, color.r, color.g, color.b, color.a)
 
-proc beginFrame*(canvas: Canvas,
-                 size: tuple[x, y: float],
-                 scale: float) =
+proc beginFrame*(canvas: Canvas, size: Vec2, scale: float) =
   if canvas.atlas == nil:
     canvas.error "There is no atlas loaded. Make sure to load a font with loadFont."
 
@@ -286,7 +278,7 @@ proc beginFrame*(canvas: Canvas,
   canvas.indexData.setLen(0)
   canvas.clipRectStack.setLen(0)
   canvas.drawCalls.setLen(0)
-  canvas.pushClipRect ((0.0, 0.0), size)
+  canvas.pushClipRect rect2(vec2(0.0, 0.0), size)
 
   if canvas.scale != canvas.previousScale:
     canvas.atlas = newCanvasAtlas(
@@ -295,7 +287,7 @@ proc beginFrame*(canvas: Canvas,
       canvas.atlasFontFirstChar,
       canvas.atlasFontNumChars,
     )
-    canvas.atlasTexture.upload(canvas.atlas.size.x, canvas.atlas.size.y, canvas.atlas.data)
+    canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
 proc render*(canvas: Canvas) =
   if canvas.vertexData.len == 0 or canvas.indexData.len == 0:
@@ -336,15 +328,10 @@ proc render*(canvas: Canvas) =
       drawCall.indexOffset,
     )
 
-func fillRect*(canvas: Canvas,
-               quad: tuple[position, size: tuple[x, y: float]],
-               color: tuple[r, g, b, a: float]) =
+func fillRect*(canvas: Canvas, quad: Rect2, color: Color) =
   canvas.addQuad(quad, canvas.atlas.whitePixelUv, color)
 
-func strokeRect*(canvas: Canvas,
-                  quad: tuple[position, size: tuple[x, y: float]],
-                  color: tuple[r, g, b, a: float],
-                  thickness = 1.0) =
+func strokeRect*(canvas: Canvas, quad: Rect2, color: Color, thickness = 1.0) =
   let uv = canvas.atlas.whitePixelUv
 
   let left = quad.position.x
@@ -358,16 +345,13 @@ func strokeRect*(canvas: Canvas,
   let sideHeight = bottom - top
   let topBottomWidth = rightInner - leftInner
 
-  canvas.addQuad ((left, top), (thickness, sideHeight)), uv, color
-  canvas.addQuad ((rightInner, top), (thickness, sideHeight)), uv, color
+  canvas.addQuad rect2(left, top, thickness, sideHeight), uv, color
+  canvas.addQuad rect2(rightInner, top, thickness, sideHeight), uv, color
 
-  canvas.addQuad ((leftInner, top), (topBottomWidth, thickness)), uv, color
-  canvas.addQuad ((leftInner, bottomInner), (topBottomWidth, thickness)), uv, color
+  canvas.addQuad rect2(leftInner, top, topBottomWidth, thickness), uv, color
+  canvas.addQuad rect2(leftInner, bottomInner, topBottomWidth, thickness), uv, color
 
-func fillPolyLineOpen*(canvas: Canvas,
-                       points: openArray[tuple[x, y: float]],
-                       color: tuple[r, g, b, a: float],
-                       thickness = 1.0) =
+func fillPolyLineOpen*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
   if points.len < 2:
     return
 
@@ -414,10 +398,7 @@ func fillPolyLineOpen*(canvas: Canvas,
   canvas.addVertex(aEnd, color)
   canvas.addVertex(bEnd, color)
 
-func fillPolyLineClosed*(canvas: Canvas,
-                         points: openArray[tuple[x, y: float]],
-                         color: tuple[r, g, b, a: float],
-                         thickness = 1.0) =
+func fillPolyLineClosed*(canvas: Canvas, points: openArray[Vec2], color: Color, thickness = 1.0) =
   if points.len < 2:
     return
 
@@ -461,9 +442,7 @@ func fillPolyLineClosed*(canvas: Canvas,
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
 
-func fillConvexPoly*(canvas: Canvas,
-                     points: openArray[tuple[x, y: float]],
-                     color: tuple[r, g, b, a: float]) =
+func fillConvexPoly*(canvas: Canvas, points: openArray[Vec2], color: Color) =
   ## Assumes clockwise winding of polygon.
   if points.len < 3:
     return
@@ -484,21 +463,21 @@ func fillConvexPoly*(canvas: Canvas,
 
 func drawText*(canvas: Canvas,
                text: string,
-               bounds: tuple[position, size: tuple[x, y: float]],
-               color: tuple[r, g, b, a: float],
+               bounds: Rect2,
+               color: Color,
                xAlign = HorizontalAlignment.Left,
                yAlign = VerticalAlignment.Center,
                wordWrap = false,
                clip = true) =
   let atlas = canvas.atlas
-  let dp = canvas.scale
+  let scale = canvas.scale
 
   if clip:
     canvas.pushClipRect bounds
 
-  let bounds = (
-    position: (x: bounds.position.x * dp, y: bounds.position.y * dp),
-    size: (x: bounds.size.x * dp, y: bounds.size.y * dp),
+  let bounds = rect2(
+    bounds.position * scale,
+    bounds.size * scale,
   )
 
   const newLine = "\n".runeAt(0)
@@ -559,14 +538,14 @@ func drawText*(canvas: Canvas,
       x += glyphInfo.xAdvance
       inc i
 
-  let lineHeight = atlas.glyphBoundingBox[1].y
+  let lineHeight = atlas.glyphBoundingBox.size.y
 
   let yAlignment = case yAlign:
     of Bottom: bounds.size.y - (lineHeight * lineInfo.len.float)
     of Center: 0.5 * (bounds.size.y - (lineHeight * lineInfo.len.float))
     of Top: 0.0
 
-  var y = 2 + lineHeight + atlas.glyphBoundingBox[0].y
+  var y = 2 + lineHeight + atlas.glyphBoundingBox.position.y
 
   # Go through every line and draw quads textured with the appropriate glyph.
   for info in lineInfo:
@@ -602,11 +581,11 @@ func drawText*(canvas: Canvas,
 
       let glyphInfo = atlas.glyphInfoTable[rune]
 
-      let quad = (
-        position: (x: bounds.position.x + xAlignment + x + glyphInfo.offset.x,
-                   y: bounds.position.y + yAlignment + y + glyphInfo.offset.y),
-        size: (x: glyphInfo.size.x.float,
-               y: glyphInfo.size.y.float),
+      let quad = rect2(
+        bounds.position.x + xAlignment + x + glyphInfo.offset.x,
+        bounds.position.y + yAlignment + y + glyphInfo.offset.y,
+        glyphInfo.rect.size.x.float,
+        glyphInfo.rect.size.y.float,
       )
 
       let quadIsEntirelyOutOfBounds =
@@ -617,9 +596,9 @@ func drawText*(canvas: Canvas,
          quad.position.y > bounds.position.y + bounds.size.y)
 
       if not quadIsEntirelyOutOfBounds:
-        let quadScaled = (
-          position: (x: quad.position.x / dp, y: quad.position.y / dp),
-          size: (x: quad.size.x / dp, y: quad.size.y / dp),
+        let quadScaled = rect2(
+          quad.position / scale,
+          quad.size / scale,
         )
         canvas.addQuad(quadScaled, glyphInfo.uv, color)
 
@@ -630,57 +609,57 @@ func drawText*(canvas: Canvas,
   if clip:
     canvas.popClipRect()
 
-func strokePath*(canvas: Canvas,
-                 path: Path,
-                 color: tuple[r, g, b, a: float],
-                 thickness = 1.0) =
-  var points: seq[tuple[x, y: float]]
-  var start = (x: 0.0, y: 0.0)
-  var at = (x: 0.0, y: 0.0)
+# func strokePath*(canvas: Canvas,
+#                  path: Path,
+#                  color: Color,
+#                  thickness = 1.0) =
+#   var points: seq[Vec2]
+#   var start = (x: 0.0, y: 0.0)
+#   var at = (x: 0.0, y: 0.0)
 
-  for command in path.commands:
-    template n(i: int): untyped = command.numbers[i]
-    case command.kind:
-    of Move:
-      at = (n(0), n(1))
-      start = at
-      points = @[at]
-    of Line:
-      at = (n(0), n(1))
-      points.add at
-    of HLine:
-      at = (n(0), at[1])
-      points.add at
-    of VLine:
-      at = (at[0], n(0))
-      points.add at
-    # of Cubic:
-    # of SCubic:
-    # of Quad:
-    # of TQuad:
-    # of Arc:
-    of RMove:
-      at += (n(0), n(1))
-      start = at
-      points = @[at]
-    of RLine:
-      at += (n(0), n(1))
-      points.add at
-    of RHLine:
-      at = (at[0] + n(0), at[1])
-      points.add at
-    of RVLine:
-      at = (at[0], at[1] + n(0))
-      points.add at
-    # of RCubic:
-    # of RSCubic:
-    # of RQuad:
-    # of RTQuad:
-    # of RArc:
-    of Close:
-      canvas.fillPolyLineClosed(points, color, thickness)
-      return
-    else:
-      discard
+#   for command in path.commands:
+#     template n(i: int): untyped = command.numbers[i]
+#     case command.kind:
+#     of Move:
+#       at = (n(0), n(1))
+#       start = at
+#       points = @[at]
+#     of Line:
+#       at = (n(0), n(1))
+#       points.add at
+#     of HLine:
+#       at = (n(0), at[1])
+#       points.add at
+#     of VLine:
+#       at = (at[0], n(0))
+#       points.add at
+#     # of Cubic:
+#     # of SCubic:
+#     # of Quad:
+#     # of TQuad:
+#     # of Arc:
+#     of RMove:
+#       at += (n(0), n(1))
+#       start = at
+#       points = @[at]
+#     of RLine:
+#       at += (n(0), n(1))
+#       points.add at
+#     of RHLine:
+#       at = (at[0] + n(0), at[1])
+#       points.add at
+#     of RVLine:
+#       at = (at[0], at[1] + n(0))
+#       points.add at
+#     # of RCubic:
+#     # of RSCubic:
+#     # of RQuad:
+#     # of RTQuad:
+#     # of RArc:
+#     of Close:
+#       canvas.fillPolyLineClosed(points, color, thickness)
+#       return
+#     else:
+#       discard
 
-  canvas.fillPolyLineOpen(points, color, thickness)
+#   canvas.fillPolyLineOpen(points, color, thickness)

@@ -1,8 +1,5 @@
 import ../tmath
 
-func rgb(r, g, b: uint8): tuple[r, g, b, a: float] =
-  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: 1.0)
-
 const main = rgb(54, 57, 63)
 const button = main.lighten(0.15)
 const border = rgb(15, 15, 16)

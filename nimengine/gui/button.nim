@@ -5,10 +5,10 @@ import ./widget
 
 type
   ButtonColors* = object
-    background*: tuple[r, g, b, a: float]
-    hovered*: tuple[r, g, b, a: float]
-    down*: tuple[r, g, b, a: float]
-    text*: tuple[r, g, b, a: float]
+    background*: Color
+    hovered*: Color
+    down*: Color
+    text*: Color
 
   ButtonWidget* = ref object of Widget
     colors*: ButtonColors

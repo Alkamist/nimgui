@@ -3,6 +3,9 @@
 import std/times
 export times
 
+import ../tmath
+export tmath
+
 when defined(windows):
   import winim/lean as win32
   type
@@ -134,10 +137,10 @@ type
     time*: float
     dpi*: float
     densityPixelDpi*: float
-    positionPixels*: tuple[x, y: int]
-    sizePixels*: tuple[x, y: int]
-    mousePositionPixels*: tuple[x, y: int]
-    mouseWheel*: tuple[x, y: float]
+    positionPixels*: Vec2
+    sizePixels*: Vec2
+    mousePositionPixels*: Vec2
+    mouseWheel*: Vec2
     text*: string
     mouseDownStates*: array[MouseButton, bool]
     keyDownStates*: array[KeyboardKey, bool]
@@ -147,9 +150,9 @@ type
     keyReleases*: seq[KeyboardKey]
 
     previousTime*: float
-    previousPositionPixels*: tuple[x, y: int]
-    previousSizePixels*: tuple[x, y: int]
-    previousMousePositionPixels*: tuple[x, y: int]
+    previousPositionPixels*: Vec2
+    previousSizePixels*: Vec2
+    previousMousePositionPixels*: Vec2
     previousMouseDownStates*: array[MouseButton, bool]
     previousKeyDownStates*: array[KeyboardKey, bool]
 
@@ -175,19 +178,19 @@ func aspectRatio*(client: Client): float =
 
 # Mouse position
 
-func mousePosition*(client: Client): tuple[x, y: float] =
-  let dp = client.scale
-  (client.mousePositionPixels.x.float / dp,
-   client.mousePositionPixels.y.float / dp)
+func mousePosition*(client: Client): Vec2 =
+  let scale = client.scale
+  vec2(client.mousePositionPixels.x / scale,
+       client.mousePositionPixels.y / scale)
 
-func mouseDeltaPixels*(client: Client): tuple[x, y: int] =
-  (client.mousePositionPixels.x - client.previousMousePositionPixels.x,
-   client.mousePositionPixels.y - client.previousMousePositionPixels.y)
+func mouseDeltaPixels*(client: Client): Vec2 =
+  vec2(client.mousePositionPixels.x - client.previousMousePositionPixels.x,
+       client.mousePositionPixels.y - client.previousMousePositionPixels.y)
 
-func mouseDelta*(client: Client): tuple[x, y: float] =
+func mouseDelta*(client: Client): Vec2 =
   let delta = client.mouseDeltaPixels
-  let dp = client.scale
-  (delta.x.float / dp, delta.y.float / dp)
+  let scale = client.scale
+  vec2(delta.x / scale, delta.y / scale)
 
 func mouseMoved*(client: Client): bool =
   let delta = client.mouseDeltaPixels
@@ -195,19 +198,19 @@ func mouseMoved*(client: Client): bool =
 
 # Position
 
-func position*(client: Client): tuple[x, y: float] =
-  let dp = client.scale
-  (client.positionPixels.x.float / dp,
-   client.positionPixels.y.float / dp)
+func position*(client: Client): Vec2 =
+  let scale = client.scale
+  vec2(client.positionPixels.x.float / scale,
+       client.positionPixels.y.float / scale)
 
-func positionDeltaPixels*(client: Client): tuple[x, y: int] =
-  (client.positionPixels.x - client.previousPositionPixels.x,
-   client.positionPixels.y - client.previousPositionPixels.y)
+func positionDeltaPixels*(client: Client): Vec2 =
+  vec2(client.positionPixels.x - client.previousPositionPixels.x,
+       client.positionPixels.y - client.previousPositionPixels.y)
 
-func positionDelta*(client: Client): tuple[x, y: float] =
+func positionDelta*(client: Client): Vec2 =
   let delta = client.positionDeltaPixels
-  let dp = client.scale
-  (delta.x.float / dp, delta.y.float / dp)
+  let scale = client.scale
+  vec2(delta.x / scale, delta.y / scale)
 
 func moved*(client: Client): bool =
   let delta = client.positionDeltaPixels
@@ -215,18 +218,18 @@ func moved*(client: Client): bool =
 
 # Size
 
-func size*(client: Client): tuple[x, y: float] =
-  let dp = client.scale
-  (client.sizePixels.x.float / dp, client.sizePixels.y.float / dp)
+func size*(client: Client): Vec2 =
+  let scale = client.scale
+  vec2(client.sizePixels.x / scale, client.sizePixels.y / scale)
 
-func sizeDeltaPixels*(client: Client): tuple[x, y: int] =
-  (client.sizePixels.x - client.previousSizePixels.x,
-   client.sizePixels.y - client.previousSizePixels.y)
+func sizeDeltaPixels*(client: Client): Vec2 =
+  vec2(client.sizePixels.x - client.previousSizePixels.x,
+       client.sizePixels.y - client.previousSizePixels.y)
 
-func sizeDelta*(client: Client): tuple[x, y: float] =
+func sizeDelta*(client: Client): Vec2 =
   let delta = client.sizeDeltaPixels
-  let dp = client.scale
-  (delta.x.float / dp, delta.y.float / dp)
+  let scale = client.scale
+  vec2(delta.x / scale, delta.y / scale)
 
 func resized*(client: Client): bool =
   let delta = client.mouseDeltaPixels
@@ -263,7 +266,7 @@ template processFrame*(client: Client, code: untyped): untyped =
   client.previousMousePositionPixels = client.mousePositionPixels
   client.previousMouseDownStates = client.mouseDownStates
   client.previousKeyDownStates = client.keyDownStates
-  client.mouseWheel = (0.0, 0.0)
+  client.mouseWheel = vec2(0, 0)
   client.text = ""
   client.mousePresses.setLen(0)
   client.mouseReleases.setLen(0)

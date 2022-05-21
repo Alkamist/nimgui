@@ -38,19 +38,19 @@ for i in 0 ..< 2:
   for j in 0 ..< 2:
     let button = newButtonWidget()
     button.label = "Button"
-    button.relativePosition = (20.0, 40.0)
-    button.size = (100.0, 60.0)
+    button.relativePosition = vec2(20, 40)
+    button.size = vec2(100, 60)
     button.onClicked = proc() = echo "Clicked"
 
     let parent = newWindowWidget()
     parent.title = "Window"
-    parent.relativePosition = (20.0 + i.float * size.x, 20.0 + j.float * size.y)
+    parent.relativePosition = vec2(20.0 + i.float * size.x, 20.0 + j.float * size.y)
     parent.size = size * 0.95
 
     let child = newWindowWidget()
     child.title = "Child Window"
-    child.relativePosition = (50.0, 50.0)
-    child.size = (200.0, 200.0)
+    child.relativePosition = vec2(50, 50)
+    child.size = vec2(200, 200)
 
     parent.children.add(child)
     child.children.add(button)
@@ -58,24 +58,23 @@ for i in 0 ..< 2:
 
 proc onFrame() =
   if client.mouseDown(Middle):
-    let zoomPull = client.mouseDeltaPixels.asFloat.dot((1.0, 1.0).normalize)
+    let zoomPull = client.mouseDeltaPixels.dot(vec2(1, 1).normalize)
     client.dpi *= 2.0.pow(zoomPull * 0.005)
     client.dpi = client.dpi.min(1024.0).max(96.0)
 
-  let sizePixels = client.sizePixels.asFloat
-  gfx.setViewport(0, 0, sizePixels.x, sizePixels.y)
-  gfx.setClipRect(0, 0, sizePixels.x, sizePixels.y)
+  gfx.setViewport(0, 0, client.sizePixels.x, client.sizePixels.y)
+  gfx.setClipRect(0, 0, client.sizePixels.x, client.sizePixels.y)
   gfx.clearBackground()
 
-  canvas.beginFrame(sizePixels, client.scale)
+  canvas.beginFrame(client.sizePixels, client.scale)
 
   gui.update()
   gui.draw()
 
   canvas.drawText(
     client.dpi.formatFloat(ffDecimal, 4),
-    ((0.0, 0.0), (400.0, 100.0)),
-    (1.0, 1.0, 1.0, 1.0),
+    rect2(0, 0, 400, 100),
+    rgb(255, 255, 255),
     xAlign = Left,
     yAlign = Top,
     clip = false,

@@ -5,13 +5,13 @@ import ./widget
 
 type
   WindowColors* = object
-    background*: tuple[r, g, b, a: float]
-    title*: tuple[r, g, b, a: float]
-    titleBar*: tuple[r, g, b, a: float]
-    border*: tuple[r, g, b, a: float]
-    resizeHandle*: tuple[r, g, b, a: float]
-    resizeHandleHovered*: tuple[r, g, b, a: float]
-    resizeHandlePressed*: tuple[r, g, b, a: float]
+    background*: Color
+    title*: Color
+    titleBar*: Color
+    border*: Color
+    resizeHandle*: Color
+    resizeHandleHovered*: Color
+    resizeHandlePressed*: Color
 
   WindowWidget* = ref object of Widget
     colors*: WindowColors
@@ -26,8 +26,8 @@ type
     isBeingResized*: bool
     resizeHandleIsHovered: bool
     titleBarIsHovered: bool
-    resizeMouseStart: tuple[x, y: float]
-    resizeSizeStart: tuple[x, y: float]
+    resizeMouseStart: Vec2
+    resizeSizeStart: Vec2
 
 func defaultWindowColors(): WindowColors =
   WindowColors(
@@ -51,18 +51,27 @@ func newWindowWidget*(): WindowWidget =
     minHeight: 60,
   )
 
-func titleBarRect*(window: WindowWidget): tuple[position, size: tuple[x, y: float]] =
-  (window.position, (window.size.x, window.titleBarHeight))
+func titleBarRect*(window: WindowWidget): Rect2 =
+  rect2(
+    window.position,
+    vec2(window.size.x, window.titleBarHeight),
+  )
 
-func resizeHandleRect*(window: WindowWidget): tuple[position, size: tuple[x, y: float]] =
-  (window.position + window.size - window.resizeHandleSize,
-   (window.resizeHandleSize, window.resizeHandleSize))
+func resizeHandleRect*(window: WindowWidget): Rect2 =
+  rect2(
+    window.position + window.size - window.resizeHandleSize,
+    vec2(window.resizeHandleSize, window.resizeHandleSize),
+  )
 
-func bodyRect*(window: WindowWidget): tuple[position, size: tuple[x, y: float]] =
+func bodyRect*(window: WindowWidget): Rect2 =
   let rect = window.rect
   let titleBarRect = window.titleBarRect
-  (rect.position + (0.0, titleBarRect.size.y),
-   rect.size - (0.0, titleBarRect.size.y))
+  rect2(
+    rect.position.x,
+    rect.position.y + titleBarRect.size.y,
+    rect.size.x,
+    rect.size.y - titleBarRect.size.y,
+  )
 
 method requestFocus*(window: WindowWidget): bool =
   window.client.mousePressed(Left) and window.mouseIsOver
@@ -109,7 +118,7 @@ method update*(window: WindowWidget) =
   # Resize window.
   if window.isBeingResized:
     let size = window.resizeSizeStart + client.mousePosition - window.resizeMouseStart
-    window.size = (size.x.max(window.minWidth), size.y.max(window.minHeight))
+    window.size = vec2(size.x.max(window.minWidth), size.y.max(window.minHeight))
 
   window.updateChildren()
 
@@ -128,17 +137,17 @@ method draw*(window: WindowWidget) =
     window.parent.children[0] == window
 
   if parentIsFocused and isTopMost:
-    let shadowRect = rect.translate (x: 5.0, y: 5.0)
-    let shadowColor = (r: 0.0, g: 0.0, b: 0.0, a: 0.2)
+    let shadowRect = rect.translate vec2(5, 5)
+    let shadowColor = color(0, 0, 0, 0.2)
     canvas.fillRect shadowRect, shadowColor
 
   canvas.fillRect rect, window.colors.background
   canvas.fillRect titleBarRect, window.colors.titleBar
 
   const titleInset = 10.0
-  let titleTextRect = (
-    position: titleBarRect.position + (titleInset, 0.0),
-    size: titleBarRect.size - (2.0 * titleInset, 0.0),
+  let titleTextRect = rect2(
+    titleBarRect.position + vec2(titleInset, 0),
+    titleBarRect.size - vec2(2.0 * titleInset, 0),
   )
 
   canvas.drawText(
@@ -161,9 +170,9 @@ method draw*(window: WindowWidget) =
   let resizeBottom = resizeHandleRect.position.y + resizeHandleRect.size.y - resizeInset
   let resizeTop = resizeHandleRect.position.y + resizeInset
   let resizeHandlePoints = [
-    (resizeLeft, resizeBottom),
-    (resizeRight, resizeTop),
-    (resizeRight, resizeBottom),
+    vec2(resizeLeft, resizeBottom),
+    vec2(resizeRight, resizeTop),
+    vec2(resizeRight, resizeBottom),
   ]
   let resizeHandleColor =
     if window.isBeingResized: window.colors.resizeHandlePressed

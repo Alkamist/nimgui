@@ -48,8 +48,8 @@ proc updateBounds(client: Client) =
   GetClientRect(client.hwnd, rect.addr)
   ClientToScreen(client.hwnd, cast[ptr POINT](rect.left.addr))
   ClientToScreen(client.hwnd, cast[ptr POINT](rect.right.addr))
-  client.positionPixels = (rect.left.int, rect.top.int)
-  client.sizePixels = ((rect.right - rect.left).int, (rect.bottom - rect.top).int)
+  client.positionPixels = vec2(rect.left.float, rect.top.float)
+  client.sizePixels = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
 
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
@@ -110,7 +110,7 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       of 66: B
       of 67: C
       of 68: D
-      of 69: E
+      of 69: KeyboardKey.E
       of 70: F
       of 71: G
       of 72: H
@@ -278,7 +278,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     client.dpi = GetDpiForWindow(client.hwnd).float
 
   of WM_MOUSEMOVE:
-    client.mousePositionPixels = (GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))
+    client.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
 
   of WM_MOUSEWHEEL:
     client.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float

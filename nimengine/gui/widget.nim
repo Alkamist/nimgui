@@ -12,9 +12,9 @@ type
     canvas*: Canvas
     children*: seq[Widget]
     parent*: Widget
-    position*: tuple[x, y: float]
-    size*: tuple[x, y: float]
-    relativePosition*: tuple[x, y: float]
+    position*: Vec2
+    size*: Vec2
+    relativePosition*: Vec2
     mouseIsOver*: bool
     isFocused*: bool
     mouseOver*: Widget
@@ -23,8 +23,8 @@ type
 func newWidget*(client: Client, canvas: Canvas): Widget =
   Widget(client: client, canvas: canvas)
 
-func rect*(widget: Widget): tuple[position, size: tuple[x, y: float]] =
-  (widget.position, widget.size)
+func rect*(widget: Widget): Rect2 =
+  rect2(widget.position, widget.size)
 
 func updateChildren*(widget: Widget)
 func drawChildren*(widget: Widget)

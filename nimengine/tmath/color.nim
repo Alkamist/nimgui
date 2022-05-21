@@ -2,37 +2,37 @@ import ./common
 export common
 
 type
-  Color*[T] = tuple
-    r, g, b, a: T
+  Color* = object
+    r*, g*, b*, a*: float
 
 {.push inline.}
 
-func color*[T](r, g, b, a: T): Color[T] =
-  (r: r, g: g, b: b, a: a)
+# func color*(r, g, b, a: float): Color =
+#   (r: r, g: g, b: b, a: a)
 
-func rgba*(r, g, b, a: uint8): Color[float] =
-  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: a.float / 255)
+func color*(r, g, b, a: float): Color =
+  Color(r: r, g: g, b: b, a: a)
 
-func rgb*(r, g, b, a: uint8): Color[float] =
-  (r: r.float / 255, g: g.float / 255, b: b.float / 255, a: 1.0)
+func rgba*(r, g, b, a: uint8): Color =
+  color(r.float / 255, g.float / 255, b.float / 255, a.float / 255)
 
-func lerp*[A, B](a: Color[A], b: Color[B], weight: SomeNumber): Color[A] =
-  let weight = weight.asFloat
+func rgb*(r, g, b: uint8): Color =
+  color(r.float / 255, g.float / 255, b.float / 255, 1.0)
+
+func lerp*(a, b: Color, weight: float): Color =
   result = a
   result.r += (weight * (b.r - result.r))
   result.g += (weight * (b.g - result.g))
   result.b += (weight * (b.b - result.b))
   result.a += (weight * (b.a - result.a))
 
-func darken*[T](c: Color[T], amount: SomeNumber): Color[T] =
-  let amount = amount.asFloat
+func darken*(c: Color, amount: float): Color =
   result = c
   result.r *= 1.0 - amount
   result.g *= 1.0 - amount
   result.b *= 1.0 - amount
 
-func lighten*[T](c: Color[T], amount: SomeNumber): Color[T] =
-  let amount = amount.asFloat
+func lighten*(c: Color, amount: float): Color =
   result = c
   result.r += (1.0 - result.r) * amount
   result.g += (1.0 - result.g) * amount

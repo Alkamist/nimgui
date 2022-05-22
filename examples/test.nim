@@ -29,16 +29,31 @@ proc onFrame() =
 
   canvas.beginFrame(client.sizePixels, scale)
 
-  var poly = polyLine(canvas.scale)
-  poly.add vec2(50, 50)
-  # poly.add vec2(200, 50)
-  # poly.add vec2(200, 200)
-  # poly.add vec2(50, 50)
-
-  poly.arcTo(vec2(150, 50), 50, degToRad(0.0), degToRad(90.0))
+  # var poly = polyLine(canvas.scale)
+  # poly.rect(
+  #   rect2(50, 50, 200, 200),
+  #   20, 20, 20, 20,
+  # )
+  # poly.arcTo(vec2(150, 50), 50, degToRad(0.0), degToRad(90.0))
   # poly.bezierCubicCurveTo(vec2(300, 50), vec2(300, 50), vec2(300, 300))
 
-  canvas.strokePolyLine(poly, rgb(255, 255, 255), 5.0)
+  var poly = polyLine(canvas.scale)
+  poly.rect(
+    rect2(50, 50, 20, 20),
+    2, 2, 2, 2,
+  )
+  canvas.strokePolyLine(poly, rgb(255, 255, 255), 1.0)
+
+  # let w = client.sizePixels.x / 100.0
+  # let h = client.sizePixels.y / 100.0
+  # for i in 0 ..< 100:
+  #   for j in 0 ..< 100:
+  #     var poly = polyLine(canvas.scale)
+  #     poly.rect(
+  #       rect2(i.float * w, j.float * h, w * 0.95, h * 0.95),
+  #       2, 2, 2, 2,
+  #     )
+  #     canvas.strokePolyLine(poly, rgb(255, 255, 255), 1.0)
 
   canvas.render()
 

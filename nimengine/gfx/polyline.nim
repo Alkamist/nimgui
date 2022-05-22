@@ -140,26 +140,59 @@ func arcTo*(poly: var PolyLine, center: Vec2, radius, startAngle, endAngle: floa
     let arcSegmentCount = arcSegmentCountUnClamped.max(arcSegmentMin)
     poly.arcToN(center, radius, startAngle, endAngle, arcSegmentCount)
 
-# func rect(rect: Rect2,
-#           poly: var PolyLine,
-#           rounding = (topLeft: 0.0, topRight: 0.0, bottomRight: 0.0, bottomLeft: 0.0)) =
+func rect*(poly: var PolyLine,
+           rect: Rect2,
+           roundingTopLeft, roundingTopRight, roundingBottomRight, roundingBottomLeft = 0.0) =
+  let topLeft = rect.position
+  let topRight = rect.position + vec2(rect.size.x, 0)
+  let bottomRight = rect.position + rect.size
+  let bottomLeft = rect.position + vec2(0, rect.size.y)
 
+  if roundingTopLeft < 0.5:
+    poly.add topLeft
+  else:
+    poly.add topLeft + vec2(roundingTopLeft, 0)
 
-#   let a = rect.position
-#   let b = rect.position + rect.size
+  if roundingTopRight < 0.5:
+    poly.add topRight
+  else:
+    poly.add topRight + vec2(-roundingTopRight, 0)
+    poly.arcTo(
+      topRight + vec2(-roundingTopRight, roundingTopRight),
+      roundingTopRight,
+      -0.5 * PI,
+      0,
+    )
 
-#   if rounding.topLeft < 0.5:
-#     poly.add a
-#   else:
-#     poly.
+  if roundingBottomRight < 0.5:
+    poly.add bottomRight
+  else:
+    poly.add bottomRight + vec2(0, -roundingBottomRight)
+    poly.arcTo(
+      bottomRight + vec2(-roundingBottomRight, -roundingBottomRight),
+      roundingBottomRight,
+      0,
+      0.5 * PI,
+    )
 
-#   if rounding < 0.5:
-#     poly.add a
-#     poly.add vec2(b.x, a.y)
-#     poly.add b
-#     poly.add vec2(a.x, b.y)
-#   else:
-#     PathArcToFast(ImVec2(a.x + rounding_tl, a.y + rounding_tl), rounding_tl, 6, 9);
-#     PathArcToFast(ImVec2(b.x - rounding_tr, a.y + rounding_tr), rounding_tr, 9, 12);
-#     PathArcToFast(ImVec2(b.x - rounding_br, b.y - rounding_br), rounding_br, 0, 3);
-#     PathArcToFast(ImVec2(a.x + rounding_bl, b.y - rounding_bl), rounding_bl, 3, 6);
+  if roundingBottomLeft < 0.5:
+    poly.add bottomLeft
+  else:
+    poly.add bottomLeft + vec2(roundingBottomLeft, 0)
+    poly.arcTo(
+      bottomLeft + vec2(roundingBottomLeft, -roundingBottomLeft),
+      roundingBottomLeft,
+      0.5 * PI,
+      PI,
+    )
+
+  if roundingTopLeft < 0.5:
+    poly.add topLeft
+  else:
+    poly.add topLeft + vec2(0, roundingTopLeft)
+    poly.arcTo(
+      topLeft + vec2(roundingTopLeft, roundingTopLeft),
+      roundingTopLeft,
+      PI,
+      1.5 * PI,
+    )

@@ -156,9 +156,6 @@ proc loadFont*(canvas: Canvas, fontData: string, fontSize: float, firstChar = 0,
   canvas.atlas = newCanvasAtlas(fontData, fontSize, firstChar, numChars)
   canvas.atlasTexture.upload(canvas.atlas.width, canvas.atlas.height, canvas.atlas.data)
 
-func tesselation*(canvas: Canvas): float =
-  canvas.unscaledTesselationTolerance / canvas.scale
-
 func pixelThickness*(canvas: Canvas): float =
   1.0 / canvas.scale
 
@@ -359,7 +356,7 @@ func strokeRect*(canvas: Canvas, quad: Rect2, color: Color, thickness = 1.0) =
   canvas.addQuad rect2(leftInner, top, topBottomWidth, thickness), uv, color
   canvas.addQuad rect2(leftInner, bottomInner, topBottomWidth, thickness), uv, color
 
-func strokePolyLineOpen(canvas: Canvas, points: openArray[Vec2], color: Color, thickness: float) =
+func strokePointsOpen(canvas: Canvas, points: openArray[Vec2], color: Color, thickness: float) =
   let indexCount = (points.len - 1) * 6
   let vertexCount = points.len * 2
   canvas.reserve(vertexCount, indexCount)
@@ -403,7 +400,7 @@ func strokePolyLineOpen(canvas: Canvas, points: openArray[Vec2], color: Color, t
   canvas.addVertex(aEnd, color)
   canvas.addVertex(bEnd, color)
 
-func strokePolyLineClosed(canvas: Canvas, points: openArray[Vec2], color: Color, thickness: float) =
+func strokePointsClosed(canvas: Canvas, points: openArray[Vec2], color: Color, thickness: float) =
   let indexCount = points.len * 6
   let vertexCount = points.len * 2
   canvas.reserve(vertexCount, indexCount)
@@ -444,16 +441,8 @@ func strokePolyLineClosed(canvas: Canvas, points: openArray[Vec2], color: Color,
     canvas.addVertex(a, color)
     canvas.addVertex(b, color)
 
-func strokePolyLine*(canvas: Canvas, poly: PolyLine, color: Color, thickness = 1.0) =
-  if poly.isClosed and poly.points.len >= 3:
-    canvas.strokePolyLineClosed(poly.points, color, thickness)
-  elif poly.points.len >= 2:
-    canvas.strokePolyLineOpen(poly.points, color, thickness)
-
-func fillConvexPolyLine*(canvas: Canvas, poly: PolyLine, color: Color) =
+func fillPointsConvex(canvas: Canvas, points: openArray[Vec2], color: Color) =
   ## Assumes clockwise winding of polygon.
-  let points = poly.points
-
   if points.len < 3:
     return
 
@@ -470,6 +459,15 @@ func fillConvexPolyLine*(canvas: Canvas, poly: PolyLine, color: Color) =
   # Add vertices.
   for i in 0 ..< vertexCount:
     canvas.addVertex(points[i], color)
+
+func strokePolyLine*(canvas: Canvas, poly: PolyLine, color: Color, thickness = 1.0) =
+  if poly.isClosed:
+    canvas.strokePointsClosed(poly.points[0 ..< poly.points.len - 1], color, thickness)
+  elif poly.len >= 2:
+    canvas.strokePointsOpen(poly.points, color, thickness)
+
+func fillConvexPolyLine*(canvas: Canvas, poly: PolyLine, color: Color) =
+  canvas.fillPointsConvex(poly.points, color)
 
 func drawText*(canvas: Canvas,
                text: string,

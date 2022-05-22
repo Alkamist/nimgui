@@ -17,5 +17,5 @@ export shader
 export texture
 export vertexbuffer
 
-import ./gfx/canvas
-export canvas
+# import ./gfx/canvas
+# export canvas

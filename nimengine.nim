@@ -1,9 +1,14 @@
 import nimengine/client
-import nimengine/gfx
-# import nimengine/gui
-import nimengine/tmath
-
 export client
-export gfx
-# export gui
+
+import nimengine/tmath
 export tmath
+
+import nimengine/nanovg
+export nanovg
+
+import nimengine/gfx
+export gfx
+
+# import nimengine/gui
+# export gui

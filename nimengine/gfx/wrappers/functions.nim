@@ -28,6 +28,12 @@ proc enableDepthTesting*() =
 proc disableDepthTesting*() =
   glDisable(GL_DEPTH_TEST)
 
+proc enableStencilTesting*() =
+  glEnable(GL_STENCIL_TEST)
+
+proc disableStencilTesting*() =
+  glDisable(GL_STENCIL_TEST)
+
 proc setBackgroundColor*(r, g, b, a: float) =
   glClearColor(r, g, b, a)
 
@@ -36,6 +42,12 @@ proc setBackgroundColor*(color: tuple[r, g, b, a: float]) =
 
 proc clearBackground*() =
   glClear(GL_COLOR_BUFFER_BIT)
+
+proc clearDepthBuffer*() =
+  glClear(GL_DEPTH_BUFFER_BIT)
+
+proc clearStencilBuffer*() =
+  glClear(GL_STENCIL_BUFFER_BIT)
 
 # x and y are the bottom left.
 proc setViewport*(x, y, width, height: float) =

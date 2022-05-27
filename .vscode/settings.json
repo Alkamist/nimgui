@@ -1,7 +1,0 @@
-{
-  "files.associations": {
-    "nanovg.h": "c",
-    "stdio.h": "c",
-    "glad.h": "c"
-  }
-}

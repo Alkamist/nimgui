@@ -2,9 +2,8 @@
 
 import std/unicode
 import winim/lean as win32
-import ./client
-
-export client
+import ./base; export base
+import ../tmath; export tmath
 
 const WM_DPICHANGED* = 0x02E0
 const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
@@ -31,25 +30,25 @@ proc loadLibraries() =
 
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.}
 
-const windowClassName = "Default Client Class"
+const windowClassName = "Default Canvas Class"
 var clientCount = 0
 
-func hwnd(client: Client): HWND =
-  cast[HWND](client.handle)
+func hwnd(canvas: Canvas): HWND =
+  cast[HWND](canvas.handle)
 
-proc pollEvents(client: Client) =
+proc pollEvents(canvas: Canvas) =
   var msg: MSG
-  while PeekMessage(msg, client.hwnd, 0, 0, PM_REMOVE) != 0:
+  while PeekMessage(msg, canvas.hwnd, 0, 0, PM_REMOVE) != 0:
     TranslateMessage(msg)
     DispatchMessage(msg)
 
-proc updateBounds(client: Client) =
+proc updateBounds(canvas: Canvas) =
   var rect: RECT
-  GetClientRect(client.hwnd, rect.addr)
-  ClientToScreen(client.hwnd, cast[ptr POINT](rect.left.addr))
-  ClientToScreen(client.hwnd, cast[ptr POINT](rect.right.addr))
-  client.positionPixels = vec2(rect.left.float, rect.top.float)
-  client.sizePixels = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
+  GetClientRect(canvas.hwnd, rect.addr)
+  ClientToScreen(canvas.hwnd, cast[ptr POINT](rect.left.addr))
+  ClientToScreen(canvas.hwnd, cast[ptr POINT](rect.right.addr))
+  canvas.positionPixels = vec2(rect.left.float, rect.top.float)
+  canvas.sizePixels = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
 
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
@@ -176,19 +175,27 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       of 222: Quote
       else: Unknown
 
-proc update*(client: Client) =
-  client.processFrame:
-    client.pollEvents()
+template processFrame(canvas: Canvas, stateChanges: untyped): untyped =
+  canvas.updatePreviousState()
+  stateChanges
+  canvas.beginFrameBase()
+  if canvas.onFrame != nil:
+    canvas.onFrame()
+  canvas.endFrameBase()
 
-proc close*(client: Client) =
-  if client.isOpen:
-    DestroyWindow(client.hwnd)
-    client.isOpen = false
+proc update*(canvas: Canvas) =
+  canvas.processFrame:
+    canvas.pollEvents()
 
-proc newClient*(parentHandle: pointer = nil): Client =
+proc close*(canvas: Canvas) =
+  if canvas.isOpen:
+    DestroyWindow(canvas.hwnd)
+    canvas.isOpen = false
+
+proc newCanvas*(parentHandle: pointer = nil): Canvas =
   loadLibraries()
 
-  result = newClientBase()
+  result = cast[Canvas](newCanvasBase())
   result.isOpen = true
 
   if clientCount == 0:
@@ -219,7 +226,7 @@ proc newClient*(parentHandle: pointer = nil): Client =
 
   let hwnd = CreateWindow(
     lpClassName = windowClassName,
-    lpWindowName = "Client",
+    lpWindowName = "Canvas",
     dwStyle = windowStyle.int32,
     x = 0,
     y = 0,
@@ -235,6 +242,7 @@ proc newClient*(parentHandle: pointer = nil): Client =
   discard SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 
   result.updateBounds()
+  result.initBase()
 
   inc clientCount
 
@@ -243,30 +251,30 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     var lpcs = cast[LPCREATESTRUCT](lParam)
     SetWindowLongPtr(hwnd, GWLP_USERDATA, cast[LONG_PTR](lpcs.lpCreateParams))
 
-  let client = cast[Client](GetWindowLongPtr(hwnd, GWLP_USERDATA))
-  if client == nil or hwnd != client.hwnd:
+  let canvas = cast[Canvas](GetWindowLongPtr(hwnd, GWLP_USERDATA))
+  if canvas == nil or hwnd != canvas.hwnd:
     return DefWindowProc(hwnd, msg, wParam, lParam)
 
   case msg:
 
   of WM_ENTERSIZEMOVE:
-    client.platform.moveTimer = SetTimer(client.hwnd, 1, USER_TIMER_MINIMUM, nil)
+    canvas.platform.moveTimer = SetTimer(canvas.hwnd, 1, USER_TIMER_MINIMUM, nil)
 
   of WM_EXITSIZEMOVE:
-    KillTimer(client.hwnd, client.platform.moveTimer)
+    KillTimer(canvas.hwnd, canvas.platform.moveTimer)
 
   of WM_TIMER:
-    if wParam == client.platform.moveTimer:
-      client.processFrame:
-        client.updateBounds()
+    if wParam == canvas.platform.moveTimer:
+      canvas.processFrame:
+        canvas.updateBounds()
 
   of WM_WINDOWPOSCHANGED:
-    client.processFrame:
-      client.updateBounds()
+    canvas.processFrame:
+      canvas.updateBounds()
     return 0
 
   of WM_CLOSE:
-    client.close()
+    canvas.close()
 
   of WM_DESTROY:
     dec clientCount
@@ -275,45 +283,45 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       UnregisterClass(windowClassName, GetModuleHandle(nil))
 
   of WM_DPICHANGED:
-    client.dpi = GetDpiForWindow(client.hwnd).float
+    canvas.dpi = GetDpiForWindow(canvas.hwnd).float
 
   of WM_MOUSEMOVE:
-    client.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
+    canvas.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
 
   of WM_MOUSEWHEEL:
-    client.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    canvas.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
 
   of WM_MOUSEHWHEEL:
-    client.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    canvas.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
 
   of WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
      WM_MBUTTONDOWN, WM_MBUTTONDBLCLK,
      WM_RBUTTONDOWN, WM_RBUTTONDBLCLK,
      WM_XBUTTONDOWN, WM_XBUTTONDBLCLK:
-    SetCapture(client.hwnd)
+    SetCapture(canvas.hwnd)
     let button = toMouseButton(msg, wParam)
-    client.mousePresses.add button
-    client.mouseDownStates[button] = true
+    canvas.mousePresses.add button
+    canvas.mouseDownStates[button] = true
 
   of WM_LBUTTONUP, WM_MBUTTONUP, WM_RBUTTONUP, WM_XBUTTONUP:
     ReleaseCapture()
     let button = toMouseButton(msg, wParam)
-    client.mouseReleases.add button
-    client.mouseDownStates[toMouseButton(msg, wParam)] = false
+    canvas.mouseReleases.add button
+    canvas.mouseDownStates[toMouseButton(msg, wParam)] = false
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     let key = toKeyboardKey(wParam, lParam)
-    client.keyPresses.add key
-    client.keyDownStates[key] = true
+    canvas.keyPresses.add key
+    canvas.keyDownStates[key] = true
 
   of WM_KEYUP, WM_SYSKEYUP:
     let key = toKeyboardKey(wParam, lParam)
-    client.keyReleases.add key
-    client.keyDownStates[key] = false
+    canvas.keyReleases.add key
+    canvas.keyDownStates[key] = false
 
   of WM_CHAR, WM_SYSCHAR:
     if wParam > 0 and wParam < 0x10000:
-      client.text &= cast[Rune](wParam).toUTF8
+      canvas.text &= cast[Rune](wParam).toUTF8
 
   else:
     discard

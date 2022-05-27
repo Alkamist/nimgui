@@ -2,6 +2,7 @@
 
 import opengl
 import std/times
+import std/unicode
 import ../nanovg/nanovg
 import ../openglwrappers/openglcontext; export openglcontext
 import ../tmath; export tmath
@@ -15,7 +16,40 @@ when defined(windows):
 proc gladLoadGL(): int {.cdecl, importc.}
 var gladIsInitialized = false
 
+proc toNvgColor(color: Color): NVGcolor = nvgRGBAf(color.r, color.g, color.b, color.a)
+
 type
+  Paint* = NVGpaint
+
+  Winding* = enum
+    CounterClockwise = NVG_CCW
+    Clockwise = NVG_CW
+
+  Solidity* = enum
+    Solid = NVG_SOLID
+    Hole = NVG_HOLE
+
+  LineCap* = enum
+    Butt = NVG_BUTT
+    Round = NVG_ROUND
+    Square = NVG_SQUARE
+
+  LineJoin* = enum
+    Round = NVG_ROUND
+    Bevel = NVG_BEVEL
+    Miter = NVG_MITER
+
+  TextAlignX* = enum
+    Left = NVG_ALIGN_LEFT
+    Center = NVG_ALIGN_CENTER
+    Right = NVG_ALIGN_RIGHT
+
+  TextAlignY* = enum
+    Top = NVG_ALIGN_TOP
+    Center = NVG_ALIGN_MIDDLE
+    Bottom = NVG_ALIGN_BOTTOM
+    Baseline = NVG_ALIGN_BASELINE
+
   MouseButton* = enum
     Unknown
     Left
@@ -144,7 +178,7 @@ type
     sizePixels*: Vec2
     mousePositionPixels*: Vec2
     mouseWheel*: Vec2
-    text*: string
+    textInput*: string
     mouseDownStates*: array[MouseButton, bool]
     keyDownStates*: array[KeyboardKey, bool]
     mousePresses*: seq[MouseButton]
@@ -162,6 +196,9 @@ type
     openGlContext*: OpenGlContext
     nvgContext*: NVGcontext
 
+    textAlignX*: TextAlignX
+    textAlignY*: TextAlignY
+
     platform*: PlatformData
 
 proc `=destroy`*(canvas: var type Canvas()[]) =
@@ -174,6 +211,8 @@ proc newCanvasBase*(): Canvas =
     densityPixelDpi: 96.0,
     time: time,
     previousTime: time,
+    textAlignX: Left,
+    textAlignY: Baseline,
   )
 
 func scale*(canvas: Canvas): float =
@@ -276,7 +315,7 @@ proc updatePreviousState*(canvas: Canvas) =
   canvas.previousMouseDownStates = canvas.mouseDownStates
   canvas.previousKeyDownStates = canvas.keyDownStates
   canvas.mouseWheel = vec2(0, 0)
-  canvas.text = ""
+  canvas.textInput = ""
   canvas.mousePresses.setLen(0)
   canvas.mouseReleases.setLen(0)
   canvas.keyPresses.setLen(0)
@@ -313,3 +352,205 @@ proc beginFrameBase*(canvas: Canvas) =
 proc endFrameBase*(canvas: Canvas) =
   nvgEndFrame(canvas.nvgContext)
   canvas.openGlContext.swapBuffers()
+
+# Drawing
+
+{.push inline.}
+
+proc `backgroundColor=`*(canvas: Canvas, color: Color) =
+  canvas.openGlContext.select()
+  glClearColor(color.r, color.g, color.b, color.a)
+
+proc beginPath*(canvas: Canvas) =
+  nvgBeginPath(canvas.nvgContext)
+
+proc moveTo*(canvas: Canvas, p: Vec2) =
+  nvgMoveTo(canvas.nvgContext, p.x, p.y)
+
+proc lineTo*(canvas: Canvas, p: Vec2) =
+  nvgLineTo(canvas.nvgContext, p.x, p.y)
+
+proc bezierTo*(canvas: Canvas, c0, c1, p: Vec2) =
+  nvgBezierTo(canvas.nvgContext, c0.x, c0.y, c1.x, c1.y, p.x, p.y)
+
+proc quadTo*(canvas: Canvas, c, p: Vec2) =
+  nvgQuadTo(canvas.nvgContext, c.x, c.y, p.x, p.y)
+
+proc arcTo*(canvas: Canvas, p0, p1: Vec2, radius: float) =
+  nvgArcTo(canvas.nvgContext, p0.x, p0.y, p1.x, p1.y, radius)
+
+proc closePath*(canvas: Canvas) =
+  nvgClosePath(canvas.nvgContext)
+
+proc `pathWinding=`*(canvas: Canvas, winding: Winding) =
+  nvgPathWinding(canvas.nvgContext, winding.cint)
+
+proc arc*(canvas: Canvas, p: Vec2, r, a0, a1: float, winding: Winding) =
+  nvgArc(canvas.nvgContext, p.x, p.y, r, a0, a1, winding.cint)
+
+proc rect*(canvas: Canvas, rect: Rect2) =
+  nvgRect(canvas.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y)
+
+proc roundedRect*(canvas: Canvas, rect: Rect2, radius: float) =
+  nvgRoundedRect(canvas.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y, radius)
+
+proc roundedRect*(canvas: Canvas, rect: Rect2,
+                      radTopLeft, radTopRight, radBottomRight, radBottomLeft: float) =
+  nvgRoundedRectVarying(canvas.nvgContext,
+                        rect.position.x, rect.position.y, rect.size.x, rect.size.y,
+                        radTopLeft, radTopRight, radBottomRight, radBottomLeft)
+
+proc ellipse*(canvas: Canvas, c, r: Vec2) =
+  nvgEllipse(canvas.nvgContext, c.x, c.y, r.x, r.y)
+
+proc circle*(canvas: Canvas, c: Vec2, r: float) =
+  nvgCircle(canvas.nvgContext, c.x, c.y, r)
+
+proc fill*(canvas: Canvas) =
+  nvgFill(canvas.nvgContext)
+
+proc stroke*(canvas: Canvas) =
+  nvgStroke(canvas.nvgContext)
+
+proc save*(canvas: Canvas) =
+  nvgSave(canvas.nvgContext)
+
+proc restore*(canvas: Canvas) =
+  nvgRestore(canvas.nvgContext)
+
+proc reset*(canvas: Canvas) =
+  nvgReset(canvas.nvgContext)
+
+proc `shapeAntiAlias=`*(canvas: Canvas, enabled: bool) =
+  nvgShapeAntiAlias(canvas.nvgContext, enabled.cint)
+
+proc `strokeColor=`*(canvas: Canvas, color: Color) =
+  nvgStrokeColor(canvas.nvgContext, color.toNvgColor)
+
+proc `strokePaint=`*(canvas: Canvas, paint: Paint) =
+  nvgStrokePaint(canvas.nvgContext, paint)
+
+proc `fillColor=`*(canvas: Canvas, color: Color) =
+  nvgFillColor(canvas.nvgContext, color.toNvgColor)
+
+proc `fillPaint=`*(canvas: Canvas, paint: Paint) =
+  nvgFillPaint(canvas.nvgContext, paint)
+
+proc `miterLimit=`*(canvas: Canvas, limit: float) =
+  nvgMiterLimit(canvas.nvgContext, limit)
+
+proc `strokeWidth=`*(canvas: Canvas, width: float) =
+  nvgStrokeWidth(canvas.nvgContext, width)
+
+proc `lineCap=`*(canvas: Canvas, cap: LineCap) =
+  nvgLineCap(canvas.nvgContext, cap.cint)
+
+proc `lineJoin=`*(canvas: Canvas, join: LineJoin) =
+  nvgLineJoin(canvas.nvgContext, join.cint)
+
+proc `globalAlpha=`*(canvas: Canvas, alpha: float) =
+  nvgGlobalAlpha(canvas.nvgContext, alpha)
+
+proc scissor*(canvas: Canvas, rect: Rect2, intersect = true) =
+  if intersect:
+    nvgIntersectScissor(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
+  else:
+    nvgScissor(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
+
+proc resetScissor*(canvas: Canvas) =
+  nvgResetScissor(canvas.nvgContext)
+
+proc addFont*(canvas: Canvas, name, fileName: string) =
+  let font = nvgCreateFont(canvas.nvgContext, name.cstring, fileName.cstring)
+  if font == -1:
+    echo "Failed to load font: " & fileName
+
+proc `font=`*(canvas: Canvas, name: string) =
+  nvgFontFace(canvas.nvgContext, name.cstring)
+
+proc `fontSize=`*(canvas: Canvas, size: float) =
+  nvgFontSize(canvas.nvgContext, size)
+
+# proc `textAlignX=`*(canvas: Canvas, align: TextAlignX) =
+#   canvas.textAlignX = align
+#   nvgTextAlign(canvas.nvgContext, canvas.textAlignX.cint or canvas.textAlignY.cint)
+
+# proc `textAlignY=`*(canvas: Canvas, align: TextAlignY) =
+#   canvas.textAlignY = align
+#   nvgTextAlign(canvas.nvgContext, canvas.textAlignX.cint or canvas.textAlignY.cint)
+
+# proc drawText*(canvas: Canvas, text: string, position: Vec2): float {.discardable.} =
+#   nvgText(canvas.nvgContext, position.x, position.y, text.cstring, nil)
+
+{.pop.}
+
+proc drawText*(canvas: Canvas, text: string, bounds: Rect2, wordWrap = true) =
+  const newLine = "\n".runeAt(0)
+  let runes = text.toRunes
+
+  var ascender, descender, lineHeight: cfloat
+  nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
+
+  var straightPositions = newSeq[NVGglyphPosition](runes.len)
+  discard nvgTextGlyphPositions(canvas.nvgContext, 0, 0, text, nil, straightPositions[0].addr, runes.len.cint)
+
+  var lineInfo: seq[tuple[firstIndex, lastIndex: int]]
+  lineInfo.add (0, runes.len - 1)
+
+  block:
+    template currentLine(): untyped =
+      lineInfo[lineInfo.len - 1]
+
+    var i = 0
+    var wrapCount = 0
+    var lastWhitespace = 0
+    var x = 0.0
+
+    while i < runes.len and wrapCount < runes.len:
+      let rune = runes[i]
+      let glyphWidth = straightPositions[i].maxx - straightPositions[i].minx
+
+      if rune.isWhiteSpace:
+        lastWhitespace = i
+
+      if rune == newLine:
+        x = 0.0
+        currentLine.lastIndex = i - 1
+        inc i
+        lineInfo.add (i, runes.len - 1)
+        continue
+
+      let outOfBounds = x + glyphWidth > bounds.width
+
+      if wordWrap and outOfBounds and i > 0:
+        inc wrapCount
+        x = 0.0
+
+        if lastWhitespace > currentLine.firstIndex:
+          let nextLineStart = lastWhitespace + 1
+          currentLine.lastIndex = lastWhitespace - 1
+          lineInfo.add (nextLineStart, runes.len - 1)
+          i = nextLineStart
+          continue
+        else:
+          currentLine.lastIndex = i - 1
+          lineInfo.add (i, runes.len - 1)
+
+      x += glyphWidth
+      inc i
+
+  var y = bounds.y
+
+  for info in lineInfo:
+    # template calculateLineWidth(): float =
+    #   var lineWidth = 0.0
+    #   for i in info.firstIndex .. info.lastIndex:
+    #     let glyphWidth = straightPositions[i].maxx - straightPositions[i].minx
+    #     let glyphOffset = straightPositions[i].x - straightPositions[i].minx
+    #     lineWidth += glyphWidth
+    #     if i == info.firstIndex: lineWidth -= glyphOffset
+    #     if i == info.lastIndex: lineWidth += glyphOffset
+    #   lineWidth
+
+    discard nvgText(canvas.nvgContext, bounds.x, y, text.runeSubStr(info.firstIndex, info.lastIndex + 1).cstring, nil)
+    y += lineHeight

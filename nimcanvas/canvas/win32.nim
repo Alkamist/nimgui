@@ -31,7 +31,7 @@ proc loadLibraries() =
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.}
 
 const windowClassName = "Default Canvas Class"
-var clientCount = 0
+var canvasCount = 0
 
 func hwnd(canvas: Canvas): HWND =
   cast[HWND](canvas.handle)
@@ -53,127 +53,127 @@ proc updateBounds(canvas: Canvas) =
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
   of WM_LBUTTONDOWN, WM_LBUTTONUP, WM_LBUTTONDBLCLK:
-    Left
+    MouseButton.Left
   of WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MBUTTONDBLCLK:
-    Middle
+    MouseButton.Middle
   of WM_RBUTTONDOWN, WM_RBUTTONUP, WM_RBUTTONDBLCLK:
-    Right
+    MouseButton.Right
   of WM_XBUTTONDOWN, WM_XBUTTONUP, WM_XBUTTONDBLCLK:
     if HIWORD(wParam) == 1:
-      Extra1
+      MouseButton.Extra1
     else:
-      Extra2
+      MouseButton.Extra2
   else:
-    Unknown
+    MouseButton.Unknown
 
 func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
   let scanCode = LOBYTE(HIWORD(lParam))
   let isRight = (HIWORD(lParam) and KF_EXTENDED) == KF_EXTENDED
   case scanCode:
-    of 42: LeftShift
-    of 54: RightShift
+    of 42: KeyboardKey.LeftShift
+    of 54: KeyboardKey.RightShift
     of 29:
-      if isRight: RightControl else: LeftControl
+      if isRight: KeyboardKey.RightControl else: KeyboardKey.LeftControl
     of 56:
-      if isRight: RightAlt else: LeftAlt
+      if isRight: KeyboardKey.RightAlt else: KeyboardKey.LeftAlt
     else:
       case wParam.int:
-      of 8: Backspace
-      of 9: Tab
-      of 13: Enter
-      of 19: Pause
-      of 20: CapsLock
-      of 27: Escape
-      of 32: Space
-      of 33: PageUp
-      of 34: PageDown
-      of 35: End
-      of 36: Home
-      of 37: LeftArrow
-      of 38: UpArrow
-      of 39: RightArrow
-      of 40: DownArrow
-      of 45: Insert
+      of 8: KeyboardKey.Backspace
+      of 9: KeyboardKey.Tab
+      of 13: KeyboardKey.Enter
+      of 19: KeyboardKey.Pause
+      of 20: KeyboardKey.CapsLock
+      of 27: KeyboardKey.Escape
+      of 32: KeyboardKey.Space
+      of 33: KeyboardKey.PageUp
+      of 34: KeyboardKey.PageDown
+      of 35: KeyboardKey.End
+      of 36: KeyboardKey.Home
+      of 37: KeyboardKey.LeftArrow
+      of 38: KeyboardKey.UpArrow
+      of 39: KeyboardKey.RightArrow
+      of 40: KeyboardKey.DownArrow
+      of 45: KeyboardKey.Insert
       of 46: KeyboardKey.Delete
-      of 48: Key0
-      of 49: Key1
-      of 50: Key2
-      of 51: Key3
-      of 52: Key4
-      of 53: Key5
-      of 54: Key6
-      of 55: Key7
-      of 56: Key8
-      of 57: Key9
-      of 65: A
-      of 66: B
-      of 67: C
-      of 68: D
+      of 48: KeyboardKey.Key0
+      of 49: KeyboardKey.Key1
+      of 50: KeyboardKey.Key2
+      of 51: KeyboardKey.Key3
+      of 52: KeyboardKey.Key4
+      of 53: KeyboardKey.Key5
+      of 54: KeyboardKey.Key6
+      of 55: KeyboardKey.Key7
+      of 56: KeyboardKey.Key8
+      of 57: KeyboardKey.Key9
+      of 65: KeyboardKey.A
+      of 66: KeyboardKey.B
+      of 67: KeyboardKey.C
+      of 68: KeyboardKey.D
       of 69: KeyboardKey.E
-      of 70: F
-      of 71: G
-      of 72: H
-      of 73: I
-      of 74: J
-      of 75: K
-      of 76: L
-      of 77: M
-      of 78: N
-      of 79: O
-      of 80: P
-      of 81: Q
-      of 82: R
-      of 83: S
-      of 84: T
-      of 85: U
-      of 86: V
-      of 87: W
-      of 88: X
-      of 89: Y
-      of 90: Z
-      of 91: LeftMeta
-      of 92: RightMeta
-      of 96: Pad0
-      of 97: Pad1
-      of 98: Pad2
-      of 99: Pad3
-      of 100: Pad4
-      of 101: Pad5
-      of 102: Pad6
-      of 103: Pad7
-      of 104: Pad8
-      of 105: Pad9
-      of 106: PadMultiply
-      of 107: PadAdd
-      of 109: PadSubtract
-      of 110: PadPeriod
-      of 111: PadDivide
-      of 112: F1
-      of 113: F2
-      of 114: F3
-      of 115: F4
-      of 116: F5
-      of 117: F6
-      of 118: F7
-      of 119: F8
-      of 120: F9
-      of 121: F10
-      of 122: F11
-      of 123: F12
-      of 144: NumLock
-      of 145: ScrollLock
-      of 186: Semicolon
-      of 187: Equal
-      of 188: Comma
-      of 189: Minus
-      of 190: Period
-      of 191: Slash
-      of 192: Backtick
-      of 219: LeftBracket
-      of 220: BackSlash
-      of 221: RightBracket
-      of 222: Quote
-      else: Unknown
+      of 70: KeyboardKey.F
+      of 71: KeyboardKey.G
+      of 72: KeyboardKey.H
+      of 73: KeyboardKey.I
+      of 74: KeyboardKey.J
+      of 75: KeyboardKey.K
+      of 76: KeyboardKey.L
+      of 77: KeyboardKey.M
+      of 78: KeyboardKey.N
+      of 79: KeyboardKey.O
+      of 80: KeyboardKey.P
+      of 81: KeyboardKey.Q
+      of 82: KeyboardKey.R
+      of 83: KeyboardKey.S
+      of 84: KeyboardKey.T
+      of 85: KeyboardKey.U
+      of 86: KeyboardKey.V
+      of 87: KeyboardKey.W
+      of 88: KeyboardKey.X
+      of 89: KeyboardKey.Y
+      of 90: KeyboardKey.Z
+      of 91: KeyboardKey.LeftMeta
+      of 92: KeyboardKey.RightMeta
+      of 96: KeyboardKey.Pad0
+      of 97: KeyboardKey.Pad1
+      of 98: KeyboardKey.Pad2
+      of 99: KeyboardKey.Pad3
+      of 100: KeyboardKey.Pad4
+      of 101: KeyboardKey.Pad5
+      of 102: KeyboardKey.Pad6
+      of 103: KeyboardKey.Pad7
+      of 104: KeyboardKey.Pad8
+      of 105: KeyboardKey.Pad9
+      of 106: KeyboardKey.PadMultiply
+      of 107: KeyboardKey.PadAdd
+      of 109: KeyboardKey.PadSubtract
+      of 110: KeyboardKey.PadPeriod
+      of 111: KeyboardKey.PadDivide
+      of 112: KeyboardKey.F1
+      of 113: KeyboardKey.F2
+      of 114: KeyboardKey.F3
+      of 115: KeyboardKey.F4
+      of 116: KeyboardKey.F5
+      of 117: KeyboardKey.F6
+      of 118: KeyboardKey.F7
+      of 119: KeyboardKey.F8
+      of 120: KeyboardKey.F9
+      of 121: KeyboardKey.F10
+      of 122: KeyboardKey.F11
+      of 123: KeyboardKey.F12
+      of 144: KeyboardKey.NumLock
+      of 145: KeyboardKey.ScrollLock
+      of 186: KeyboardKey.Semicolon
+      of 187: KeyboardKey.Equal
+      of 188: KeyboardKey.Comma
+      of 189: KeyboardKey.Minus
+      of 190: KeyboardKey.Period
+      of 191: KeyboardKey.Slash
+      of 192: KeyboardKey.Backtick
+      of 219: KeyboardKey.LeftBracket
+      of 220: KeyboardKey.BackSlash
+      of 221: KeyboardKey.RightBracket
+      of 222: KeyboardKey.Quote
+      else: KeyboardKey.Unknown
 
 template processFrame(canvas: Canvas, stateChanges: untyped): untyped =
   canvas.updatePreviousState()
@@ -198,7 +198,7 @@ proc newCanvas*(parentHandle: pointer = nil): Canvas =
   result = cast[Canvas](newCanvasBase())
   result.isOpen = true
 
-  if clientCount == 0:
+  if canvasCount == 0:
     var windowClass = WNDCLASSEX(
       cbSize: WNDCLASSEX.sizeof.UINT,
       style: CS_OWNDC,
@@ -244,7 +244,7 @@ proc newCanvas*(parentHandle: pointer = nil): Canvas =
   result.updateBounds()
   result.initBase()
 
-  inc clientCount
+  inc canvasCount
 
 proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT {.stdcall.} =
   if msg == WM_CREATE:
@@ -257,29 +257,36 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   case msg:
 
-  of WM_ENTERSIZEMOVE:
-    canvas.platform.moveTimer = SetTimer(canvas.hwnd, 1, USER_TIMER_MINIMUM, nil)
+  of WM_MOVE:
+    canvas.updateBounds()
 
-  of WM_EXITSIZEMOVE:
-    KillTimer(canvas.hwnd, canvas.platform.moveTimer)
-
-  of WM_TIMER:
-    if wParam == canvas.platform.moveTimer:
-      canvas.processFrame:
-        canvas.updateBounds()
-
-  of WM_WINDOWPOSCHANGED:
+  of WM_SIZE:
     canvas.processFrame:
       canvas.updateBounds()
-    return 0
+
+  # of WM_ENTERSIZEMOVE:
+  #   canvas.platform.moveTimer = SetTimer(canvas.hwnd, 1, USER_TIMER_MINIMUM, nil)
+
+  # of WM_EXITSIZEMOVE:
+  #   KillTimer(canvas.hwnd, canvas.platform.moveTimer)
+
+  # of WM_TIMER:
+  #   if wParam == canvas.platform.moveTimer:
+  #     canvas.processFrame:
+  #       canvas.updateBounds()
+
+  # of WM_WINDOWPOSCHANGED:
+  #   canvas.processFrame:
+  #     canvas.updateBounds()
+  #   return 0
 
   of WM_CLOSE:
     canvas.close()
 
   of WM_DESTROY:
-    dec clientCount
-    clientCount = clientCount.max(0)
-    if clientCount == 0:
+    dec canvasCount
+    canvasCount = canvasCount.max(0)
+    if canvasCount == 0:
       UnregisterClass(windowClassName, GetModuleHandle(nil))
 
   of WM_DPICHANGED:
@@ -321,7 +328,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   of WM_CHAR, WM_SYSCHAR:
     if wParam > 0 and wParam < 0x10000:
-      canvas.text &= cast[Rune](wParam).toUTF8
+      canvas.textInput &= cast[Rune](wParam).toUTF8
 
   else:
     discard

@@ -308,6 +308,7 @@ proc beginFrameBase*(canvas: Canvas) =
   glScissor(0.GLint, 0.GLint, canvas.sizePixels.x.GLsizei, canvas.sizePixels.y.GLsizei)
   glClear(GL_COLOR_BUFFER_BIT or GL_STENCIL_BUFFER_BIT)
   nvgBeginFrame(canvas.nvgContext, canvas.size.x, canvas.size.y, canvas.scale)
+  nvgResetScissor(canvas.nvgContext)
 
 proc endFrameBase*(canvas: Canvas) =
   nvgEndFrame(canvas.nvgContext)

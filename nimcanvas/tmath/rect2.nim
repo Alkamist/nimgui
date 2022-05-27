@@ -19,6 +19,11 @@ func rect2*(position, size = vec2()): Rect2 =
 func rect2*(x, y, width, height = 0.0): Rect2 =
   rect2(vec2(x, y), vec2(width, height))
 
+template x*(r: Rect2): untyped = r.position.x
+template y*(r: Rect2): untyped = r.position.y
+template width*(r: Rect2): untyped = r.size.x
+template height*(r: Rect2): untyped = r.size.y
+
 func round*(r: Rect2): Rect2 =
   rect2(r.position.round, r.size.round)
 

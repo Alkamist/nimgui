@@ -1,3 +1,5 @@
+{.experimental: "overloadableEnums".}
+
 when defined(windows):
   import ./canvas/win32; export win32
 
@@ -7,9 +9,36 @@ import ./nanovg/nanovg
 proc toNvgColor(color: Color): NVGcolor = nvgRGBAf(color.r, color.g, color.b, color.a)
 
 type
+  Paint* = NVGpaint
+
   Winding* = enum
     CounterClockwise = NVG_CCW
     Clockwise = NVG_CW
+
+  Solidity* = enum
+    Solid = NVG_SOLID
+    Hole = NVG_HOLE
+
+  LineCap* = enum
+    Butt = NVG_BUTT
+    Round = NVG_ROUND
+    Square = NVG_SQUARE
+
+  LineJoin* = enum
+    Round = NVG_ROUND
+    Bevel = NVG_BEVEL
+    Miter = NVG_MITER
+
+  TextAlignX* = enum
+    Left = NVG_ALIGN_LEFT
+    Center = NVG_ALIGN_CENTER
+    Right = NVG_ALIGN_RIGHT
+
+  TextAlignY* = enum
+    Top = NVG_ALIGN_TOP
+    Center = NVG_ALIGN_MIDDLE
+    Bottom = NVG_ALIGN_BOTTOM
+    Baseline = NVG_ALIGN_BASELINE
 
 {.push inline.}
 
@@ -83,25 +112,40 @@ proc `shapeAntiAlias=`*(canvas: Canvas, enabled: bool) =
 proc `strokeColor=`*(canvas: Canvas, color: Color) =
   nvgStrokeColor(canvas.nvgContext, color.toNvgColor)
 
+proc `strokePaint=`*(canvas: Canvas, paint: Paint) =
+  nvgStrokePaint(canvas.nvgContext, paint)
+
 proc `fillColor=`*(canvas: Canvas, color: Color) =
   nvgFillColor(canvas.nvgContext, color.toNvgColor)
 
+proc `fillPaint=`*(canvas: Canvas, paint: Paint) =
+  nvgFillPaint(canvas.nvgContext, paint)
+
+proc `miterLimit=`*(canvas: Canvas, limit: float) =
+  nvgMiterLimit(canvas.nvgContext, limit)
+
+proc `strokeWidth=`*(canvas: Canvas, width: float) =
+  nvgStrokeWidth(canvas.nvgContext, width)
+
+proc `lineCap=`*(canvas: Canvas, cap: LineCap) =
+  nvgLineCap(canvas.nvgContext, cap.cint)
+
+proc `lineJoin=`*(canvas: Canvas, join: LineJoin) =
+  nvgLineJoin(canvas.nvgContext, join.cint)
+
+proc `globalAlpha=`*(canvas: Canvas, alpha: float) =
+  nvgGlobalAlpha(canvas.nvgContext, alpha)
+
+proc scissor*(canvas: Canvas, rect: Rect2, intersect = true) =
+  if intersect:
+    nvgIntersectScissor(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
+  else:
+    nvgScissor(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
+
+proc resetScissor*(canvas: Canvas) =
+  nvgResetScissor(canvas.nvgContext)
+
 {.pop.}
-
-# proc nvgStrokeColor*(canvas: NVGcontext, color: NVGcolor)
-# proc nvgStrokePaint*(canvas: NVGcontext, paint: NVGpaint)
-# proc nvgFillColor*(canvas: NVGcontext, color: NVGcolor)
-# proc nvgFillPaint*(canvas: NVGcontext, paint: NVGpaint)
-# proc nvgMiterLimit*(canvas: NVGcontext, limit: cfloat)
-# proc nvgStrokeWidth*(canvas: NVGcontext, size: cfloat)
-# proc nvgLineCap*(canvas: NVGcontext, cap: cint)
-# proc nvgLineJoin*(canvas: NVGcontext, join: cint)
-# proc nvgGlobalAlpha*(canvas: NVGcontext, alpha: cfloat)
-
-
-
-
-
 
 # proc nvgResetTransform*(canvas: NVGcontext)
 # proc nvgTransform*(canvas: NVGcontext, a, b, c, d, e, f: cfloat)

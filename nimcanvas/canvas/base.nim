@@ -19,6 +19,11 @@ var gladIsInitialized = false
 proc toNvgColor(color: Color): NVGcolor = nvgRGBAf(color.r, color.g, color.b, color.a)
 
 type
+  LineMetric* = object
+    width*: float
+    runeStart*, runeLen*: int
+    byteStart*, byteLen*: int
+
   Paint* = NVGpaint
 
   Winding* = enum
@@ -471,86 +476,136 @@ proc `font=`*(canvas: Canvas, name: string) =
 proc `fontSize=`*(canvas: Canvas, size: float) =
   nvgFontSize(canvas.nvgContext, size)
 
-# proc `textAlignX=`*(canvas: Canvas, align: TextAlignX) =
-#   canvas.textAlignX = align
-#   nvgTextAlign(canvas.nvgContext, canvas.textAlignX.cint or canvas.textAlignY.cint)
-
-# proc `textAlignY=`*(canvas: Canvas, align: TextAlignY) =
-#   canvas.textAlignY = align
-#   nvgTextAlign(canvas.nvgContext, canvas.textAlignX.cint or canvas.textAlignY.cint)
-
-# proc drawText*(canvas: Canvas, text: string, position: Vec2): float {.discardable.} =
-#   nvgText(canvas.nvgContext, position.x, position.y, text.cstring, nil)
+proc `letterSpacing=`*(canvas: Canvas, spacing: float) =
+  nvgTextLetterSpacing(canvas.nvgContext, spacing)
 
 {.pop.}
 
-proc drawText*(canvas: Canvas, text: string, bounds: Rect2, wordWrap = true) =
-  const newLine = "\n".runeAt(0)
+template runeEnd(line: LineMetric): untyped =
+  line.runeStart + line.runeLen - 1
+
+template `runeEnd=`(line: var LineMetric, value: int): untyped =
+  line.runeLen = (value - line.runeStart) + 1
+
+proc lineMetrics*(canvas: Canvas, text: string, bounds: Rect2, wordWrap = false): seq[LineMetric] =
+  template addLine(): untyped = result.add LineMetric()
+  template currentLine(): untyped = result[result.len - 1]
+  addLine()
+
+  const newLineRune = "\n".runeAt(0)
   let runes = text.toRunes
 
   var ascender, descender, lineHeight: cfloat
   nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
 
-  var straightPositions = newSeq[NVGglyphPosition](runes.len)
-  discard nvgTextGlyphPositions(canvas.nvgContext, 0, 0, text, nil, straightPositions[0].addr, runes.len.cint)
+  var positions = newSeq[NVGglyphPosition](runes.len)
+  discard nvgTextGlyphPositions(canvas.nvgContext, 0, 0, text, nil, positions[0].addr, runes.len.cint)
 
-  var lineInfo: seq[tuple[firstIndex, lastIndex: int]]
-  lineInfo.add (0, runes.len - 1)
+  var glyphWidths = newSeq[float](runes.len)
+
+  # Set the last glyphWidth with nvgTextBounds, because
+  # positions.maxx and positions.minx seem to be inaccurate.
+  let lastGlyphStart = cast[cstring](text[text.len - runes[^1].size].unsafeAddr)
+  let lastGlyphEnd = cast[cstring](cast[uint](text[0].unsafeAddr) + text.len.uint)
+  var lastGlyphBounds: array[4, cfloat]
+  discard nvgTextBounds(canvas.nvgContext, bounds.x, bounds.y, lastGlyphStart, lastGlyphEnd, lastGlyphBounds[0].addr)
+  glyphWidths[^1] = lastGlyphBounds[2] - lastGlyphBounds[0]
 
   block:
-    template currentLine(): untyped =
-      lineInfo[lineInfo.len - 1]
-
-    var i = 0
-    var wrapCount = 0
     var lastWhitespace = 0
     var x = 0.0
-
-    while i < runes.len and wrapCount < runes.len:
+    var i = 0
+    while i < runes.len:
       let rune = runes[i]
-      let glyphWidth = straightPositions[i].maxx - straightPositions[i].minx
+
+      if i + 1 < runes.len:
+        glyphWidths[i] = positions[i + 1].x - positions[i].x
 
       if rune.isWhiteSpace:
         lastWhitespace = i
 
-      if rune == newLine:
+      if rune == newLineRune:
         x = 0.0
-        currentLine.lastIndex = i - 1
+        currentLine.runeEnd = i - 1
+        addLine()
         inc i
-        lineInfo.add (i, runes.len - 1)
+        currentLine.runeStart = i
         continue
 
-      let outOfBounds = x + glyphWidth > bounds.width
+      let outOfBounds = x + glyphWidths[i] > bounds.width
 
       if wordWrap and outOfBounds and i > 0:
-        inc wrapCount
         x = 0.0
-
-        if lastWhitespace > currentLine.firstIndex:
-          let nextLineStart = lastWhitespace + 1
-          currentLine.lastIndex = lastWhitespace - 1
-          lineInfo.add (nextLineStart, runes.len - 1)
-          i = nextLineStart
+        if lastWhitespace > currentLine.runeStart:
+          currentLine.runeEnd = lastWhitespace
+          addLine()
+          currentLine.runeStart = lastWhitespace + 1
+          i = currentLine.runeStart
           continue
         else:
-          currentLine.lastIndex = i - 1
-          lineInfo.add (i, runes.len - 1)
+          currentLine.runeEnd = i - 1
+          addLine()
+          currentLine.runeStart = i
 
-      x += glyphWidth
+      x += glyphWidths[i]
       inc i
 
-  var y = bounds.y
+    currentLine.runeEnd = i - 1
 
-  for info in lineInfo:
-    # template calculateLineWidth(): float =
-    #   var lineWidth = 0.0
-    #   for i in info.firstIndex .. info.lastIndex:
-    #     let glyphWidth = straightPositions[i].maxx - straightPositions[i].minx
-    #     let glyphOffset = straightPositions[i].x - straightPositions[i].minx
-    #     lineWidth += glyphWidth
-    #     if i == info.firstIndex: lineWidth -= glyphOffset
-    #     if i == info.lastIndex: lineWidth += glyphOffset
-    #   lineWidth
+  block:
+    var glyphByteInfo = newSeq[tuple[index, len: int]](runes.len)
+    var byteI = 0
+    for i in 0 ..< runes.len:
+      let runeLen = runes[i].size
+      glyphByteInfo[i].index = byteI
+      glyphByteInfo[i].len = runeLen
+      byteI += runeLen
 
-    discard nvgText(canvas.nvgContext, bounds.x, y, text.runeSubStr(info.firstIndex, info.lastIndex + 1).cstring, nil)
+    var lineCount = 0
+    for lineI in 0 ..< result.len:
+      template line: untyped = result[lineI]
+
+      let runeStart = line.runeStart
+      if runeStart >= runes.len:
+        break
+
+      let runeEnd = line.runeEnd
+      line.byteStart = glyphByteInfo[runeStart].index
+
+      for i in runeStart .. runeEnd:
+        line.byteLen += glyphByteInfo[i].len
+        line.width += glyphWidths[i]
+
+      lineCount += 1
+
+    result.setLen(lineCount)
+
+proc drawText*(canvas: Canvas,
+               text: string,
+               bounds: Rect2,
+               alignX = TextAlignX.Right,
+               alignY = TextAlignY.Top,
+               wordWrap = true) =
+  var ascender, descender, lineHeight: cfloat
+  nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
+
+  let lines = canvas.lineMetrics(text, bounds, wordWrap)
+
+  let yAdjustment = case alignY:
+    of Top: 0.0
+    of Center: 0.5 * (bounds.size.y - (lineHeight * lines.len.float))
+    of Bottom: bounds.size.y - (lineHeight * lines.len.float)
+    of Baseline: -ascender
+
+  var y = bounds.y + yAdjustment + ascender
+
+  for line in lines:
+    let xAdjustment = case alignX:
+      of Left: 0.0
+      of Center: 0.5 * (bounds.width - line.width)
+      of Right: bounds.width - line.width
+
+    let lineStartAddr = cast[uint](text[line.byteStart].unsafeAddr)
+    let lineFinishAddr = lineStartAddr + line.byteLen.uint
+    discard nvgText(canvas.nvgContext, bounds.x + xAdjustment, y, cast[cstring](lineStartAddr), cast[cstring](lineFinishAddr))
     y += lineHeight

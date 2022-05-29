@@ -38,7 +38,13 @@ func expand*(a: Rect2, b: Vec2): Rect2 =
   rect2(a.position - b, a.size + b * 2.0)
 
 func contains*(a: Rect2, b: Vec2): bool =
-  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
-  b.y >= a.position.y and b.y <= a.position.y + a.size.y
+  b.x >= a.x and b.x <= a.x + a.width and
+  b.y >= a.y and b.y <= a.y + a.height
+
+func contains*(a, b: Rect2): bool =
+  b.x + b.width >= a.x and
+  b.x <= a.x + a.width and
+  b.y + b.height >= a.y and
+  b.y <= a.y + a.height
 
 {.pop.}

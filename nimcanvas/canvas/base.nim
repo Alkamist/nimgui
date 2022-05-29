@@ -396,10 +396,10 @@ proc fill*(canvas: Canvas) =
 proc stroke*(canvas: Canvas) =
   nvgStroke(canvas.nvgContext)
 
-proc save*(canvas: Canvas) =
+proc saveState*(canvas: Canvas) =
   nvgSave(canvas.nvgContext)
 
-proc restore*(canvas: Canvas) =
+proc restoreState*(canvas: Canvas) =
   nvgRestore(canvas.nvgContext)
 
 proc reset*(canvas: Canvas) =
@@ -435,13 +435,13 @@ proc `lineJoin=`*(canvas: Canvas, join: LineJoin) =
 proc `globalAlpha=`*(canvas: Canvas, alpha: float) =
   nvgGlobalAlpha(canvas.nvgContext, alpha)
 
-proc scissor*(canvas: Canvas, rect: Rect2, intersect = true) =
+proc clip*(canvas: Canvas, rect: Rect2, intersect = true) =
   if intersect:
     nvgIntersectScissor(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
   else:
     nvgScissor(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
 
-proc resetScissor*(canvas: Canvas) =
+proc resetClip*(canvas: Canvas) =
   nvgResetScissor(canvas.nvgContext)
 
 proc addFont*(canvas: Canvas, name, fileName: string) =
@@ -497,23 +497,19 @@ proc newText*(canvas: Canvas, data: string): Text =
 proc drawText*(canvas: Canvas,
                text: Text,
                bounds: Rect2,
-               alignX = TextAlignX.Right,
+               alignX = TextAlignX.Left,
                alignY = TextAlignY.Top,
-               wordWrap = true) =
+               wordWrap = true,
+               clip = true) =
   proc drawLine(text: Text, line: TextLine, lineBounds: Rect2) =
     let startGlyph = text.glyphs[line.startIndex]
     let endGlyph = text.glyphs[line.endIndex]
     let lineStartAddr = cast[uint](text.data[startGlyph.byteIndex].unsafeAddr)
     let lineByteLen = (endGlyph.byteIndex + endGlyph.rune.size) - startGlyph.byteIndex
     let lineEndAddr = lineStartAddr + lineByteLen.uint
-
-    canvas.save()
-    canvas.beginPath()
-    canvas.roundedRect(lineBounds, 2)
-    canvas.fillColor = rgb(0, 120, 0)
-    canvas.fill()
-    canvas.restore()
-
     discard nvgText(canvas.nvgContext, lineBounds.x, lineBounds.y + text.lineHeight, cast[cstring](lineStartAddr), cast[cstring](lineEndAddr))
 
-  text.drawLines(bounds, alignX, alignY, wordWrap, drawLine)
+  canvas.saveState()
+  canvas.clip(bounds)
+  text.drawLines(bounds, alignX, alignY, wordWrap, clip, drawLine)
+  canvas.restoreState()

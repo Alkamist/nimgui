@@ -32,9 +32,10 @@ type
     glyphs*: seq[Glyph]
     lines*: seq[TextLine]
 
-func wordWrap*(text: Text, wrapWidth: float) =
+func updateLines*(text: Text, wordWrap: bool, wrapWidth = 0.0) =
   text.lines = @[(0, text.glyphs.len - 1)]
 
+  var lineBreakCount = 0
   var wasInsideWord = false
   var isInsideWord = false
   var lineWordCount = 0
@@ -44,12 +45,13 @@ func wordWrap*(text: Text, wrapWidth: float) =
 
   template currentLine(): untyped = text.lines[text.lines.len - 1]
   template breakLine(previousLineEndIndex, newLineStartIndex: int): untyped =
+    inc lineBreakCount
     x = 0.0
     lineWordCount = 0
     currentLine.endIndex = previousLineEndIndex
     text.lines.add (newLineStartIndex, text.glyphs.len - 1)
 
-  while i < text.glyphs.len:
+  while i < text.glyphs.len and lineBreakCount < text.glyphs.len:
     let glyph = text.glyphs[i]
     let rune = glyph.rune
 
@@ -69,8 +71,7 @@ func wordWrap*(text: Text, wrapWidth: float) =
       inc i
       continue
 
-    let shouldWrap = x + glyph.width > wrapWidth and i > 0
-    if shouldWrap:
+    if wordWrap and x + glyph.width > wrapWidth and i > 0:
       if isInsideWord and lineWordCount > 1:
         breakLine(previousWordEnd, previousWordEnd + 2)
         i = currentLine.startIndex
@@ -86,9 +87,9 @@ proc drawLines*(text: Text,
                 alignX: TextAlignX,
                 alignY: TextAlignY,
                 wordWrap: bool,
+                cullOutOfBounds: bool,
                 drawLine: proc(text: Text, line: TextLine, lineBounds: Rect2)) =
-  if wordWrap:
-    text.wordWrap(bounds.width)
+  text.updateLines(wordWrap, bounds.width)
 
   let yAdjustment = case alignY:
     of Top: 0.0
@@ -116,6 +117,10 @@ proc drawLines*(text: Text,
 
     let lineBounds = rect2(bounds.x + xAdjustment, y, lineWidth, lineBoundsHeight)
 
-    drawLine(text, line, lineBounds)
+    if cullOutOfBounds:
+      if bounds.contains(lineBounds):
+        drawLine(text, line, lineBounds)
+    else:
+      drawLine(text, line, lineBounds)
 
     y += text.lineHeight

@@ -7,30 +7,32 @@ canvas.backgroundColor = rgb(16, 16, 16)
 canvas.addFont("consola", "./examples/consola.ttf")
 # canvas.addFont("consola", "./examples/Roboto-Regular.ttf")
 
-var data = """
-proc drawText*(canvas: Canvas, text: string, bounds: Rect2) =
-  var ascender, descender, lineHeight: cfloat
-  nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
+# const data = """
+# proc drawText*(canvas: Canvas, text: string, bounds: Rect2) =
+#   var ascender, descender, lineHeight: cfloat
+#   nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
 
-  let lines = canvas.lineMetrics(text, bounds)
-  var y = bounds.y
-  for line in lines:
-    let lineStartAddr = cast[uint](text[line.byteStart].unsafeAddr)
-    let lineFinishAddr = lineStartAddr + line.byteLen.uint
-    discard nvgText(canvas.nvgContext, bounds.x, y, cast[cstring](lineStartAddr), cast[cstring](lineFinishAddr))
-    y += lineHeight
-"""
+#   let lines = canvas.lineMetrics(text, bounds)
+#   var y = bounds.y
+#   for line in lines:
+#     let lineStartAddr = cast[uint](text[line.byteStart].unsafeAddr)
+#     let lineFinishAddr = lineStartAddr + line.byteLen.uint
+#     discard nvgText(canvas.nvgContext, bounds.x, y, cast[cstring](lineStartAddr), cast[cstring](lineFinishAddr))
+#     y += lineHeight
+# """
 
-# var data = "123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n"
+const data = block:
+  var res = ""
+  for i in 0 ..< 100:
+    res.add "Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao\n"
+  res
 
-# var data = ""
-# for i in 0 ..< 3000:
-#   data.add "0123456789"
+# const data = staticRead("unicodetestfile.txt")
 
 var mouseEdit = vec2(0, 0)
 
 canvas.onFrame = proc() =
-  let textPosition = vec2(100, 200)
+  let textPosition = vec2(200, 200)
 
   if canvas.mouseDown(Left) and canvas.mouseMoved:
     mouseEdit = canvas.mousePosition
@@ -39,7 +41,7 @@ canvas.onFrame = proc() =
 
   canvas.beginPath()
   canvas.roundedRect(bounds, 5)
-  canvas.fillColor = rgb(120, 0, 0)
+  canvas.fillColor = rgb(80, 0, 0)
   canvas.fill()
 
   canvas.fillColor = rgb(240, 240, 240)
@@ -47,11 +49,9 @@ canvas.onFrame = proc() =
   # canvas.letterSpacing = 20
   canvas.font = "consola"
   canvas.fontSize = 13
-  # canvas.drawText(text, bounds)
-  # canvas.drawTextLine(text, textPosition)
 
   let text = canvas.newText(data)
-  canvas.drawText(text, bounds)
+  canvas.drawText(text, bounds, Left, Top, true)
 
 while canvas.isOpen:
   canvas.update()

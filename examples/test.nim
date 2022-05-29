@@ -7,7 +7,7 @@ canvas.backgroundColor = rgb(16, 16, 16)
 canvas.addFont("consola", "./examples/consola.ttf")
 # canvas.addFont("consola", "./examples/Roboto-Regular.ttf")
 
-var text = """
+var data = """
 proc drawText*(canvas: Canvas, text: string, bounds: Rect2) =
   var ascender, descender, lineHeight: cfloat
   nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
@@ -21,11 +21,11 @@ proc drawText*(canvas: Canvas, text: string, bounds: Rect2) =
     y += lineHeight
 """
 
-# var text = "123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n"
+# var data = "123456789\n123456789\n123456789\n123456789\n123456789\n123456789\n"
 
-# var text = ""
+# var data = ""
 # for i in 0 ..< 3000:
-#   text.add "0123456789"
+#   data.add "0123456789"
 
 var mouseEdit = vec2(0, 0)
 
@@ -47,8 +47,11 @@ canvas.onFrame = proc() =
   # canvas.letterSpacing = 20
   canvas.font = "consola"
   canvas.fontSize = 13
-  canvas.drawText(text, bounds)
+  # canvas.drawText(text, bounds)
   # canvas.drawTextLine(text, textPosition)
+
+  let text = canvas.newText(data)
+  canvas.drawText(text, bounds)
 
 while canvas.isOpen:
   canvas.update()

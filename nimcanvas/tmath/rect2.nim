@@ -20,9 +20,13 @@ func rect2*(x, y, width, height = 0.0): Rect2 =
   rect2(vec2(x, y), vec2(width, height))
 
 template x*(r: Rect2): untyped = r.position.x
+template `x=`*(r: var Rect2, value: float): untyped = r.position.x = value
 template y*(r: Rect2): untyped = r.position.y
+template `y=`*(r: var Rect2, value: float): untyped = r.position.y = value
 template width*(r: Rect2): untyped = r.size.x
+template `width=`*(r: var Rect2, value: float): untyped = r.size.x = value
 template height*(r: Rect2): untyped = r.size.y
+template `height=`*(r: var Rect2, value: float): untyped = r.size.y = value
 
 func round*(r: Rect2): Rect2 =
   rect2(r.position.round, r.size.round)

@@ -1,0 +1,121 @@
+{.experimental: "overloadableEnums".}
+
+import std/unicode
+import ../tmath
+
+const newLineRune = "\n".runeAt(0)
+
+type
+  TextAlignX* = enum
+    Left
+    Center
+    Right
+
+  TextAlignY* = enum
+    Top
+    Center
+    Bottom
+    Baseline
+
+  Glyph* = tuple
+    byteIndex: int
+    rune: Rune
+    width: float
+
+  TextLine* = tuple
+    startIndex, endIndex: int
+
+  Text* = ref object
+    data*: string
+    ascender*, descender*: float
+    lineHeight*: float
+    glyphs*: seq[Glyph]
+    lines*: seq[TextLine]
+
+func wordWrap*(text: Text, wrapWidth: float) =
+  text.lines = @[(0, text.glyphs.len - 1)]
+
+  var wasInsideWord = false
+  var isInsideWord = false
+  var lineWordCount = 0
+  var previousWordEnd = 0
+  var x = 0.0
+  var i = 0
+
+  template currentLine(): untyped = text.lines[text.lines.len - 1]
+  template breakLine(previousLineEndIndex, newLineStartIndex: int): untyped =
+    x = 0.0
+    lineWordCount = 0
+    currentLine.endIndex = previousLineEndIndex
+    text.lines.add (newLineStartIndex, text.glyphs.len - 1)
+
+  while i < text.glyphs.len:
+    let glyph = text.glyphs[i]
+    let rune = glyph.rune
+
+    wasInsideWord = isInsideWord
+    isInsideWord = not rune.isWhiteSpace
+    let enteredWord = isInsideWord and not wasInsideWord
+    let exitedWord = wasInsideWord and not isInsideWord
+
+    if enteredWord:
+      lineWordCount += 1
+
+    if exitedWord:
+      previousWordEnd = i - 1
+
+    if rune == newLineRune:
+      breakLine(i - 1, i + 1)
+      inc i
+      continue
+
+    let shouldWrap = x + glyph.width > wrapWidth and i > 0
+    if shouldWrap:
+      if isInsideWord and lineWordCount > 1:
+        breakLine(previousWordEnd, previousWordEnd + 2)
+        i = currentLine.startIndex
+        continue
+      else:
+        breakLine(i - 1, i)
+
+    x += glyph.width
+    inc i
+
+proc drawLines*(text: Text,
+                bounds: Rect2,
+                alignX: TextAlignX,
+                alignY: TextAlignY,
+                wordWrap: bool,
+                drawLine: proc(text: Text, line: TextLine, lineBounds: Rect2)) =
+  if wordWrap:
+    text.wordWrap(bounds.width)
+
+  let yAdjustment = case alignY:
+    of Top: 0.0
+    of Center: 0.5 * (bounds.height - (text.lineHeight * text.lines.len.float))
+    of Bottom: bounds.height - (text.lineHeight * text.lines.len.float)
+    of Baseline: -text.ascender
+
+  var y = bounds.y + yAdjustment
+
+  let lineBoundsHeight = text.lineHeight - text.descender
+
+  for line in text.lines:
+    if line.startIndex >= text.glyphs.len or
+       line.endIndex >= text.glyphs.len:
+      continue
+
+    var lineWidth = 0.0
+    for i in line.startIndex .. line.endIndex:
+      lineWidth += text.glyphs[i].width
+
+    let xAdjustment = case alignX:
+      of Left: 0.0
+      of Center: 0.5 * (bounds.width - lineWidth)
+      of Right: bounds.width - lineWidth
+
+    let lineBounds = rect2(bounds.x + xAdjustment, y, lineWidth, lineBoundsHeight)
+
+    drawLine(text, line, lineBounds)
+
+    y += text.lineHeight

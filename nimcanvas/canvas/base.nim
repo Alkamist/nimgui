@@ -444,10 +444,10 @@ proc clip*(canvas: Canvas, rect: Rect2, intersect = true) =
 proc resetClip*(canvas: Canvas) =
   nvgResetScissor(canvas.nvgContext)
 
-proc addFont*(canvas: Canvas, name, fileName: string) =
-  let font = nvgCreateFont(canvas.nvgContext, name.cstring, fileName.cstring)
+proc addFont*(canvas: Canvas, name, data: string) =
+  let font = nvgCreateFontMem(canvas.nvgContext, name.cstring, data.cstring, data.len.cint, 0)
   if font == -1:
-    echo "Failed to load font: " & fileName
+    echo "Failed to load font: " & name
 
 proc `font=`*(canvas: Canvas, name: string) =
   nvgFontFace(canvas.nvgContext, name.cstring)

@@ -2,10 +2,12 @@
 
 import ../nimcanvas
 
+const consolaData = staticRead("consola.ttf")
+const data = staticRead("unicodetestfile.txt")
+
 let canvas = newCanvas()
 canvas.backgroundColor = rgb(16, 16, 16)
-canvas.addFont("consola", "./examples/consola.ttf")
-# canvas.addFont("consola", "./examples/Roboto-Regular.ttf")
+canvas.addFont("consola", consolaData)
 
 # const data = """
 # proc drawText*(canvas: Canvas, text: string, bounds: Rect2) =
@@ -20,8 +22,6 @@ canvas.addFont("consola", "./examples/consola.ttf")
 #     discard nvgText(canvas.nvgContext, bounds.x, y, cast[cstring](lineStartAddr), cast[cstring](lineFinishAddr))
 #     y += lineHeight
 # """
-
-const data = staticRead("unicodetestfile.txt")
 
 var mouseEdit = canvas.size
 

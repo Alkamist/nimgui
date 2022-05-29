@@ -37,6 +37,9 @@ func translate*(a: Rect2, b: Vec2): Rect2 =
 func expand*(a: Rect2, b: Vec2): Rect2 =
   rect2(a.position - b, a.size + b * 2.0)
 
+func expand*(a: Rect2, b: float): Rect2 =
+  rect2(a.position - b, a.size + b * 2.0)
+
 func contains*(a: Rect2, b: Vec2): bool =
   b.x >= a.x and b.x <= a.x + a.width and
   b.y >= a.y and b.y <= a.y + a.height

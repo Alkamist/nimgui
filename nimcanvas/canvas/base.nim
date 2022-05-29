@@ -499,7 +499,7 @@ proc drawText*(canvas: Canvas,
                bounds: Rect2,
                alignX = TextAlignX.Left,
                alignY = TextAlignY.Top,
-               wordWrap = true,
+               wordWrap = false,
                clip = true) =
   proc drawLine(text: Text, line: TextLine, lineBounds: Rect2) =
     let startGlyph = text.glyphs[line.startIndex]
@@ -507,14 +507,12 @@ proc drawText*(canvas: Canvas,
     let lineStartAddr = cast[uint](text.data[startGlyph.byteIndex].unsafeAddr)
     let lineByteLen = (endGlyph.byteIndex + endGlyph.rune.size) - startGlyph.byteIndex
     let lineEndAddr = lineStartAddr + lineByteLen.uint
-
-    canvas.saveState()
-    canvas.beginPath()
-    canvas.roundedRect(lineBounds, 2)
-    canvas.fillColor = rgb(0, 120, 0)
-    canvas.fill()
-    canvas.restoreState()
-
+    # canvas.saveState()
+    # canvas.beginPath()
+    # canvas.roundedRect(lineBounds, 2)
+    # canvas.fillColor = rgb(0, 120, 0)
+    # canvas.fill()
+    # canvas.restoreState()
     discard nvgText(canvas.nvgContext, lineBounds.x, lineBounds.y + text.lineHeight, cast[cstring](lineStartAddr), cast[cstring](lineEndAddr))
 
   if clip:

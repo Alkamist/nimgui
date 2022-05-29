@@ -21,21 +21,12 @@ canvas.addFont("consola", "./examples/consola.ttf")
 #     y += lineHeight
 # """
 
-# const data = block:
-#   var res = ""
-#   for i in 0 ..< 100:
-#     res.add "Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao\n"
-#   res
-
-const data = """
-Ayy Lmao Ayy Lmao Ayy Lmao
-  Ayy Lmao Ayy Lmao Ayy Lmao Ayy Lmao
-"""
+const data = staticRead("unicodetestfile.txt")
 
 var mouseEdit = canvas.size
 
 canvas.onFrame = proc() =
-  let textPosition = vec2(200, 200)
+  let textPosition = vec2(5, 5)
 
   if canvas.mouseDown(Left) and canvas.mouseMoved:
     mouseEdit = canvas.mousePosition
@@ -49,12 +40,12 @@ canvas.onFrame = proc() =
 
   canvas.fillColor = rgb(240, 240, 240)
 
-  # canvas.letterSpacing = 5
+  # canvas.letterSpacing = 2
   canvas.font = "consola"
   canvas.fontSize = 13
 
   let text = canvas.newText(data)
-  canvas.drawText(text, bounds, Left, Top, true, false)
+  canvas.drawText(text, bounds.expand(-2.5), Left, Top, wordWrap = true)
 
 while canvas.isOpen:
   canvas.update()

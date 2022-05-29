@@ -32,6 +32,7 @@ type
     glyphs*: seq[Glyph]
     lines*: seq[TextLine]
 
+# TODO: Figure out how to preserve indentation while wordwrapping.
 func updateLines*(text: Text, wordWrap: bool, wrapWidth = 0.0) =
   var rawLines = @[(startIndex: 0, endIndex: text.glyphs.len - 1)]
 
@@ -82,15 +83,12 @@ func updateLines*(text: Text, wordWrap: bool, wrapWidth = 0.0) =
 
   block:
     text.lines.setLen(rawLines.len)
-
     var i = 0
     for line in rawLines:
       if line.startIndex < text.glyphs.len and
-         line.endIndex < text.glyphs.len and
-         line.endIndex - line.startIndex >= 0:
+         line.endIndex < text.glyphs.len:
         text.lines[i] = line
         inc i
-
     text.lines.setLen(i)
 
 proc drawLines*(text: Text,

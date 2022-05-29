@@ -33,54 +33,65 @@ type
     lines*: seq[TextLine]
 
 func updateLines*(text: Text, wordWrap: bool, wrapWidth = 0.0) =
-  text.lines = @[(0, text.glyphs.len - 1)]
+  var rawLines = @[(startIndex: 0, endIndex: text.glyphs.len - 1)]
 
-  var lineBreakCount = 0
-  var wasInsideWord = false
-  var isInsideWord = false
-  var lineWordCount = 0
-  var previousWordEnd = 0
-  var x = 0.0
-  var i = 0
+  block:
+    var lineBreakCount = 0
+    var wasWhiteSpace = false
+    var isWhiteSpace = false
+    var lineWordCount = 0
+    var previousWordEnd = 0
+    var x = 0.0
+    var i = 0
 
-  template currentLine(): untyped = text.lines[text.lines.len - 1]
-  template breakLine(previousLineEndIndex, newLineStartIndex: int): untyped =
-    inc lineBreakCount
-    x = 0.0
-    lineWordCount = 0
-    currentLine.endIndex = previousLineEndIndex
-    text.lines.add (newLineStartIndex, text.glyphs.len - 1)
+    template currentLine(): untyped = rawLines[rawLines.len - 1]
+    template breakLine(previousLineEndIndex, newLineStartIndex: int): untyped =
+      inc lineBreakCount
+      x = 0.0
+      lineWordCount = 0
+      currentLine.endIndex = previousLineEndIndex
+      rawLines.add (newLineStartIndex, text.glyphs.len - 1)
 
-  while i < text.glyphs.len and lineBreakCount < text.glyphs.len:
-    let glyph = text.glyphs[i]
-    let rune = glyph.rune
+    while i < text.glyphs.len and lineBreakCount < text.glyphs.len:
+      let glyph = text.glyphs[i]
+      let rune = glyph.rune
 
-    wasInsideWord = isInsideWord
-    isInsideWord = not rune.isWhiteSpace
-    let enteredWord = isInsideWord and not wasInsideWord
-    let exitedWord = wasInsideWord and not isInsideWord
+      wasWhiteSpace = isWhiteSpace
+      isWhiteSpace = rune.isWhiteSpace
 
-    if enteredWord:
-      lineWordCount += 1
+      # Entered whitespace from word.
+      if isWhiteSpace and not wasWhiteSpace:
+        lineWordCount += 1
+        previousWordEnd = i - 1
 
-    if exitedWord:
-      previousWordEnd = i - 1
-
-    if rune == newLineRune:
-      breakLine(i - 1, i + 1)
-      inc i
-      continue
-
-    if wordWrap and x + glyph.width > wrapWidth and i > 0:
-      if isInsideWord and lineWordCount > 1:
-        breakLine(previousWordEnd, previousWordEnd + 2)
-        i = currentLine.startIndex
+      if rune == newLineRune:
+        breakLine(i - 1, i + 1)
+        inc i
         continue
-      else:
-        breakLine(i - 1, i)
 
-    x += glyph.width
-    inc i
+      if wordWrap and x + glyph.width > wrapWidth and i > 0:
+        if lineWordCount > 0:
+          breakLine(previousWordEnd, previousWordEnd + 2)
+          i = currentLine.startIndex
+          continue
+        else:
+          breakLine(i - 1, i)
+
+      x += glyph.width
+      inc i
+
+  block:
+    text.lines.setLen(rawLines.len)
+
+    var i = 0
+    for line in rawLines:
+      if line.startIndex < text.glyphs.len and
+         line.endIndex < text.glyphs.len and
+         line.endIndex - line.startIndex >= 0:
+        text.lines[i] = line
+        inc i
+
+    text.lines.setLen(i)
 
 proc drawLines*(text: Text,
                 bounds: Rect2,
@@ -102,10 +113,6 @@ proc drawLines*(text: Text,
   let lineBoundsHeight = text.lineHeight - text.descender
 
   for line in text.lines:
-    if line.startIndex >= text.glyphs.len or
-       line.endIndex >= text.glyphs.len:
-      continue
-
     var lineWidth = 0.0
     for i in line.startIndex .. line.endIndex:
       lineWidth += text.glyphs[i].width

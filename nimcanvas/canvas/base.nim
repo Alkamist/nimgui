@@ -507,9 +507,21 @@ proc drawText*(canvas: Canvas,
     let lineStartAddr = cast[uint](text.data[startGlyph.byteIndex].unsafeAddr)
     let lineByteLen = (endGlyph.byteIndex + endGlyph.rune.size) - startGlyph.byteIndex
     let lineEndAddr = lineStartAddr + lineByteLen.uint
+
+    canvas.saveState()
+    canvas.beginPath()
+    canvas.roundedRect(lineBounds, 2)
+    canvas.fillColor = rgb(0, 120, 0)
+    canvas.fill()
+    canvas.restoreState()
+
     discard nvgText(canvas.nvgContext, lineBounds.x, lineBounds.y + text.lineHeight, cast[cstring](lineStartAddr), cast[cstring](lineEndAddr))
 
-  canvas.saveState()
-  canvas.clip(bounds)
+  if clip:
+    canvas.saveState()
+    canvas.clip(bounds)
+
   text.drawLines(bounds, alignX, alignY, wordWrap, clip, drawLine)
-  canvas.restoreState()
+
+  if clip:
+    canvas.restoreState()

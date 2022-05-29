@@ -9,23 +9,14 @@ let canvas = newCanvas()
 canvas.backgroundColor = rgb(16, 16, 16)
 canvas.addFont("consola", consolaData)
 
-# const data = """
-# proc drawText*(canvas: Canvas, text: string, bounds: Rect2) =
-#   var ascender, descender, lineHeight: cfloat
-#   nvgTextMetrics(canvas.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
-
-#   let lines = canvas.lineMetrics(text, bounds)
-#   var y = bounds.y
-#   for line in lines:
-#     let lineStartAddr = cast[uint](text[line.byteStart].unsafeAddr)
-#     let lineFinishAddr = lineStartAddr + line.byteLen.uint
-#     discard nvgText(canvas.nvgContext, bounds.x, y, cast[cstring](lineStartAddr), cast[cstring](lineFinishAddr))
-#     y += lineHeight
-# """
-
-var mouseEdit = canvas.size
+var mouseEdit = canvas.size - 5
 
 canvas.onFrame = proc() =
+  if canvas.mouseDown(Middle):
+    let zoomPull = canvas.mouseDeltaPixels.dot(vec2(1, 1).normalize)
+    canvas.dpi *= 2.0.pow(zoomPull * 0.005)
+    canvas.dpi = canvas.dpi.clamp(96.0, 5000.0)
+
   let textPosition = vec2(5, 5)
 
   if canvas.mouseDown(Left) and canvas.mouseMoved:

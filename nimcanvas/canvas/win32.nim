@@ -175,7 +175,7 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       of 222: KeyboardKey.Quote
       else: KeyboardKey.Unknown
 
-template processFrame(canvas: Canvas, stateChanges: untyped): untyped =
+template processFrame(canvas: Canvas, stateChanges: untyped)=
   canvas.updatePreviousState()
   stateChanges
   canvas.beginFrameBase()

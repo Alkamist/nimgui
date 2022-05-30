@@ -13,14 +13,14 @@ func vec2*(x, y = 0.0): Vec2 = Vec2(x: x, y: y)
 func `+`*(v: Vec2): Vec2 = v
 func `-`*(v: Vec2): Vec2 = vec2(-v.x, -v.y)
 
-template vec2BinaryOperator(op: untyped): untyped {.dirty.} =
+template vec2BinaryOperator(op: untyped) {.dirty.} =
   func op*(a, b: Vec2): Vec2 =
     vec2(op(a.x, b.x), op(a.y, b.y))
 
   func op*(a: Vec2, b: float): Vec2 =
     vec2(op(a.x, b), op(a.y, b))
 
-template vec2BinaryEqualsOperator(opEq, op: untyped): untyped {.dirty.} =
+template vec2BinaryEqualsOperator(opEq, op: untyped) {.dirty.} =
   func opEq*(a: var Vec2, b: Vec2) =
     a = op(a, b)
 

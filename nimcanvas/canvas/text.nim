@@ -45,8 +45,8 @@ func updateLines*(text: Text, wordWrap: bool, wrapWidth = 0.0) =
     var x = 0.0
     var i = 0
 
-    template currentLine(): untyped = rawLines[rawLines.len - 1]
-    template breakLine(previousLineEndIndex, newLineStartIndex: int): untyped =
+    template currentLine(): auto = rawLines[rawLines.len - 1]
+    template breakLine(previousLineEndIndex, newLineStartIndex: int) =
       inc lineBreakCount
       x = 0.0
       lineWordCount = 0

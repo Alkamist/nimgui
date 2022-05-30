@@ -202,6 +202,9 @@ proc newCanvasBase*(): Canvas =
 func scale*(canvas: Canvas): float =
   canvas.dpi / canvas.densityPixelDpi
 
+func pixelThickness*(canvas: Canvas): float =
+  canvas.densityPixelDpi / canvas.dpi
+
 func delta*(canvas: Canvas): float =
   canvas.time - canvas.previousTime
 
@@ -235,6 +238,9 @@ func position*(canvas: Canvas): Vec2 =
   vec2(canvas.positionPixels.x.float / scale,
        canvas.positionPixels.y.float / scale)
 
+func x*(canvas: Canvas): float = canvas.position.x
+func y*(canvas: Canvas): float = canvas.position.y
+
 func positionDeltaPixels*(canvas: Canvas): Vec2 =
   vec2(canvas.positionPixels.x - canvas.previousPositionPixels.x,
        canvas.positionPixels.y - canvas.previousPositionPixels.y)
@@ -253,6 +259,9 @@ func moved*(canvas: Canvas): bool =
 func size*(canvas: Canvas): Vec2 =
   let scale = canvas.scale
   vec2(canvas.sizePixels.x / scale, canvas.sizePixels.y / scale)
+
+func width*(canvas: Canvas): float = canvas.size.x
+func height*(canvas: Canvas): float = canvas.size.y
 
 func sizeDeltaPixels*(canvas: Canvas): Vec2 =
   vec2(canvas.sizePixels.x - canvas.previousSizePixels.x,
@@ -341,6 +350,12 @@ proc endFrameBase*(canvas: Canvas) =
 
 {.push inline.}
 
+proc pixelAlign*(canvas: Canvas, value: float): float =
+  (value * canvas.scale).round / canvas.scale
+
+proc pixelAlign*(canvas: Canvas, position: Vec2): Vec2 =
+  (position * canvas.scale).round / canvas.scale
+
 proc `backgroundColor=`*(canvas: Canvas, color: Color) =
   canvas.openGlContext.select()
   glClearColor(color.r, color.g, color.b, color.a)
@@ -366,22 +381,21 @@ proc arcTo*(canvas: Canvas, p0, p1: Vec2, radius: float) =
 proc closePath*(canvas: Canvas) =
   nvgClosePath(canvas.nvgContext)
 
-proc `pathWinding=`*(canvas: Canvas, winding: Winding) =
+proc `pathWinding=`*(canvas: Canvas, winding: Winding or Solidity) =
   nvgPathWinding(canvas.nvgContext, winding.cint)
 
 proc arc*(canvas: Canvas, p: Vec2, r, a0, a1: float, winding: Winding) =
   nvgArc(canvas.nvgContext, p.x, p.y, r, a0, a1, winding.cint)
 
 proc rect*(canvas: Canvas, rect: Rect2) =
-  nvgRect(canvas.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y)
+  nvgRect(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height)
 
 proc roundedRect*(canvas: Canvas, rect: Rect2, radius: float) =
-  nvgRoundedRect(canvas.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y, radius)
+  nvgRoundedRect(canvas.nvgContext, rect.x, rect.y, rect.width, rect.height, radius)
 
-proc roundedRect*(canvas: Canvas, rect: Rect2,
-                      radTopLeft, radTopRight, radBottomRight, radBottomLeft: float) =
+proc roundedRect*(canvas: Canvas, rect: Rect2, radTopLeft, radTopRight, radBottomRight, radBottomLeft: float) =
   nvgRoundedRectVarying(canvas.nvgContext,
-                        rect.position.x, rect.position.y, rect.size.x, rect.size.y,
+                        rect.x, rect.y, rect.width, rect.height,
                         radTopLeft, radTopRight, radBottomRight, radBottomLeft)
 
 proc ellipse*(canvas: Canvas, c, r: Vec2) =
@@ -458,6 +472,15 @@ proc `fontSize=`*(canvas: Canvas, size: float) =
 proc `letterSpacing=`*(canvas: Canvas, spacing: float) =
   nvgTextLetterSpacing(canvas.nvgContext, spacing)
 
+proc linearGradient*(canvas: Canvas, startPosition, endPosition: Vec2, startColor, endColor: Color): Paint =
+  nvgLinearGradient(canvas.nvgContext, startPosition.x, startPosition.y, endPosition.x, endPosition.y, startColor.toNvgColor, endColor.toNvgColor)
+
+proc boxGradient*(canvas: Canvas, bounds: Rect2, cornerRadius, feather: float, innerColor, outerColor: Color): Paint =
+  nvgBoxGradient(canvas.nvgContext, bounds.x, bounds.y, bounds.width, bounds.height, cornerRadius, feather, innerColor.toNvgColor, outerColor.toNvgColor)
+
+proc radialGradient*(canvas: Canvas, center: Vec2, innerRadius, outerRadius: float, innerColor, outerColor: Color): Paint =
+  nvgRadialGradient(canvas.nvgContext, center.x, center.y, innerRadius, outerRadius, innerColor.toNvgColor, outerColor.toNvgColor)
+
 {.pop.}
 
 import ./text; export text
@@ -509,11 +532,11 @@ proc drawText*(canvas: Canvas,
     let lineEndAddr = lineStartAddr + lineByteLen.uint
     # canvas.saveState()
     # canvas.beginPath()
-    # canvas.roundedRect(lineBounds, 2)
+    # canvas.roundedRect lineBounds, 2
     # canvas.fillColor = rgb(0, 120, 0)
     # canvas.fill()
     # canvas.restoreState()
-    discard nvgText(canvas.nvgContext, lineBounds.x, lineBounds.y + text.lineHeight, cast[cstring](lineStartAddr), cast[cstring](lineEndAddr))
+    discard nvgText(canvas.nvgContext, lineBounds.x, lineBounds.y + text.ascender, cast[cstring](lineStartAddr), cast[cstring](lineEndAddr))
 
   if clip:
     canvas.saveState()

@@ -108,7 +108,7 @@ proc drawLines*(text: Text,
 
   var y = bounds.y + yAdjustment
 
-  let lineBoundsHeight = text.lineHeight - text.descender
+  let lineBoundsHeight = text.ascender - text.descender
 
   for line in text.lines:
     var lineWidth = 0.0

@@ -3,13 +3,36 @@
 import ../nimcanvas
 
 const consolaData = staticRead("consola.ttf")
-const data = staticRead("unicodetestfile.txt")
+# const data = staticRead("unicodetestfile.txt")
 
 let canvas = newCanvas()
-canvas.backgroundColor = rgb(16, 16, 16)
+canvas.backgroundColor = rgb(13, 17, 23)
 canvas.addFont("consola", consolaData)
+canvas.font = "consola"
 
-var mouseEdit = canvas.size - 5
+let gui = newWidget(canvas)
+
+let w = canvas.width / 2.0
+let h = canvas.height / 2.0
+
+for i in 0 ..< 2:
+  for j in 0 ..< 2:
+    let button = newButtonWidget()
+    button.label = "Ayy Lmao"
+    button.relativeX = 50
+    button.relativeY = 50
+    button.width = 93
+    button.height = 32
+
+    let window = newWindowWidget()
+    window.title = "Ayy Lmao"
+    window.relativeX = i.float * w
+    window.relativeY = j.float * h
+    window.width = w * 0.95
+    window.height = h * 0.95
+
+    window.children.add(button)
+    gui.children.add(window)
 
 canvas.onFrame = proc() =
   if canvas.mouseDown(Middle):
@@ -17,26 +40,8 @@ canvas.onFrame = proc() =
     canvas.dpi *= 2.0.pow(zoomPull * 0.005)
     canvas.dpi = canvas.dpi.clamp(96.0, 5000.0)
 
-  let textPosition = vec2(5, 5)
-
-  if canvas.mouseDown(Left) and canvas.mouseMoved:
-    mouseEdit = canvas.mousePosition
-
-  let bounds = rect2(textPosition, mouseEdit - textPosition)
-
-  canvas.beginPath()
-  canvas.roundedRect(bounds, 5)
-  canvas.fillColor = rgb(80, 0, 0)
-  canvas.fill()
-
-  canvas.fillColor = rgb(240, 240, 240)
-
-  # canvas.letterSpacing = 2
-  canvas.font = "consola"
-  canvas.fontSize = 13
-
-  let text = canvas.newText(data)
-  canvas.drawText(text, bounds.expand(-2.5), Left, Top, wordWrap = true)
+  gui.update()
+  gui.draw()
 
 while canvas.isOpen:
   canvas.update()

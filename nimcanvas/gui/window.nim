@@ -116,8 +116,8 @@ method update*(window: WindowWidget) =
 
 method draw*(window: WindowWidget) =
   let canvas = window.canvas
-  let bounds = window.bounds
-  let titleBarBounds = window.titleBarBounds
+  let bounds = canvas.pixelAlign(window.bounds)
+  let titleBarBounds = canvas.pixelAlign(window.titleBarBounds)
   # let resizeHandleBounds = window.resizeHandleBounds
 
   canvas.saveState()
@@ -130,26 +130,28 @@ method draw*(window: WindowWidget) =
     window.parent.children.len > 0 and
     window.parent.children[0] == window
 
+  let shadowFeather =
+    if parentIsFocused and isTopMost: 25.0
+    else: 15.0
+
   # Drop shadow.
-  if parentIsFocused and isTopMost:
-    let shadowFeather = 10.0
-    let shadowPaint = canvas.boxGradient(bounds, window.cornerRadius * 2, shadowFeather, rgba(0, 0, 0, 128), rgba(0, 0, 0, 0))
-    canvas.beginPath()
-    canvas.rect bounds.expand(shadowFeather)
-    canvas.roundedRect bounds, window.cornerRadius
-    canvas.pathWinding = Hole
-    canvas.fillPaint = shadowPaint
-    canvas.fill()
+  let shadowPaint = canvas.boxGradient(bounds, window.cornerRadius * 2, shadowFeather, rgba(0, 0, 0, 64), rgba(0, 0, 0, 0))
+  canvas.beginPath()
+  canvas.rect(bounds.expand(shadowFeather).translate(vec2(8, 8)))
+  canvas.roundedRect(bounds, window.cornerRadius)
+  canvas.pathWinding = Hole
+  canvas.fillPaint = shadowPaint
+  canvas.fill()
 
   # Background.
   canvas.beginPath()
-  canvas.roundedRect bounds, window.cornerRadius
+  canvas.roundedRect(bounds, window.cornerRadius)
   canvas.fillColor = window.colors.background
   canvas.fill()
 
   # Title background.
   canvas.beginPath()
-  canvas.roundedRect titleBarBounds, window.cornerRadius, window.cornerRadius, 0, 0
+  canvas.roundedRect(titleBarBounds, window.cornerRadius, window.cornerRadius, 0, 0)
   canvas.fillColor = window.colors.titleBackground
   canvas.fill()
 
@@ -157,7 +159,7 @@ method draw*(window: WindowWidget) =
   canvas.fontSize = 13
   canvas.fillColor = window.colors.titleText
   canvas.drawText(
-    canvas.newText window.title,
+    canvas.newText(window.title),
     titleBarBounds,
     alignX = Center,
     alignY = Center,
@@ -165,7 +167,8 @@ method draw*(window: WindowWidget) =
     clip = true,
   )
 
-  canvas.clip window.bodyBounds.expand(-0.5 * window.cornerRadius)
+  let clipRect = window.bodyBounds.expand(canvas.pixelAlign(-0.5 * window.cornerRadius))
+  canvas.clip(clipRect)
 
   window.drawChildren()
 
@@ -192,7 +195,7 @@ method draw*(window: WindowWidget) =
   # Border.
   let borderThickness = 1.0
   canvas.beginPath()
-  canvas.roundedRect bounds.expand(-0.5 * borderThickness), window.cornerRadius
+  canvas.roundedRect(bounds.expand(-0.5 * borderThickness), window.cornerRadius)
   let titleBarBottom = titleBarBounds.y + titleBarBounds.height - 0.5 * borderThickness
   canvas.moveTo(vec2(titleBarBounds.x, titleBarBottom))
   canvas.lineTo(vec2(titleBarBounds.x + titleBarBounds.width, titleBarBottom))

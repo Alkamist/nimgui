@@ -60,8 +60,8 @@ func updateChildren*(widget: Widget) =
     child.canvas = canvas
 
     child.position = widget.position + child.relativePosition
-    child.position = canvas.pixelAlign(child.position)
-    child.size = canvas.pixelAlign(child.size)
+    child.position = child.position
+    child.size = child.size
 
     let mouseIsInside = child.bounds.contains(child.canvas.mousePosition)
 

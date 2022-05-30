@@ -3,10 +3,10 @@
 import ../nimcanvas
 
 const consolaData = staticRead("consola.ttf")
-# const data = staticRead("unicodetestfile.txt")
 
 let canvas = newCanvas()
 canvas.backgroundColor = rgb(13, 17, 23)
+# canvas.backgroundColor = rgb(255, 255, 255)
 canvas.addFont("consola", consolaData)
 canvas.font = "consola"
 
@@ -26,8 +26,8 @@ for i in 0 ..< 2:
 
     let window = newWindowWidget()
     window.title = "Ayy Lmao"
-    window.relativeX = i.float * w
-    window.relativeY = j.float * h
+    window.relativeX = i.float * w + 10.0
+    window.relativeY = j.float * h + 10.0
     window.width = w * 0.95
     window.height = h * 0.95
 

@@ -351,10 +351,21 @@ proc endFrameBase*(canvas: Canvas) =
 {.push inline.}
 
 proc pixelAlign*(canvas: Canvas, value: float): float =
-  (value * canvas.scale).round / canvas.scale
+  let scale = canvas.scale
+  (value * scale).round / scale
 
 proc pixelAlign*(canvas: Canvas, position: Vec2): Vec2 =
-  (position * canvas.scale).round / canvas.scale
+  let scale = canvas.scale
+  (position * scale).round / scale
+
+proc pixelAlign*(canvas: Canvas, bounds: Rect2): Rect2 =
+  let scale = canvas.scale
+  rect2(
+    (bounds.x * scale).round / scale,
+    (bounds.y * scale).round / scale,
+    (bounds.width * scale).round / scale,
+    (bounds.height * scale).round / scale,
+  )
 
 proc `backgroundColor=`*(canvas: Canvas, color: Color) =
   canvas.openGlContext.select()

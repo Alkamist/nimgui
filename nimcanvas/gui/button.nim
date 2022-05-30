@@ -48,32 +48,34 @@ method update*(button: ButtonWidget) =
 
 method draw*(button: ButtonWidget) =
   let canvas = button.canvas
-  let bounds = button.bounds
+  let bounds = canvas.pixelAlign(button.bounds)
+  let borderThickness = 1.0
 
   canvas.saveState()
 
-  canvas.beginPath()
-  canvas.roundedRect(bounds, button.cornerRadius)
   canvas.fillColor =
     if button.isDown: button.colors.background.darken(0.3)
     elif button.mouseIsOver: button.colors.background.lighten(0.05)
     else: button.colors.background
-  canvas.fill()
 
-  let borderThickness = 1.0
-  canvas.beginPath()
-  canvas.roundedRect(bounds.expand(-0.5 * borderThickness), button.cornerRadius)
   canvas.strokeColor =
     if button.isDown: button.colors.border.darken(0.1)
     elif button.mouseIsOver: button.colors.border.lighten(0.4)
     else: button.colors.border
+
   canvas.strokeWidth = borderThickness
+
+  canvas.beginPath()
+  canvas.roundedRect(bounds, button.cornerRadius)
+  canvas.fill()
+  canvas.beginPath()
+  canvas.roundedRect(bounds.expand(-0.5 * borderThickness), button.cornerRadius)
   canvas.stroke()
 
   canvas.fillColor = button.colors.text
   canvas.fontSize = 13
   canvas.drawText(
-    canvas.newText button.label,
+    canvas.newText(button.label),
     bounds,
     alignX = Center,
     alignY = Center,

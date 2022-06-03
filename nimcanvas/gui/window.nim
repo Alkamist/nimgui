@@ -194,8 +194,9 @@ method draw*(window: WindowWidget) =
 
   # Border.
   let borderThickness = 1.0
+  let borderInset = 0.5 * borderThickness
   canvas.beginPath()
-  canvas.roundedRect(bounds.expand(-0.5 * borderThickness), window.cornerRadius)
+  canvas.roundedRect(bounds.expand(-borderInset), window.cornerRadius - borderInset)
   let titleBarBottom = titleBarBounds.y + titleBarBounds.height - 0.5 * borderThickness
   canvas.moveTo(vec2(titleBarBounds.x, titleBarBottom))
   canvas.lineTo(vec2(titleBarBounds.x + titleBarBounds.width, titleBarBottom))

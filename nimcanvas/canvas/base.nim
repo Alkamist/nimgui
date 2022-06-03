@@ -350,21 +350,18 @@ proc endFrameBase*(canvas: Canvas) =
 
 {.push inline.}
 
-proc pixelAlign*(canvas: Canvas, value: float): float =
-  let scale = canvas.scale
+template pixelAlign*(value, scale: float): float =
   (value * scale).round / scale
 
-proc pixelAlign*(canvas: Canvas, position: Vec2): Vec2 =
-  let scale = canvas.scale
-  (position * scale).round / scale
+template pixelAlign*(position: Vec2, scale: float): Vec2 =
+  vec2(position.x.pixelAlign(scale), position.y.pixelAlign(scale))
 
-proc pixelAlign*(canvas: Canvas, bounds: Rect2): Rect2 =
-  let scale = canvas.scale
+template pixelAlign*(bounds: Rect2, scale: float): Rect2 =
   rect2(
-    (bounds.x * scale).round / scale,
-    (bounds.y * scale).round / scale,
-    (bounds.width * scale).round / scale,
-    (bounds.height * scale).round / scale,
+    bounds.x.pixelAlign(scale),
+    bounds.y.pixelAlign(scale),
+    bounds.width.pixelAlign(scale),
+    bounds.height.pixelAlign(scale),
   )
 
 proc `backgroundColor=`*(canvas: Canvas, color: Color) =

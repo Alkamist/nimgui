@@ -49,7 +49,9 @@ method update*(button: ButtonWidget) =
 method draw*(button: ButtonWidget) =
   let canvas = button.canvas
   let bounds = canvas.pixelAlign(button.bounds)
+
   let borderThickness = 1.0
+  let borderInset = 0.5 * borderThickness
 
   canvas.saveState()
 
@@ -69,7 +71,7 @@ method draw*(button: ButtonWidget) =
   canvas.roundedRect(bounds, button.cornerRadius)
   canvas.fill()
   canvas.beginPath()
-  canvas.roundedRect(bounds.expand(-0.5 * borderThickness), button.cornerRadius)
+  canvas.roundedRect(bounds.expand(-borderInset), button.cornerRadius - borderInset)
   canvas.stroke()
 
   canvas.fillColor = button.colors.text

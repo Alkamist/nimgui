@@ -50,4 +50,13 @@ func contains*(a, b: Rect2): bool =
   b.y + b.height >= a.y and
   b.y <= a.y + a.height
 
+func intersect*(a, b: Rect2): Rect2 =
+  let x1 = max(a.x, b.x)
+  let y1 = max(a.y, b.y)
+  var x2 = min(a.x + a.width, b.x + b.width)
+  var y2 = min(a.y + a.height, b.y + b.height)
+  if x2 < x1: x2 = x1
+  if y2 < y1: y2 = y1
+  rect2(x1, y1, x2 - x1, y2 - y1)
+
 {.pop.}

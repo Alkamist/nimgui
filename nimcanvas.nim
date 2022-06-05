@@ -1,2 +1,4 @@
-import ./nimcanvas/canvas; export canvas
-import ./nimcanvas/gui; export gui
+import ./nimcanvas/input; export input
+import ./nimcanvas/window; export window
+import ./nimcanvas/vg; export vg
+# import ./nimcanvas/gui; export gui

@@ -19,8 +19,8 @@ const currentDir = getCurrentDir()
 """.}
 
 type
-  NVGContextObj* {.byCopy.} = object
-  NVGContext* = ptr NVGContextObj
+  NVGcontextObj* {.byCopy.} = object
+  NVGcontext* = ptr NVGcontextObj
 
   NVGcolor* {.byCopy.} = object
     r*, g*, b*, a*: cfloat

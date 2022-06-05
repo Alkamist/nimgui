@@ -1,7 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import std/unicode
-import ../tmath
+import ./math; export math
 
 const newLineRune = "\n".runeAt(0)
 

@@ -250,6 +250,12 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   case msg:
 
+  of WM_SETFOCUS:
+    window.input.state.isFocused = true
+
+  of WM_KILLFOCUS:
+    window.input.state.isFocused = false
+
   of WM_MOVE:
     window.updateBounds()
 
@@ -287,13 +293,25 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     window.updateBounds()
 
   of WM_MOUSEMOVE:
+    if not window.input.state.isHovered:
+      var tme: TTRACKMOUSEEVENT
+      ZeroMemory(tme.addr, sizeof(tme))
+      tme.cbSize = sizeof(tme).cint
+      tme.dwFlags = TME_LEAVE
+      tme.hwndTrack = window.hwnd
+      TrackMouseEvent(tme.addr)
+      window.input.state.isHovered = true
+
     window.input.state.mousePosition = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float) / window.input.state.pixelDensity
 
+  of WM_MOUSELEAVE:
+    window.input.state.isHovered = false
+
   of WM_MOUSEWHEEL:
-    window.input.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    window.input.state.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
 
   of WM_MOUSEHWHEEL:
-    window.input.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    window.input.state.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
 
   of WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
      WM_MBUTTONDOWN, WM_MBUTTONDBLCLK,

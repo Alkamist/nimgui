@@ -49,7 +49,7 @@ proc newVgContext*(): VgContext =
     nvgContext: nvgCreateGL3(NVG_ANTIALIAS or NVG_STENCIL_STROKES),
   )
 
-template pixelAlign*(value, ctx: VgContext): float =
+template pixelAlign*(value: float, ctx: VgContext): float =
   let scale = ctx.scale
   (value * scale).round / scale
 

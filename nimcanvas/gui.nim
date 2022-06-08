@@ -1,7 +1,8 @@
 {.experimental: "overloadableEnums".}
 
 import std/hashes
-# import std/tables
+import std/tables
+# import ./gui/widget; export widget
 import ./input; export input
 import ./math; export math
 import ./vg; export vg
@@ -9,76 +10,58 @@ import ./vg; export vg
 type
   WidgetId* = Hash
 
-  WidgetContainer* = ref object of RootObj
+  WindowWidget* = ref object
+    context*: VgContext
+    bounds*: Rect2
+    isHovered*: bool
+    isBeingMoved*: bool
 
   Gui* = ref object
     input*: Input
-    mouseOverWidget*: WidgetId
-    focusedWindow*: WidgetId
-    containerStack*: seq[WidgetId]
+    windows*: Table[WidgetId, WindowWidget]
+    windowStack*: seq[WidgetId]
+    windowFocusOrder*: seq[WidgetId]
+
+proc getWindow*(gui: Gui, id: WidgetId): WindowWidget =
+  if gui.windows.hasKey(id):
+    result = gui.windows[id]
+  else:
+    result = WindowWidget(
+      context: newVgContext(),
+      bounds: rect2(50, 50, 400, 300),
+    )
+    gui.windows[id] = result
+    gui.windowFocusOrder.add id
+  gui.windowStack.add id
+  result.context.beginFrame(gui.input.size * gui.input.pixelDensity, gui.input.scale)
+
+proc getWindow*(gui: Gui, label: string): WindowWidget =
+  gui.getWindow(hash(label))
 
 func newGui*(input: Input): Gui =
   Gui(input: input)
 
-func mouseIsOver*(gui: Gui, id: WidgetId): bool =
-  gui.mouseOverWidget == id
+proc beginFrame*(gui: Gui) =
+  gui.windowStack.setLen(0)
 
-func beginFrame*(gui: Gui) =
-  let input = gui.input
+proc endFrame*(gui: Gui) =
+  var hoverIsSet = false
+  for i in countdown(gui.windowFocusOrder.len - 1, 0, 1):
+    let window = gui.windows[gui.windowFocusOrder[i]]
+    window.context.endFrame()
+    if not hoverIsSet and window.bounds.contains(gui.input.mousePosition):
+      window.isHovered = true
+      hoverIsSet = true
+    else:
+      window.isHovered = false
 
-# func beginFrame*(gui: Gui) =
-#   let input = gui.input
-
-#   var mouseOverIsSet = false
-#   var focusChanged = false
-#   var focusIndex = 0
-
-#   container.mouseOver = nil
-
-#   for i in countup(0, container.children.len - 1, 1):
-#     let child = container.children[i]
-
-#     child.bounds.position = container.bounds.position + child.relativePosition
-
-#     let mouseIsInside = child.bounds.contains(input.mousePosition)
-
-#     if not mouseOverIsSet and mouseIsInside and container.mouseIsOver:
-#       container.mouseOver = child
-#       mouseOverIsSet = true
-
-#     child.mouseIsOver = child == container.mouseOver
-
-#     if child.mouseIsOver and input.mousePressed(Left):
-#       container.focus = child
-#       focusChanged = true
-#       focusIndex = i
-
-#     if container.focus == child and input.mousePressed(Left):
-#       container.focus = nil
-
-#   # Order children by most recently focused. That way you can
-#   # draw them in reverse, which feels like the most natural
-#   # way for windows to work.
-#   # if focusChanged:
-#   #   for i in countdown(focusIndex, 1, 1):
-#   #     container.children[i] = container.children[i - 1]
-#   #   container.children[0] = container.focus
-
-#   for i in countup(0, container.children.len - 1, 1):
-#     let child = container.children[i]
-#     child.isFocused = container.focus == child
-#     if child of WidgetContainer:
-#       let childAsContainer = WidgetContainer(child)
-#       childAsContainer.input = input
-#       childAsContainer.updateChildren()
-
-func drawFrameWithoutHeader(vg: VgContext,
+func drawFrameWithoutHeader(ctx: VgContext,
                             bounds: Rect2,
                             borderThickness: float,
                             cornerRadius: float,
                             bodyColor, borderColor: Color) =
   let halfBorderThickness = borderThickness * 0.5
-  let bounds = bounds.pixelAlign(vg)
+  let bounds = bounds.pixelAlign(ctx)
 
   let leftOuter = bounds.x
   let leftMiddle = leftOuter + halfBorderThickness
@@ -98,8 +81,8 @@ func drawFrameWithoutHeader(vg: VgContext,
   let innerCornerRadius = middleCornerRadius - halfBorderThickness
 
   # Body fill.
-  vg.beginPath()
-  vg.roundedRect(
+  ctx.beginPath()
+  ctx.roundedRect(
     rect2(
       leftMiddle,
       topMiddle,
@@ -111,15 +94,15 @@ func drawFrameWithoutHeader(vg: VgContext,
     middleCornerRadius,
     middleCornerRadius,
   )
-  vg.fillColor = bodyColor
-  vg.fill()
+  ctx.fillColor = bodyColor
+  ctx.fill()
 
   # Border outer.
-  vg.beginPath()
-  vg.roundedRect(bounds, cornerRadius)
+  ctx.beginPath()
+  ctx.roundedRect(bounds, cornerRadius)
 
   # Body inner hole.
-  vg.roundedRect(
+  ctx.roundedRect(
     rect2(
       leftInner,
       topInner,
@@ -131,111 +114,110 @@ func drawFrameWithoutHeader(vg: VgContext,
     innerCornerRadius,
     innerCornerRadius,
   )
-  vg.pathWinding = Hole
+  ctx.pathWinding = Hole
 
-  vg.fillColor = borderColor
-  vg.fill()
+  ctx.fillColor = borderColor
+  ctx.fill()
 
-# func drawFrameWithHeader(canvas: Canvas,
-#                          bounds: Rect2,
-#                          borderThickness, headerHeight: float,
-#                          cornerRadius: float,
-#                          bodyColor, headerColor, borderColor: Color) =
-#   let scale = canvas.scale
-#   let headerHeight = headerHeight.pixelAlign(scale)
-#   let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
-#   let halfBorderThickness = borderThickness * 0.5
-#   let bounds = bounds.pixelAlign(scale)
+func drawFrameWithHeader(ctx: VgContext,
+                         bounds: Rect2,
+                         borderThickness, headerHeight: float,
+                         cornerRadius: float,
+                         bodyColor, headerColor, borderColor: Color) =
+  let headerHeight = headerHeight.pixelAlign(ctx)
+  let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
+  let halfBorderThickness = borderThickness * 0.5
+  let bounds = bounds.pixelAlign(ctx)
 
-#   let leftOuter = bounds.x
-#   let leftMiddle = leftOuter + halfBorderThickness
-#   let leftInner = leftMiddle + halfBorderThickness
-#   let rightOuter = bounds.x + bounds.width
-#   let rightMiddle = rightOuter - halfBorderThickness
-#   let rightInner = rightMiddle - halfBorderThickness
-#   let topOuter = bounds.y
-#   let topMiddle = topOuter + halfBorderThickness
-#   let topInner = topMiddle + halfBorderThickness
-#   let headerOuter = bounds.y + headerHeight
-#   let headerMiddle = headerOuter - halfBorderThickness
-#   let headerInner = headerMiddle - halfBorderThickness
-#   let bottomOuter = bounds.y + bounds.height
-#   let bottomMiddle = bottomOuter - halfBorderThickness
-#   let bottomInner = bottomMiddle - halfBorderThickness
+  let leftOuter = bounds.x
+  let leftMiddle = leftOuter + halfBorderThickness
+  let leftInner = leftMiddle + halfBorderThickness
+  let rightOuter = bounds.x + bounds.width
+  let rightMiddle = rightOuter - halfBorderThickness
+  let rightInner = rightMiddle - halfBorderThickness
+  let topOuter = bounds.y
+  let topMiddle = topOuter + halfBorderThickness
+  let topInner = topMiddle + halfBorderThickness
+  let headerOuter = bounds.y + headerHeight
+  let headerMiddle = headerOuter - halfBorderThickness
+  let headerInner = headerMiddle - halfBorderThickness
+  let bottomOuter = bounds.y + bounds.height
+  let bottomMiddle = bottomOuter - halfBorderThickness
+  let bottomInner = bottomMiddle - halfBorderThickness
 
-#   let innerWidth = rightInner - leftInner
-#   let middleWidth = rightMiddle - leftMiddle
+  let innerWidth = rightInner - leftInner
+  let middleWidth = rightMiddle - leftMiddle
 
-#   let outerCornerRadius = cornerRadius
-#   let middleCornerRadius = outerCornerRadius - halfBorderThickness
-#   let innerCornerRadius = middleCornerRadius - halfBorderThickness
+  let outerCornerRadius = cornerRadius
+  let middleCornerRadius = outerCornerRadius - halfBorderThickness
+  let innerCornerRadius = middleCornerRadius - halfBorderThickness
 
-#   # Header fill.
-#   canvas.beginPath()
-#   canvas.roundedRect(
-#     rect2(
-#       leftMiddle,
-#       topMiddle,
-#       middleWidth,
-#       headerMiddle - topMiddle,
-#     ),
-#     middleCornerRadius,
-#     middleCornerRadius,
-#     0, 0,
-#   )
-#   canvas.fillColor = headerColor
-#   canvas.fill()
+  # Header fill.
+  ctx.beginPath()
+  ctx.roundedRect(
+    rect2(
+      leftMiddle,
+      topMiddle,
+      middleWidth,
+      headerMiddle - topMiddle,
+    ),
+    middleCornerRadius,
+    middleCornerRadius,
+    0, 0,
+  )
+  ctx.fillColor = headerColor
+  ctx.fill()
 
-#   # Body fill.
-#   canvas.beginPath()
-#   canvas.roundedRect(
-#     rect2(
-#       leftMiddle,
-#       headerMiddle,
-#       middleWidth,
-#       bottomMiddle - headerMiddle,
-#     ),
-#     0, 0,
-#     middleCornerRadius,
-#     middleCornerRadius,
-#   )
-#   canvas.fillColor = bodyColor
-#   canvas.fill()
+  # Body fill.
+  ctx.beginPath()
+  ctx.roundedRect(
+    rect2(
+      leftMiddle,
+      headerMiddle,
+      middleWidth,
+      bottomMiddle - headerMiddle,
+    ),
+    0, 0,
+    middleCornerRadius,
+    middleCornerRadius,
+  )
+  ctx.fillColor = bodyColor
+  ctx.fill()
 
-#   # Border outer.
-#   canvas.beginPath()
-#   canvas.roundedRect(bounds, cornerRadius)
+  # Border outer.
+  ctx.beginPath()
+  ctx.roundedRect(bounds, cornerRadius)
 
-#   # Header inner hole.
-#   canvas.roundedRect(
-#     rect2(
-#       leftInner,
-#       topInner,
-#       innerWidth,
-#       headerInner - topInner,
-#     ),
-#     innerCornerRadius,
-#     innerCornerRadius,
-#     0, 0,
-#   )
-#   canvas.pathWinding = Hole
+  # Header inner hole.
+  ctx.roundedRect(
+    rect2(
+      leftInner,
+      topInner,
+      innerWidth,
+      headerInner - topInner,
+    ),
+    innerCornerRadius,
+    innerCornerRadius,
+    0, 0,
+  )
+  ctx.pathWinding = Hole
 
-#   # Body inner hole.
-#   canvas.roundedRect(
-#     rect2(
-#       leftInner,
-#       headerOuter,
-#       innerWidth,
-#       bottomInner - headerOuter,
-#     ),
-#     0, 0,
-#     innerCornerRadius,
-#     innerCornerRadius,
-#   )
-#   canvas.pathWinding = Hole
+  # Body inner hole.
+  ctx.roundedRect(
+    rect2(
+      leftInner,
+      headerOuter,
+      innerWidth,
+      bottomInner - headerOuter,
+    ),
+    0, 0,
+    innerCornerRadius,
+    innerCornerRadius,
+  )
+  ctx.pathWinding = Hole
 
-#   canvas.fillColor = borderColor
-#   canvas.fill()
+  ctx.fillColor = borderColor
+  ctx.fill()
 
 # type
 #   ButtonSignal* = enum
@@ -282,34 +264,43 @@ func drawFrameWithoutHeader(vg: VgContext,
 #     clip = true,
 #   )
 
-# func defaultWindowTheme*(): WindowTheme =
-#   (
-#     headerHeight: 24.0,
-#     borderThickness: 1.0,
-#     cornerRadius: 5.0,
-#     colors: (
-#       body: rgb(13, 17, 23),
-#       header: rgb(22, 27, 34),
-#       border: rgb(52, 59, 66),
-#       headerText: rgb(201, 209, 217),
-#     ),
-#   )
+func defaultWindowTheme*(): auto =
+  (
+    headerHeight: 24.0,
+    borderThickness: 1.0,
+    cornerRadius: 5.0,
+    colors: (
+      body: rgb(13, 17, 23),
+      header: rgb(22, 27, 34),
+      border: rgb(52, 59, 66),
+      headerText: rgb(201, 209, 217),
+    ),
+  )
 
-# func beginWindow*(gui: Gui, label: string) =
-#   let canvas = gui.canvas
-#   let theme = defaultWindowTheme()
+proc beginWindow*(gui: Gui, label: string) =
+  let theme = defaultWindowTheme()
+  let input = gui.input
+  let window = gui.getWindow(label)
+  let ctx = window.context
 
-#   canvas.drawFrameWithHeader(
-#     bounds = rect2(50, 50, 200, 200),
-#     theme.borderThickness,
-#     theme.headerHeight,
-#     theme.cornerRadius,
-#     theme.colors.body,
-#     theme.colors.header,
-#     theme.colors.border,
-#   )
+  if window.isHovered and input.mousePressed(Left):
+    window.isBeingMoved = true
 
-# func endWindow*(gui: Gui) =
-#   let canvas = gui.canvas
-#   canvas.resetClip()
-#   canvas.restoreState()
+  if window.isBeingMoved and input.mouseReleased(Left):
+    window.isBeingMoved = false
+
+  if window.isBeingMoved:
+    window.bounds.position += input.mouseDelta
+
+  ctx.drawFrameWithHeader(
+    bounds = window.bounds,
+    theme.borderThickness,
+    theme.headerHeight,
+    theme.cornerRadius,
+    theme.colors.body,
+    theme.colors.header,
+    theme.colors.border,
+  )
+
+func endWindow*(gui: Gui) =
+  discard

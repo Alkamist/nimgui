@@ -1,6 +1,6 @@
 {.experimental: "overloadableEnums".}
 
-import ../nimcanvas
+import ../nimengine
 
 let window = newWindow()
 window.backgroundColor = rgb(13, 17, 23)

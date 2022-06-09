@@ -2,7 +2,7 @@
 
 import std/times
 import std/unicode
-import winim/lean as win32
+import winim/lean as win32 except INPUT
 import ./base; export base
 
 const WM_DPICHANGED* = 0x02E0
@@ -47,8 +47,8 @@ template updateBounds(window: Window) =
   GetClientRect(window.hwnd, rect.addr)
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.left.addr))
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.right.addr))
-  window.input.state.bounds.position = vec2(rect.left.float, rect.top.float) / window.input.state.pixelDensity
-  window.input.state.bounds.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float) / window.input.state.pixelDensity
+  window.input.state.boundsPixels.position = vec2(rect.left.float, rect.top.float)
+  window.input.state.boundsPixels.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
 
 func toMouseButton(msg: UINT, wParam: WPARAM): MouseButton =
   case msg:
@@ -302,7 +302,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       TrackMouseEvent(tme.addr)
       window.input.state.isHovered = true
 
-    window.input.state.mousePosition = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float) / window.input.state.pixelDensity
+    window.input.state.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
 
   of WM_MOUSELEAVE:
     window.input.state.isHovered = false

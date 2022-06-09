@@ -6,18 +6,130 @@ import ./input
 var FLT_MAX {.importc, nodecl.}: cfloat
 
 type
+  Font* = ptr ImFont
+
   Gui* = ref object
     input*: Input
     mouseExitPosition*: Vec2
+
+proc getClipboardText(user_data: pointer): cstring {.cdecl.} =
+  var input = cast[Input](user_data)
+  input.clipboard.cstring
+
+proc setClipboardText(user_data: pointer, text: cstring) {.cdecl.} =
+  var input = cast[Input](user_data)
+  input.clipboard = $text
+
+proc setDefaultStyle() =
+  var style = ImGui_GetStyle()
+  style.Alpha = 1.0
+  style.DisabledAlpha = 0.6
+  style.WindowPadding = imVec2(8, 8)
+  style.WindowRounding = 5.0
+  style.WindowBorderSize = 1.0
+  style.WindowMinSize = imVec2(32, 32)
+  style.WindowTitleAlign = imVec2(0.5, 0.5)
+  style.WindowMenuButtonPosition = ImGuiDir_Left
+  style.ChildRounding = 5.0
+  style.ChildBorderSize = 1.0
+  style.PopupRounding = 5.0
+  style.PopupBorderSize = 1.0
+  style.FramePadding = imVec2(4, 3)
+  style.FrameRounding = 2.0
+  style.FrameBorderSize = 0.0
+  style.ItemSpacing = imVec2(8, 4)
+  style.ItemInnerSpacing = imVec2(4, 4)
+  style.CellPadding = imVec2(4, 2)
+  style.TouchExtraPadding = imVec2(0, 0)
+  style.IndentSpacing = 21.0
+  style.ColumnsMinSpacing = 6.0
+  style.ScrollbarSize = 14.0
+  style.ScrollbarRounding = 2.0
+  style.GrabMinSize = 10.0
+  style.GrabRounding = 2.0
+  style.LogSliderDeadzone = 4.0
+  style.TabRounding = 4.0
+  style.TabBorderSize = 0.0
+  style.TabMinWidthForCloseButton = 0.0
+  style.ColorButtonPosition = ImGuiDir_Right
+  style.ButtonTextAlign = imVec2(0.5, 0.5)
+  style.SelectableTextAlign = imVec2(0.0, 0.0)
+  style.DisplayWindowPadding = imVec2(19, 19)
+  style.DisplaySafeAreaPadding = imVec2(3, 3)
+  style.MouseCursorScale = 1.0
+  style.AntiAliasedLines = true
+  style.AntiAliasedLinesUseTex = true
+  style.AntiAliasedFill = true
+  style.CurveTessellationTol = 1.25
+  style.CircleTessellationMaxError = 0.3
+
+  style.Colors[ImGuiCol_Text] = imVec4(1.0, 1.0, 1.0, 0.87)
+  style.Colors[ImGuiCol_TextDisabled] = imVec4(0.55, 0.58, 0.62, 1.0)
+  style.Colors[ImGuiCol_WindowBg] = imVec4(0.05, 0.066, 0.09, 1.0)
+  style.Colors[ImGuiCol_ChildBg] = imVec4(0.0, 0.0, 0.0, 0.0)
+  style.Colors[ImGuiCol_PopupBg] = imVec4(0.05, 0.066, 0.09, 1.0)
+  style.Colors[ImGuiCol_Border] = imVec4(0.99, 1.0, 1.0, 0.11)
+  style.Colors[ImGuiCol_BorderShadow] = imVec4(0.0, 0.0, 0.0, 0.0)
+  style.Colors[ImGuiCol_FrameBg] = imVec4(1.0, 1.0, 1.0, 0.07)
+  style.Colors[ImGuiCol_FrameBgHovered] = imVec4(1.0, 1.0, 1.0, 0.09)
+  style.Colors[ImGuiCol_FrameBgActive] = imVec4(1.0, 1.0, 1.0, 0.15)
+  style.Colors[ImGuiCol_TitleBg] = imVec4(0.1, 0.13, 0.15, 1.0)
+  style.Colors[ImGuiCol_TitleBgActive] = imVec4(0.1, 0.13, 0.15, 1.0)
+  style.Colors[ImGuiCol_TitleBgCollapsed] = imVec4(0.06, 0.08, 0.09, 1.0)
+  style.Colors[ImGuiCol_MenuBarBg] = imVec4(1.0, 1.0, 1.0, 0.02)
+  style.Colors[ImGuiCol_ScrollbarBg] = imVec4(0.0, 0.0, 0.0, 0.0)
+  style.Colors[ImGuiCol_ScrollbarGrab] = imVec4(1.0, 1.0, 1.0, 0.10)
+  style.Colors[ImGuiCol_ScrollbarGrabHovered] = imVec4(1.0, 1.0, 1.0, 0.16)
+  style.Colors[ImGuiCol_ScrollbarGrabActive] = imVec4(1.0, 1.0, 1.0, 0.23)
+  style.Colors[ImGuiCol_CheckMark] = imVec4(1.0, 1.0, 1.0, 0.74)
+  style.Colors[ImGuiCol_SliderGrab] = imVec4(1.0, 1.0, 1.0, 0.2)
+  style.Colors[ImGuiCol_SliderGrabActive] = imVec4(1.0, 1.0, 1.0, 0.2)
+  style.Colors[ImGuiCol_Button] = imVec4(1.0, 1.0, 1.0, 0.2)
+  style.Colors[ImGuiCol_ButtonHovered] = imVec4(1.0, 1.0, 1.0, 0.31)
+  style.Colors[ImGuiCol_ButtonActive] = imVec4(1.0, 1.0, 1.0, 0.39)
+  style.Colors[ImGuiCol_Header] = imVec4(1.0, 1.0, 1.0, 0.17)
+  style.Colors[ImGuiCol_HeaderHovered] = imVec4(1.0, 1.0, 1.0, 0.24)
+  style.Colors[ImGuiCol_HeaderActive] = imVec4(1.0, 1.0, 1.0, 0.33)
+  style.Colors[ImGuiCol_Separator] = imVec4(1.0, 1.0, 1.0, 0.11)
+  style.Colors[ImGuiCol_SeparatorHovered] = imVec4(1.0, 1.0, 1.0, 0.18)
+  style.Colors[ImGuiCol_SeparatorActive] = imVec4(1.0, 1.0, 1.0, 0.24)
+  style.Colors[ImGuiCol_ResizeGrip] = imVec4(1.0, 1.0, 1.0, 0.11)
+  style.Colors[ImGuiCol_ResizeGripHovered] = imVec4(1.0, 1.0, 1.0, 0.18)
+  style.Colors[ImGuiCol_ResizeGripActive] = imVec4(0.99, 1.0, 1.0, 0.24)
+  style.Colors[ImGuiCol_Tab] = imVec4(1.0, 1.0, 1.0, 0.17)
+  style.Colors[ImGuiCol_TabHovered] = imVec4(1.0, 1.0, 1.0, 0.24)
+  style.Colors[ImGuiCol_TabActive] = imVec4(1.0, 1.0, 1.0, 0.33)
+  style.Colors[ImGuiCol_TabUnfocused] = imVec4(1.0, 1.0, 1.0, 0.07)
+  style.Colors[ImGuiCol_TabUnfocusedActive] = imVec4(0.99, 1.0, 1.0, 0.13)
+  style.Colors[ImGuiCol_PlotLines] = imVec4(0.9, 0.7, 0.14, 1.0)
+  style.Colors[ImGuiCol_PlotLinesHovered] = imVec4(0.94, 0.4, 0.18, 1.0)
+  style.Colors[ImGuiCol_PlotHistogram] = imVec4(0.9, 0.7, 0.14, 1.0)
+  style.Colors[ImGuiCol_PlotHistogramHovered] = imVec4(0.94, 0.4, 0.18, 1.0)
+  style.Colors[ImGuiCol_TableHeaderBg] = imVec4(1.0, 1.0, 1.0, 0.09)
+  style.Colors[ImGuiCol_TableBorderStrong] = imVec4(1.0, 1.0, 1.0, 0.11)
+  style.Colors[ImGuiCol_TableBorderLight] = imVec4(1.0, 1.0, 1.0, 0.11)
+  style.Colors[ImGuiCol_TableRowBg] = imVec4(1.0, 1.0, 1.0, 0.0)
+  style.Colors[ImGuiCol_TableRowBgAlt] = imVec4(1.0, 1.0, 1.0, 0.02)
+  style.Colors[ImGuiCol_TextSelectedBg] = imVec4(0.47, 0.25, 0.15, 1.0)
+  style.Colors[ImGuiCol_DragDropTarget] = imVec4(1.0, 1.0, 0.0, 0.9)
+  style.Colors[ImGuiCol_NavHighlight] = imVec4(0.26, 0.59, 0.98, 1.0)
+  style.Colors[ImGuiCol_NavWindowingHighlight] = imVec4(1.0, 1.0, 1.0, 0.7)
+  style.Colors[ImGuiCol_NavWindowingDimBg] = imVec4(0.8, 0.8, 0.8, 0.2)
+  style.Colors[ImGuiCol_ModalWindowDimBg] = imVec4(0.8, 0.8, 0.8, 0.35)
 
 proc `=destroy`*(gui: var type Gui()[]) =
   ImGui_ImplOpenGL3_Shutdown()
   ImGui_DestroyContext()
 
-func newGui*(input: Input): Gui =
+proc newGui*(input: Input): Gui =
+  result = Gui(input: input)
   ImGui_CreateContext()
   ImGui_ImplOpenGL3_Init("#version 100")
-  Gui(input: input)
+  setDefaultStyle()
+  var io = ImGui_GetIO()
+  io.GetClipboardTextFn = getClipboardText
+  io.SetClipboardTextFn = setClipboardText
+  io.ClipboardUserData = cast[pointer](result.input)
 
 func toImVec2(v: Vec2): ImVec2 =
   imVec2(v.x, v.y)
@@ -167,6 +279,11 @@ proc beginFrame*(gui: Gui) =
     gui.mouseExitPosition = input.mousePosition
     io.AddMousePosEvent(-FLT_MAX, -FLT_MAX)
 
+  io.AddKeyEvent(ImGuiKey_ModCtrl, input.keyDown(LeftControl) or input.keyDown(RightControl))
+  io.AddKeyEvent(ImGuiKey_ModShift, input.keyDown(LeftShift) or input.keyDown(RightShift))
+  io.AddKeyEvent(ImGuiKey_ModAlt, input.keyDown(LeftAlt) or input.keyDown(RightAlt))
+  io.AddKeyEvent(ImGuiKey_ModSuper, input.keyDown(LeftMeta) or input.keyDown(RightMeta))
+
   for button in input.mousePresses:
     let imguiButton = button.toImGuiMouseButton
     if imguiButton >= 0 and imguiButton < ImGuiMouseButton_COUNT:
@@ -202,3 +319,7 @@ proc endFrame*(gui: Gui) =
   glViewport(0.GLint, 0.GLint, sizePixels.x.GLsizei, sizePixels.y.GLsizei)
   ImGui_Render()
   ImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData())
+
+proc addFont*(gui: Gui, data: string, size: float): Font =
+  var io = ImGui_GetIO()
+  io.Fonts.AddFontFromMemoryTTF(data[0].unsafeAddr, data.len.cint + 1, size)

@@ -124,8 +124,8 @@ type
   InputFrame* = object
     time*: float
     pixelDensity*: float
-    bounds*: Rect2
-    mousePosition*: Vec2
+    boundsPixels*: Rect2
+    mousePositionPixels*: Vec2
     mouseWheel*: Vec2
     mousePresses*: seq[MouseButton]
     mouseReleases*: seq[MouseButton]
@@ -140,6 +140,7 @@ type
   Input* = ref object
     state*: InputFrame
     previousState*: InputFrame
+    clipboardString: string
 
 func newInput*(time: float): Input =
   Input(
@@ -157,8 +158,8 @@ func newInput*(time: float): Input =
 
 func time*(input: Input): float = input.state.time
 func pixelDensity*(input: Input): float = input.state.pixelDensity
-func bounds*(input: Input): Rect2 = input.state.bounds
-func mousePosition*(input: Input): Vec2 = input.state.mousePosition
+func boundsPixels*(input: Input): Rect2 = input.state.boundsPixels
+func mousePositionPixels*(input: Input): Vec2 = input.state.mousePositionPixels
 func mouseWheel*(input: Input): Vec2 = input.state.mouseWheel
 func mousePresses*(input: Input): seq[MouseButton] = input.state.mousePresses
 func mouseReleases*(input: Input): seq[MouseButton] = input.state.mouseReleases
@@ -169,17 +170,22 @@ func keyDown*(input: Input, key: KeyboardKey): bool = input.state.keyDown[key]
 func text*(input: Input): string = input.state.text
 
 func deltaTime*(input: Input): float = input.state.time - input.previousState.time
-func position*(input: Input): Vec2 = input.state.bounds.position
-func size*(input: Input): Vec2 = input.state.bounds.size
+func bounds*(input: Input): Rect2 = rect2(input.state.boundsPixels.position / input.state.pixelDensity, input.state.boundsPixels.size / input.state.pixelDensity)
+func mousePosition*(input: Input): Vec2 = input.state.mousePositionPixels / input.state.pixelDensity
+func positionPixels*(input: Input): Vec2 = input.state.boundsPixels.position
+func position*(input: Input): Vec2 = input.state.boundsPixels.position / input.state.pixelDensity
+func sizePixels*(input: Input): Vec2 = input.state.boundsPixels.size
+func size*(input: Input): Vec2 = input.state.boundsPixels.size / input.state.pixelDensity
 func scale*(input: Input): float = 1.0 / input.state.pixelDensity
-func moved*(input: Input): bool = input.state.bounds.position != input.previousState.bounds.position
-func resized*(input: Input): bool = input.state.bounds.size != input.previousState.bounds.size
+func moved*(input: Input): bool = input.state.boundsPixels.position != input.previousState.boundsPixels.position
+func resized*(input: Input): bool = input.state.boundsPixels.size != input.previousState.boundsPixels.size
 func pixelDensityChanged*(input: Input): bool = input.state.pixelDensity != input.previousState.pixelDensity
 func aspectRatio*(input: Input): float = input.bounds.size.x / input.bounds.size.y
 func gainedFocus*(input: Input): bool = input.state.isFocused and not input.previousState.isFocused
 func lostFocus*(input: Input): bool = input.previousState.isFocused and not input.state.isFocused
-func mouseDelta*(input: Input): Vec2 = input.state.mousePosition - input.previousState.mousePosition
-func mouseMoved*(input: Input): bool = input.state.mousePosition != input.previousState.mousePosition
+func mouseDeltaPixels*(input: Input): Vec2 = input.state.mousePositionPixels - input.previousState.mousePositionPixels
+func mouseDelta*(input: Input): Vec2 = input.mouseDeltaPixels / input.state.pixelDensity
+func mouseMoved*(input: Input): bool = input.state.mousePositionPixels != input.previousState.mousePositionPixels
 func mouseEntered*(input: Input): bool = input.state.isHovered and not input.previousState.isHovered
 func mouseExited*(input: Input): bool = input.previousState.isHovered and not input.state.isHovered
 func mouseWheelMoved*(input: Input): bool = input.mouseWheel.x != 0.0 or input.mouseWheel.y != 0.0
@@ -203,3 +209,69 @@ func beginFrame*(input: Input, time: float) =
 
 func endFrame*(input: Input) =
   input.previousState = input.state
+
+when defined(windows):
+  import winim/lean as win32 except INPUT
+
+  proc `clipboard=`*(input: Input, text: string) =
+    let characterCount = MultiByteToWideChar(CP_UTF8, 0, text, -1, NULL, 0)
+    if characterCount == 0:
+      return
+
+    let h = GlobalAlloc(GMEM_MOVEABLE, characterCount * sizeof(WCHAR))
+    if h == 0:
+      echo "Win32: Failed to allocate global handle for clipboard."
+      return
+
+    var buffer = cast[ptr WCHAR](GlobalLock(h))
+    if buffer == nil:
+      echo "Win32: Failed to lock global handle."
+      GlobalFree(h)
+
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, buffer, characterCount)
+    GlobalUnlock(h)
+
+    if OpenClipboard(0) == 0:
+      echo "Win32: Failed to open clipboard."
+      GlobalFree(h)
+      return
+
+    EmptyClipboard()
+    SetClipboardData(CF_UNICODETEXT, h)
+    CloseClipboard()
+
+  proc wideStringToUtf8(source: ptr WCHAR): string =
+    let size = WideCharToMultiByte(CP_UTF8, 0, source, -1, NULL, 0, NULL, NULL)
+    if size == 0:
+      echo "Win32: Failed to convert string to UTF-8."
+      return ""
+
+    result = newString(size)
+
+    if WideCharToMultiByte(CP_UTF8, 0, source, -1, result, size, NULL, NULL) == 0:
+      echo "Win32: Failed to convert string to UTF-8."
+      return ""
+
+  proc clipboard*(input: Input): string =
+    if OpenClipboard(0) == 0:
+      echo "Win32: Failed to open clipboard"
+      return ""
+
+    let h = GetClipboardData(CF_UNICODETEXT)
+    if h == 0:
+      echo "Win32: Failed to convert clipboard to string."
+      CloseClipboard()
+      return ""
+
+    let buffer = cast[ptr WCHAR](GlobalLock(h))
+    if buffer == nil:
+      echo "Win32: Failed to lock global handle."
+      CloseClipboard()
+      return ""
+
+    input.clipboardString = wideStringToUtf8(buffer)
+
+    GlobalUnlock(h)
+    CloseClipboard()
+
+    input.clipboardString

@@ -34,9 +34,13 @@ type
   ImGuiIO* {.importc, header: imguiHeader.} = object
     DisplaySize*: ImVec2
     DeltaTime*: cfloat
+    Fonts*: ptr ImFontAtlas
     DisplayFramebufferScale*: ImVec2
     BackendPlatformName*: cstring
     BackendPlatformUserData*: pointer
+    GetClipboardTextFn*: proc(user_data: pointer): cstring {.cdecl.}
+    SetClipboardTextFn*: proc(user_data: pointer, text: cstring) {.cdecl.}
+    ClipboardUserData*: pointer
     AddKeyEvent*: proc(key: ImGuiKey, down: bool) {.cdecl.}
     AddMousePosEvent*: proc(x, y: cfloat) {.cdecl.}
     AddMouseButtonEvent*: proc(button: cint, down: bool) {.cdecl.}
@@ -44,11 +48,143 @@ type
     AddFocusEvent*: proc(focused: bool) {.cdecl.}
     AddInputCharactersUTF8*: proc(str: cstring) {.cdecl.}
 
+  ImFontConfig* {.importc, header: imguiHeader.} = object
+    FontData*: pointer
+    FontDataSize*: cint
+    FontDataOwnedByAtlas*: bool
+    FontNo*: cint
+    SizePixels*: cfloat
+    OversampleH*: cint
+    OversampleV*: cint
+    PixelSnapH*: bool
+    GlyphExtraSpacing*: ImVec2
+    GlyphOffset*: ImVec2
+    GlyphRanges*: ptr ImWchar
+    GlyphMinAdvanceX*: cfloat
+    GlyphMaxAdvanceX*: cfloat
+    MergeMode*: bool
+    FontBuilderFlags*: cuint
+    RasterizerMultiply*: cfloat
+    EllipsisChar*: ImWchar
+
+  ImWchar* {.importc, header: imguiHeader.} = cushort
+
+  ImFont* {.importc, header: imguiHeader.} = object
   ImFontAtlas* {.importc, header: imguiHeader.} = object
   ImDrawData* {.importc, header: imguiHeader.} = object
 
   ImVec2* {.importc, header: imguiHeader.} = object
     x*, y*: cfloat
+
+  ImVec4* {.importc, header: imguiHeader.} = object
+    x*, y*, z*, w*: cfloat
+
+  ImGuiDir* {.size: sizeof(cint).} = enum
+    ImGuiDir_None = -1
+    ImGuiDir_Left = 0
+    ImGuiDir_Right = 1
+    ImGuiDir_Up = 2
+    ImGuiDir_Down = 3
+    ImGuiDir_COUNT
+
+  ImGuiCol* {.size: sizeof(cint).} = enum
+    ImGuiCol_Text
+    ImGuiCol_TextDisabled
+    ImGuiCol_WindowBg
+    ImGuiCol_ChildBg
+    ImGuiCol_PopupBg
+    ImGuiCol_Border
+    ImGuiCol_BorderShadow
+    ImGuiCol_FrameBg
+    ImGuiCol_FrameBgHovered
+    ImGuiCol_FrameBgActive
+    ImGuiCol_TitleBg
+    ImGuiCol_TitleBgActive
+    ImGuiCol_TitleBgCollapsed
+    ImGuiCol_MenuBarBg
+    ImGuiCol_ScrollbarBg
+    ImGuiCol_ScrollbarGrab
+    ImGuiCol_ScrollbarGrabHovered
+    ImGuiCol_ScrollbarGrabActive
+    ImGuiCol_CheckMark
+    ImGuiCol_SliderGrab
+    ImGuiCol_SliderGrabActive
+    ImGuiCol_Button
+    ImGuiCol_ButtonHovered
+    ImGuiCol_ButtonActive
+    ImGuiCol_Header
+    ImGuiCol_HeaderHovered
+    ImGuiCol_HeaderActive
+    ImGuiCol_Separator
+    ImGuiCol_SeparatorHovered
+    ImGuiCol_SeparatorActive
+    ImGuiCol_ResizeGrip
+    ImGuiCol_ResizeGripHovered
+    ImGuiCol_ResizeGripActive
+    ImGuiCol_Tab
+    ImGuiCol_TabHovered
+    ImGuiCol_TabActive
+    ImGuiCol_TabUnfocused
+    ImGuiCol_TabUnfocusedActive
+    ImGuiCol_PlotLines
+    ImGuiCol_PlotLinesHovered
+    ImGuiCol_PlotHistogram
+    ImGuiCol_PlotHistogramHovered
+    ImGuiCol_TableHeaderBg
+    ImGuiCol_TableBorderStrong
+    ImGuiCol_TableBorderLight
+    ImGuiCol_TableRowBg
+    ImGuiCol_TableRowBgAlt
+    ImGuiCol_TextSelectedBg
+    ImGuiCol_DragDropTarget
+    ImGuiCol_NavHighlight
+    ImGuiCol_NavWindowingHighlight
+    ImGuiCol_NavWindowingDimBg
+    ImGuiCol_ModalWindowDimBg
+    ImGuiCol_COUNT
+
+  ImGuiStyle* {.importc, header: imguiHeader.} = object
+    Alpha*: cfloat
+    DisabledAlpha*: cfloat
+    WindowPadding*: ImVec2
+    WindowRounding*: cfloat
+    WindowBorderSize*: cfloat
+    WindowMinSize*: ImVec2
+    WindowTitleAlign*: ImVec2
+    WindowMenuButtonPosition*: ImGuiDir
+    ChildRounding*: cfloat
+    ChildBorderSize*: cfloat
+    PopupRounding*: cfloat
+    PopupBorderSize*: cfloat
+    FramePadding*: ImVec2
+    FrameRounding*: cfloat
+    FrameBorderSize*: cfloat
+    ItemSpacing*: ImVec2
+    ItemInnerSpacing*: ImVec2
+    CellPadding*: ImVec2
+    TouchExtraPadding*: ImVec2
+    IndentSpacing*: cfloat
+    ColumnsMinSpacing*: cfloat
+    ScrollbarSize*: cfloat
+    ScrollbarRounding*: cfloat
+    GrabMinSize*: cfloat
+    GrabRounding*: cfloat
+    LogSliderDeadzone*: cfloat
+    TabRounding*: cfloat
+    TabBorderSize*: cfloat
+    TabMinWidthForCloseButton*: cfloat
+    ColorButtonPosition*: ImGuiDir
+    ButtonTextAlign*: ImVec2
+    SelectableTextAlign*: ImVec2
+    DisplayWindowPadding*: ImVec2
+    DisplaySafeAreaPadding*: ImVec2
+    MouseCursorScale*: cfloat
+    AntiAliasedLines*: bool
+    AntiAliasedLinesUseTex*: bool
+    AntiAliasedFill*: bool
+    CurveTessellationTol*: cfloat
+    CircleTessellationMaxError*: cfloat
+    Colors*: array[ImGuiCol_COUNT, ImVec4]
 
   ImGuiKey* {.size: sizeof(cint).} = enum
     ImGuiKey_None = 0,
@@ -129,6 +265,7 @@ type
     ImGuiKey_COUNT,
 
 proc imVec2*(x, y: cfloat): ImVec2 {.importc: "ImVec2", header: imguiHeader.}
+proc imVec4*(x, y, z, w: cfloat): ImVec4 {.importc: "ImVec4", header: imguiHeader.}
 
 {.push discardable.}
 
@@ -142,7 +279,14 @@ proc ImGui_Render*() {.importc: "ImGui::Render", header: imguiHeader.}
 proc ImGui_GetDrawData*(): ptr ImDrawData {.importc: "ImGui::GetDrawData", header: imguiHeader.}
 proc ImGui_NewFrame*() {.importc: "ImGui::NewFrame", header: imguiHeader.}
 proc ImGui_GetIO*(): ptr ImGuiIO {.importc: "&ImGui::GetIO", header: imguiHeader.}
+proc ImGui_GetStyle*(): ptr ImGuiStyle {.importc: "&ImGui::GetStyle", header: imguiHeader.}
 proc ImGui_Button*(label: cstring, size = imVec2(0, 0)): bool {.importc: "ImGui::Button", header: imguiHeader.}
+
+proc ImGui_StyleColorsDark*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsDark", header: imguiHeader.}
+proc ImGui_StyleColorsLight*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsLight", header: imguiHeader.}
+proc ImGui_StyleColorsClassic*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsClassic", header: imguiHeader.}
+
+proc AddFontFromMemoryTTF*(atlas: ptr ImFontAtlas, font_data: pointer, font_size: cint, size_pixels: cfloat, font_cfg: ptr ImFontConfig = nil, glyph_ranges: ptr ImWchar = nil): ptr ImFont {.importcpp, header: imguiHeader.}
 
 proc ImGui_ImplOpenGL3_Init*(glsl_version: cstring = nil): bool {.importc, header: imguiImplOpenGl3Header.}
 proc ImGui_ImplOpenGL3_Shutdown*() {.importc, header: imguiImplOpenGl3Header.}

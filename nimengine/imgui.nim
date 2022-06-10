@@ -35,6 +35,8 @@ type
     DisplaySize*: ImVec2
     DeltaTime*: cfloat
     Fonts*: ptr ImFontAtlas
+    FontGlobalScale*: cfloat
+    FontAllowUserScaling*: bool
     DisplayFramebufferScale*: ImVec2
     BackendPlatformName*: cstring
     BackendPlatformUserData*: pointer
@@ -286,6 +288,7 @@ proc ImGui_StyleColorsDark*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleC
 proc ImGui_StyleColorsLight*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsLight", header: imguiHeader.}
 proc ImGui_StyleColorsClassic*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsClassic", header: imguiHeader.}
 
+proc ScaleAllSizes*(style: ptr ImGuiStyle, scale_factor: cfloat) {.importcpp, header: imguiHeader.}
 proc AddFontFromMemoryTTF*(atlas: ptr ImFontAtlas, font_data: pointer, font_size: cint, size_pixels: cfloat, font_cfg: ptr ImFontConfig = nil, glyph_ranges: ptr ImWchar = nil): ptr ImFont {.importcpp, header: imguiHeader.}
 
 proc ImGui_ImplOpenGL3_Init*(glsl_version: cstring = nil): bool {.importc, header: imguiImplOpenGl3Header.}

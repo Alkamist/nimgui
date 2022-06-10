@@ -5,6 +5,8 @@ import ./input
 
 var FLT_MAX {.importc, nodecl.}: cfloat
 
+var imGuiIsInitialized = false
+
 type
   Font* = ptr ImFont
 
@@ -20,27 +22,23 @@ proc setClipboardText(user_data: pointer, text: cstring) {.cdecl.} =
   var input = cast[Input](user_data)
   input.clipboard = $text
 
-proc setDefaultStyle() =
+proc setDefaultSizes() =
   var style = ImGui_GetStyle()
-  style.Alpha = 1.0
-  style.DisabledAlpha = 0.6
-  style.WindowPadding = imVec2(8, 8)
+  style.WindowPadding = imVec2(8.0, 8.0)
   style.WindowRounding = 5.0
   style.WindowBorderSize = 1.0
-  style.WindowMinSize = imVec2(32, 32)
-  style.WindowTitleAlign = imVec2(0.5, 0.5)
-  style.WindowMenuButtonPosition = ImGuiDir_Left
+  style.WindowMinSize = imVec2(32.0, 32.0)
   style.ChildRounding = 5.0
   style.ChildBorderSize = 1.0
   style.PopupRounding = 5.0
   style.PopupBorderSize = 1.0
-  style.FramePadding = imVec2(4, 3)
+  style.FramePadding = imVec2(4.0, 3.0)
   style.FrameRounding = 2.0
   style.FrameBorderSize = 0.0
-  style.ItemSpacing = imVec2(8, 4)
-  style.ItemInnerSpacing = imVec2(4, 4)
-  style.CellPadding = imVec2(4, 2)
-  style.TouchExtraPadding = imVec2(0, 0)
+  style.ItemSpacing = imVec2(8.0, 4.0)
+  style.ItemInnerSpacing = imVec2(4.0, 4.0)
+  style.CellPadding = imVec2(4.0, 2.0)
+  style.TouchExtraPadding = imVec2(0.0, 0.0)
   style.IndentSpacing = 21.0
   style.ColumnsMinSpacing = 6.0
   style.ScrollbarSize = 14.0
@@ -51,17 +49,26 @@ proc setDefaultStyle() =
   style.TabRounding = 4.0
   style.TabBorderSize = 0.0
   style.TabMinWidthForCloseButton = 0.0
+  style.DisplayWindowPadding = imVec2(19.0, 19.0)
+  style.DisplaySafeAreaPadding = imVec2(3.0, 3.0)
+
+proc setDefaultStyle() =
+  var style = ImGui_GetStyle()
+  style.Alpha = 1.0
+  style.DisabledAlpha = 0.6
+  style.WindowTitleAlign = imVec2(0.5, 0.5)
+  style.WindowMenuButtonPosition = ImGuiDir_Left
   style.ColorButtonPosition = ImGuiDir_Right
   style.ButtonTextAlign = imVec2(0.5, 0.5)
   style.SelectableTextAlign = imVec2(0.0, 0.0)
-  style.DisplayWindowPadding = imVec2(19, 19)
-  style.DisplaySafeAreaPadding = imVec2(3, 3)
   style.MouseCursorScale = 1.0
   style.AntiAliasedLines = true
   style.AntiAliasedLinesUseTex = true
   style.AntiAliasedFill = true
   style.CurveTessellationTol = 1.25
   style.CircleTessellationMaxError = 0.3
+
+  setDefaultSizes()
 
   style.Colors[ImGuiCol_Text] = imVec4(1.0, 1.0, 1.0, 0.87)
   style.Colors[ImGuiCol_TextDisabled] = imVec4(0.55, 0.58, 0.62, 1.0)
@@ -119,17 +126,20 @@ proc setDefaultStyle() =
 
 proc `=destroy`*(gui: var type Gui()[]) =
   ImGui_ImplOpenGL3_Shutdown()
-  ImGui_DestroyContext()
+  if imGuiIsInitialized:
+    ImGui_DestroyContext()
+    imGuiIsInitialized = false
 
-proc newGui*(input: Input): Gui =
-  result = Gui(input: input)
-  ImGui_CreateContext()
+proc newGui*(): Gui =
+  if not imGuiIsInitialized:
+    ImGui_CreateContext()
+    var io = ImGui_GetIO()
+    setDefaultStyle()
+    io.GetClipboardTextFn = getClipboardText
+    io.SetClipboardTextFn = setClipboardText
+    imGuiIsInitialized = true
   ImGui_ImplOpenGL3_Init("#version 100")
-  setDefaultStyle()
-  var io = ImGui_GetIO()
-  io.GetClipboardTextFn = getClipboardText
-  io.SetClipboardTextFn = setClipboardText
-  io.ClipboardUserData = cast[pointer](result.input)
+  Gui()
 
 func toImVec2(v: Vec2): ImVec2 =
   imVec2(v.x, v.y)
@@ -249,11 +259,15 @@ func toImGuiKey(key: KeyboardKey): ImGuiKey =
   of KeyboardKey.F12: ImGuiKey_F12
   else: ImGuiKey_None
 
-proc beginFrame*(gui: Gui) =
-  let input = gui.input
+proc beginFrame*(gui: Gui, input: Input) =
+  ImGui_ImplOpenGL3_NewFrame()
+
+  gui.input = input
+
   var io = ImGui_GetIO()
 
   io.DisplaySize = input.size.toImVec2
+  io.ClipboardUserData = cast[pointer](input)
 
   if input.size.x > 0 and input.size.y > 0:
     let pixelDensity = input.pixelDensity
@@ -269,6 +283,24 @@ proc beginFrame*(gui: Gui) =
   elif input.lostFocus:
     io.AddFocusEvent(false)
 
+  template updateKeyModifiers() =
+    io.AddKeyEvent(ImGuiKey_ModCtrl, input.keyDown(LeftControl) or input.keyDown(RightControl))
+    io.AddKeyEvent(ImGuiKey_ModShift, input.keyDown(LeftShift) or input.keyDown(RightShift))
+    io.AddKeyEvent(ImGuiKey_ModAlt, input.keyDown(LeftAlt) or input.keyDown(RightAlt))
+    io.AddKeyEvent(ImGuiKey_ModSuper, input.keyDown(LeftMeta) or input.keyDown(RightMeta))
+
+  for key in input.keyPresses:
+    updateKeyModifiers()
+    io.AddKeyEvent(key.toImGuiKey, true)
+
+  for key in input.keyReleases:
+    updateKeyModifiers()
+    io.AddKeyEvent(key.toImGuiKey, false)
+
+  if input.text != "":
+    for rune in input.text.runes:
+      io.AddInputCharactersUTF8(rune.toUTF8.cstring)
+
   if input.mouseMoved:
     io.AddMousePosEvent(input.mousePosition.x, input.mousePosition.y)
 
@@ -279,17 +311,14 @@ proc beginFrame*(gui: Gui) =
     gui.mouseExitPosition = input.mousePosition
     io.AddMousePosEvent(-FLT_MAX, -FLT_MAX)
 
-  io.AddKeyEvent(ImGuiKey_ModCtrl, input.keyDown(LeftControl) or input.keyDown(RightControl))
-  io.AddKeyEvent(ImGuiKey_ModShift, input.keyDown(LeftShift) or input.keyDown(RightShift))
-  io.AddKeyEvent(ImGuiKey_ModAlt, input.keyDown(LeftAlt) or input.keyDown(RightAlt))
-  io.AddKeyEvent(ImGuiKey_ModSuper, input.keyDown(LeftMeta) or input.keyDown(RightMeta))
-
   for button in input.mousePresses:
+    updateKeyModifiers()
     let imguiButton = button.toImGuiMouseButton
     if imguiButton >= 0 and imguiButton < ImGuiMouseButton_COUNT:
       io.AddMouseButtonEvent(imguiButton, true)
 
   for button in input.mouseReleases:
+    updateKeyModifiers()
     let imguiButton = button.toImGuiMouseButton
     if imguiButton >= 0 and imguiButton < ImGuiMouseButton_COUNT:
       io.AddMouseButtonEvent(imguiButton, false)
@@ -297,25 +326,13 @@ proc beginFrame*(gui: Gui) =
   if input.mouseWheelMoved:
     io.AddMouseWheelEvent(input.mouseWheel.x, input.mouseWheel.y)
 
-  for key in input.keyPresses:
-    io.AddKeyEvent(key.toImGuiKey, true)
-
-  for key in input.keyReleases:
-    io.AddKeyEvent(key.toImGuiKey, false)
-
-  if input.text != "":
-    for rune in input.text.runes:
-      io.AddInputCharactersUTF8(rune.toUTF8.cstring)
-
-  ImGui_ImplOpenGL3_NewFrame()
   ImGui_NewFrame()
 
   var showDemoWindow = true
   ImGui_ShowDemoWindow(showDemoWindow.addr)
 
 proc endFrame*(gui: Gui) =
-  let input = gui.input
-  let sizePixels = input.size * input.pixelDensity
+  let sizePixels = gui.input.size * gui.input.pixelDensity
   glViewport(0.GLint, 0.GLint, sizePixels.x.GLsizei, sizePixels.y.GLsizei)
   ImGui_Render()
   ImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData())

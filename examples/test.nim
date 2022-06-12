@@ -2,8 +2,16 @@
 
 import ../nimengine
 
+const consolaData = staticRead("consola.ttf")
+
 let window = newWindow()
 window.backgroundColor = rgb(13, 17, 23)
+window.gfx.addFont("consola", consolaData)
+window.gfx.font = "consola"
+
+let gui = newGui(window)
+
+var count = 0
 
 window.onFrame = proc() =
   if window.mouseDown(Middle) and window.mouseMoved:
@@ -11,27 +19,18 @@ window.onFrame = proc() =
     window.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
     window.frame.pixelDensity = window.frame.pixelDensity.clamp(0.25, 5.0)
 
-  let gfx = window.gfx
-  gfx.beginPath()
-  gfx.roundedRect(rect2(50, 50, 200, 200), 5)
-  gfx.fillColor = rgb(120, 120, 0)
-  gfx.fill()
+  gui.beginFrame()
 
-let window2 = newWindow()
-window2.backgroundColor = rgb(90, 17, 23)
+  # discard gui.beginWindow("Window 1")
+  if Clicked in gui.button("Button 1"):
+    inc count
+    echo count
+  # gui.endWindow()
 
-window2.onFrame = proc() =
-  if window2.mouseDown(Middle) and window2.mouseMoved:
-    let zoomPull = window2.mouseDeltaPixels.dot(vec2(1, 1).normalize)
-    window2.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
-    window2.frame.pixelDensity = window2.frame.pixelDensity.clamp(0.25, 5.0)
+  # gui.beginWindow("Window 2")
+  # gui.endWindow()
 
-  let gfx = window2.gfx
-  gfx.beginPath()
-  gfx.roundedRect(rect2(50, 50, 200, 200), 5)
-  gfx.fillColor = rgb(120, 120, 0)
-  gfx.fill()
+  gui.endFrame()
 
 while window.isOpen:
   window.update()
-  window2.update()

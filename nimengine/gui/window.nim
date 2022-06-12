@@ -3,39 +3,36 @@
 import ./gui
 
 type
-  WindowWidgetSignal* = enum
-    Open
-    Moved
-
   WindowWidget* = ref object of WidgetContainer
-    isBeingMoved*: bool
+    isOpen*: bool
+    moved*: bool
 
-proc beginWindow*(gui: Gui, id: string): set[WindowWidgetSignal] =
+proc beginWindow*(gui: Gui, id: string): WindowWidget =
   let window = gui.getWidget(id):
     WindowWidget(
       bounds: rect2(0, 0, 200, 200),
       relativePosition: vec2(25, 25),
     )
 
+  window.isOpen = true
+
   let isHovered = gui.hover == window
 
   if isHovered and gui.mousePressed(Left):
-    window.isBeingMoved = true
+    window.moved = true
 
-  if window.isBeingMoved and gui.mouseReleased(Left):
-    window.isBeingMoved = false
+  if window.moved and gui.mouseReleased(Left):
+    window.moved = false
 
-  if window.isBeingMoved:
+  if window.moved:
     window.relativePosition += gui.mouseDelta
-    result.incl Moved
-
-  let headerBounds = rect2(
-    window.position,
-    vec2(window.width, 24.0)
-  )
 
   window.draw = proc() =
     let gfx = gui.gfx
+    let headerBounds = rect2(
+      window.position,
+      vec2(window.width, 24.0)
+    )
     gfx.drawFrameWithHeader(
       bounds = window.bounds,
       borderThickness = 1.0,
@@ -58,11 +55,13 @@ proc beginWindow*(gui: Gui, id: string): set[WindowWidgetSignal] =
 
   gui.pushContainer window
 
+  window
+
 func endWindow*(gui: Gui) =
   gui.popContainer()
 
 template addWindow*(gui: Gui, id: string, code: untyped) =
   block:
-    let signals {.inject.} = gui.beginWindow(id)
+    let widget {.inject.} = gui.beginWindow(id)
     code
     gui.endWindow()

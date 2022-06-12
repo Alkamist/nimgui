@@ -4,46 +4,34 @@ import ../nimengine
 
 const consolaData = staticRead("consola.ttf")
 
-let window = newWindow()
-window.backgroundColor = rgb(13, 17, 23)
-window.gfx.addFont("consola", consolaData)
-window.gfx.font = "consola"
+let w = newWindow()
+w.backgroundColor = rgb(13, 17, 23)
+w.gfx.addFont("consola", consolaData)
+w.gfx.font = "consola"
 
-let gui = newGui(window)
+let gui = newGui(w)
 
-var count = 0
-
-window.onFrame = proc() =
-  if window.mouseDown(Middle) and window.mouseMoved:
-    let zoomPull = window.mouseDeltaPixels.dot(vec2(1, 1).normalize)
-    window.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
-    window.frame.pixelDensity = window.frame.pixelDensity.clamp(0.25, 5.0)
+w.onFrame = proc() =
+  if w.mouseDown(Middle) and w.mouseMoved:
+    let zoomPull = w.mouseDeltaPixels.dot(vec2(1, 1).normalize)
+    w.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
+    w.frame.pixelDensity = w.frame.pixelDensity.clamp(0.25, 5.0)
 
   gui.beginFrame()
 
-  gui.addWindow("Window 1"):
-    if Moved in signals:
-      gui.addButton("Button 1"):
-        if Clicked in signals:
-          inc count
-          echo count
+  var windowActive {.global.} = false
 
-  # discard gui.beginWindow("Window 1")
-  # discard gui.beginWindow("Window 2")
-  # if Clicked in gui.button("Button 1"):
-  #   inc count
-  #   echo count
-  # gui.endWindow()
-  # gui.endWindow()
+  gui.addButton("Toggle"):
+    if widget.pressed:
+      windowActive = not windowActive
 
-  # discard gui.beginWindow("Window 3")
-  # gui.endWindow()
-  # discard gui.beginWindow("Window 4")
-  # gui.endWindow()
-  # discard gui.beginWindow("Window 5")
-  # gui.endWindow()
+  if windowActive:
+    gui.addWindow("Window 1"):
+      gui.addButton("Click me"):
+        if widget.clicked:
+          echo "Clicked"
 
   gui.endFrame()
 
-while window.isOpen:
-  window.update()
+while w.isOpen:
+  w.update()

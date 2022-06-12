@@ -96,13 +96,12 @@ func getHover(gui: Gui, container: WidgetContainer): Widget =
       else:
         return child
 
-func update(gui: Gui, widget: Widget) =
+func clearDrawProcs(gui: Gui, widget: Widget) =
   if widget of WidgetContainer:
     let container = cast[WidgetContainer](widget)
     for child in container.widgetZOrder:
       child.draw = nil
-      child.bounds.position = container.bounds.position + child.relativePosition
-      gui.update(child)
+      gui.clearDrawProcs(child)
 
 func bringToTop(container: WidgetContainer, child: Widget) =
   var foundChild = false
@@ -130,16 +129,17 @@ proc draw(gui: Gui, widget: Widget) =
   if widget of WidgetContainer:
     let container = cast[WidgetContainer](widget)
     for child in container.widgetZOrder:
+      child.bounds.position = container.bounds.position + child.relativePosition
       gui.draw(child)
 
 proc beginFrame*(gui: Gui) =
   gui.root.bounds.size = gui.osWindow.size
-  gui.update(gui.root)
+  gui.clearDrawProcs(gui.root)
   gui.hoverParents.setLen(0)
-  gui.hover = gui.getHover(gui.root)
-  gui.updateFocus()
 
 proc endFrame*(gui: Gui) =
+  gui.hover = gui.getHover(gui.root)
+  gui.updateFocus()
   gui.draw(gui.root)
 
 template pushContainer*(gui: Gui, container: WidgetContainer) =

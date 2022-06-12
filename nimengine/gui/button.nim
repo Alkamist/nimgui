@@ -12,11 +12,14 @@ type
   ButtonWidget* = ref object of Widget
     isDown*: bool
 
-proc button*(gui: Gui, id: string): set[ButtonWidgetSignal] =
+proc beginButton*(gui: Gui, id: string): set[ButtonWidgetSignal] =
   let button = gui.getWidget(id):
-    ButtonWidget(bounds: rect2(50, 50, 97, 32))
+    ButtonWidget(
+      bounds: rect2(0, 0, 97, 32),
+      relativePosition: vec2(25, 25),
+    )
 
-  let isHovered = gui.isHovered(button)
+  let isHovered = gui.hover == button
 
   if button.isDown:
     result.incl Down
@@ -50,3 +53,8 @@ proc button*(gui: Gui, id: string): set[ButtonWidgetSignal] =
       wordWrap = false,
       clip = true,
     )
+
+template addButton*(gui: Gui, id: string, code: untyped) =
+  block:
+    let signals {.inject.} = gui.beginButton(id)
+    code

@@ -5,15 +5,19 @@ import ./gui
 type
   WindowWidgetSignal* = enum
     Open
+    Moved
 
   WindowWidget* = ref object of WidgetContainer
     isBeingMoved*: bool
 
 proc beginWindow*(gui: Gui, id: string): set[WindowWidgetSignal] =
   let window = gui.getWidget(id):
-    WindowWidget(bounds: rect2(50, 50, 200, 200))
+    WindowWidget(
+      bounds: rect2(0, 0, 200, 200),
+      relativePosition: vec2(25, 25),
+    )
 
-  let isHovered = gui.isHovered(window)
+  let isHovered = gui.hover == window
 
   if isHovered and gui.mousePressed(Left):
     window.isBeingMoved = true
@@ -22,7 +26,8 @@ proc beginWindow*(gui: Gui, id: string): set[WindowWidgetSignal] =
     window.isBeingMoved = false
 
   if window.isBeingMoved:
-    window.bounds.position += gui.mouseDelta
+    window.relativePosition += gui.mouseDelta
+    result.incl Moved
 
   let headerBounds = rect2(
     window.position,
@@ -51,5 +56,13 @@ proc beginWindow*(gui: Gui, id: string): set[WindowWidgetSignal] =
       clip = true,
     )
 
+  gui.pushContainer window
+
 func endWindow*(gui: Gui) =
-  discard
+  gui.popContainer()
+
+template addWindow*(gui: Gui, id: string, code: untyped) =
+  block:
+    let signals {.inject.} = gui.beginWindow(id)
+    code
+    gui.endWindow()

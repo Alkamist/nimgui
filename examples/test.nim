@@ -21,13 +21,26 @@ window.onFrame = proc() =
 
   gui.beginFrame()
 
+  gui.addWindow("Window 1"):
+    if Moved in signals:
+      gui.addButton("Button 1"):
+        if Clicked in signals:
+          inc count
+          echo count
+
   # discard gui.beginWindow("Window 1")
-  if Clicked in gui.button("Button 1"):
-    inc count
-    echo count
+  # discard gui.beginWindow("Window 2")
+  # if Clicked in gui.button("Button 1"):
+  #   inc count
+  #   echo count
+  # gui.endWindow()
   # gui.endWindow()
 
-  # gui.beginWindow("Window 2")
+  # discard gui.beginWindow("Window 3")
+  # gui.endWindow()
+  # discard gui.beginWindow("Window 4")
+  # gui.endWindow()
+  # discard gui.beginWindow("Window 5")
   # gui.endWindow()
 
   gui.endFrame()

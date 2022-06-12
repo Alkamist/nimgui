@@ -8,33 +8,35 @@ type
     moved*: bool
 
 proc beginWindow*(gui: Gui, id: string): WindowWidget =
-  let window = gui.getWidget(id):
+  result = gui.getWidget(id):
     WindowWidget(
       bounds: rect2(0, 0, 200, 200),
       relativePosition: vec2(25, 25),
     )
 
-  window.isOpen = true
+  result.isOpen = true
 
-  let isHovered = gui.hover == window
+  let isHovered = gui.hover == result
 
   if isHovered and gui.mousePressed(Left):
-    window.moved = true
+    result.moved = true
 
-  if window.moved and gui.mouseReleased(Left):
-    window.moved = false
+  if result.moved and gui.mouseReleased(Left):
+    result.moved = false
 
-  if window.moved:
-    window.relativePosition += gui.mouseDelta
+  if result.moved:
+    result.relativePosition += gui.mouseDelta
 
-  window.draw = proc() =
+  let bounds = result.bounds
+  let headerBounds = rect2(
+    bounds.position,
+    vec2(bounds.width, 24.0)
+  )
+
+  result.draw = proc() =
     let gfx = gui.gfx
-    let headerBounds = rect2(
-      window.position,
-      vec2(window.width, 24.0)
-    )
     gfx.drawFrameWithHeader(
-      bounds = window.bounds,
+      bounds = bounds,
       borderThickness = 1.0,
       headerHeight = headerBounds.height,
       cornerRadius = 5.0,
@@ -53,9 +55,7 @@ proc beginWindow*(gui: Gui, id: string): WindowWidget =
       clip = true,
     )
 
-  gui.pushContainer window
-
-  window
+  gui.pushContainer result
 
 func endWindow*(gui: Gui) =
   gui.popContainer()

@@ -10,32 +10,33 @@ type
     released*: bool
 
 proc beginButton*(gui: Gui, id: string): ButtonWidget =
-  let button = gui.getWidget(id):
+  result = gui.getWidget(id):
     ButtonWidget(
       bounds: rect2(0, 0, 97, 32),
       relativePosition: vec2(25, 25),
     )
 
-  let isHovered = gui.hover == button
+  let isHovered = gui.hover == result
 
-  button.clicked = false
-  button.pressed = false
-  button.released = false
+  result.clicked = false
+  result.pressed = false
+  result.released = false
 
   if isHovered and gui.mousePressed(Left):
-    button.isDown = true
-    button.pressed = true
+    result.isDown = true
+    result.pressed = true
 
-  if button.isDown and gui.mouseReleased(Left):
-    button.isDown = false
-    button.released = true
+  if result.isDown and gui.mouseReleased(Left):
+    result.isDown = false
+    result.released = true
     if isHovered:
-      button.clicked = true
+      result.clicked = true
 
-  button.draw = proc() =
+  let bounds = result.bounds
+  result.draw = proc() =
     let gfx = gui.gfx
     gfx.drawFrameWithoutHeader(
-      bounds = button.bounds,
+      bounds = bounds,
       borderThickness = 1.0,
       cornerRadius = 5.0,
       bodyColor = rgb(33, 38, 45),
@@ -45,14 +46,12 @@ proc beginButton*(gui: Gui, id: string): ButtonWidget =
     gfx.fillColor = rgb(201, 209, 217)
     gfx.drawText(
       text = gfx.newText(id),
-      bounds = button.bounds,
+      bounds = bounds,
       alignX = Center,
       alignY = Center,
       wordWrap = false,
       clip = true,
     )
-
-  button
 
 template addButton*(gui: Gui, id: string, code: untyped) =
   block:

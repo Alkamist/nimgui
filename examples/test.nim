@@ -19,17 +19,15 @@ w.onFrame = proc() =
 
   gui.beginFrame()
 
-  var windowActive {.global.} = false
+  if gui.addButton("Click Me 1"):
+    echo "Clicked 1"
 
-  gui.addButton("Toggle"):
-    if widget.pressed:
-      windowActive = not windowActive
+  discard gui.addButton("Click Me 2")
+  if gui.currentWidget(ButtonWidget).pressed:
+    echo "Pressed 2"
 
-  if windowActive:
-    gui.addWindow("Window 1"):
-      gui.addButton("Click me"):
-        if widget.clicked:
-          echo "Clicked"
+  if gui.addButton("Click Me 3"):
+    echo "Clicked 3"
 
   gui.endFrame()
 

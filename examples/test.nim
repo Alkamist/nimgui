@@ -25,7 +25,7 @@ w.onFrame = proc() =
   gui.pushWidgetSize(vec2(150, 30))
 
   gui.addButton("Click Me 2")
-  if gui.currentWidget(ButtonWidget).pressed:
+  if gui.currentWidget.mousePressed(Right):
     echo "Pressed 2"
 
   gui.sameRow()

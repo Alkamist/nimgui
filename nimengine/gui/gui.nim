@@ -9,6 +9,9 @@ type
 
   Widget* = ref object of RootObj
     bounds*: Rect2
+    mouseDownStates*: array[MouseButton, bool]
+    previousMouseDownStates*: array[MouseButton, bool]
+    mouseClickStates*: array[MouseButton, bool]
 
   WidgetContainer* = ref object of Widget
     widgets*: Table[WidgetId, Widget]
@@ -40,6 +43,10 @@ template x*(widget: Widget): auto = widget.bounds.position.x
 template y*(widget: Widget): auto = widget.bounds.position.y
 template width*(widget: Widget): auto = widget.bounds.size.x
 template height*(widget: Widget): auto = widget.bounds.size.y
+func mouseClicked*(widget: Widget, button: MouseButton): bool = widget.mouseClickStates[button]
+func mouseDown*(widget: Widget, button: MouseButton): bool = widget.mouseDownStates[button]
+func mousePressed*(widget: Widget, button: MouseButton): bool = widget.mouseDownStates[button] and not widget.previousMouseDownStates[button]
+func mouseReleased*(widget: Widget, button: MouseButton): bool = widget.previousMouseDownStates[button] and not widget.mouseDownStates[button]
 
 func defaultTheme*(): GuiTheme =
   GuiTheme(
@@ -117,6 +124,10 @@ func getHover(gui: Gui, container: WidgetContainer): Widget =
         return child
 
 func clearForFrame(gui: Gui, widget: Widget) =
+  widget.previousMouseDownStates = widget.mouseDownStates
+  for button in MouseButton:
+    widget.mouseClickStates[button] = false
+
   if widget of WidgetContainer:
     let container = cast[WidgetContainer](widget)
     container.childStack.setLen(0)
@@ -226,6 +237,19 @@ func nextWidgetBounds*(gui: Gui, container = gui.currentContainer()): Rect2 =
 func sameRow*(gui: Gui) =
   gui.placeNextWidgetInSameRow = true
 
+func updateMouseStates(gui: Gui, widget: Widget) =
+  let isHovered = gui.hover == widget
+  for button in MouseButton:
+    let mouseDown = gui.mouseDown(button)
+
+    if isHovered and mouseDown:
+      widget.mouseDownStates[button] = true
+
+    if not mouseDown:
+      if isHovered and widget.mouseDownStates[button]:
+        widget.mouseClickStates[button] = true
+      widget.mouseDownStates[button] = false
+
 func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T =
   let container = gui.currentContainer
 
@@ -237,6 +261,7 @@ func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T =
     container.childZOrder.add result
 
   result.bounds = gui.nextWidgetBounds(container)
+  gui.updateMouseStates(result)
 
   container.previousChildBounds = result.bounds
   gui.placeNextWidgetInSameRow = false

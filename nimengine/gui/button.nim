@@ -5,10 +5,6 @@ import ./gui
 type
   ButtonWidget* = ref object of Widget
     label*: string
-    isDown*: bool
-    clicked*: bool
-    pressed*: bool
-    released*: bool
 
 method draw*(button: ButtonWidget, gui: Gui) =
   let gfx = gui.gfx
@@ -36,22 +32,27 @@ method draw*(button: ButtonWidget, gui: Gui) =
 proc addButton*(gui: Gui, label: string): bool {.discardable.} =
   let button = gui.getWidget(label, ButtonWidget())
   button.label = label
+  button.mouseClicked(Left)
 
-  let isHovered = gui.hover == button
+# proc addButton*(gui: Gui, label: string): bool {.discardable.} =
+#   let button = gui.getWidget(label, ButtonWidget())
+#   button.label = label
 
-  button.clicked = false
-  button.pressed = false
-  button.released = false
+#   let isHovered = gui.hover == button
 
-  if isHovered and gui.mousePressed(Left):
-    button.isDown = true
-    button.pressed = true
+#   button.clicked = false
+#   button.pressed = false
+#   button.released = false
 
-  if button.isDown and gui.mouseReleased(Left):
-    button.isDown = false
-    button.released = true
+#   if isHovered and gui.mousePressed(Left):
+#     button.isDown = true
+#     button.pressed = true
 
-    if isHovered:
-      button.clicked = true
+#   if button.isDown and gui.mouseReleased(Left):
+#     button.isDown = false
+#     button.released = true
 
-  button.clicked
+#     if isHovered:
+#       button.clicked = true
+
+#   button.clicked

@@ -19,6 +19,17 @@ w.onFrame = proc() =
 
   gui.beginFrame()
 
+  # gui.pushWidgetSize(vec2(90, 19))
+  # var i = 0
+  # for row in 0 ..< 50:
+  #   for col in 0 ..< 50:
+  #     if col > 0:
+  #       gui.sameRow()
+  #     if gui.addButton("Button " & $i):
+  #       echo "Clicked " & $i
+  #     inc i
+  # gui.popWidgetSize()
+
   if gui.addButton("Click Me 1"):
     echo "Clicked 1"
 

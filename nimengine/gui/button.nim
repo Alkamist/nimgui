@@ -33,26 +33,3 @@ proc addButton*(gui: Gui, label: string): bool {.discardable.} =
   let button = gui.getWidget(label, ButtonWidget())
   button.label = label
   button.mouseClicked(Left)
-
-# proc addButton*(gui: Gui, label: string): bool {.discardable.} =
-#   let button = gui.getWidget(label, ButtonWidget())
-#   button.label = label
-
-#   let isHovered = gui.hover == button
-
-#   button.clicked = false
-#   button.pressed = false
-#   button.released = false
-
-#   if isHovered and gui.mousePressed(Left):
-#     button.isDown = true
-#     button.pressed = true
-
-#   if button.isDown and gui.mouseReleased(Left):
-#     button.isDown = false
-#     button.released = true
-
-#     if isHovered:
-#       button.clicked = true
-
-#   button.clicked

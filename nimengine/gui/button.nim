@@ -33,7 +33,7 @@ method draw*(button: ButtonWidget, gui: Gui) =
     clip = true,
   )
 
-proc addButton*(gui: Gui, label: string): bool =
+proc addButton*(gui: Gui, label: string): bool {.discardable.} =
   let button = gui.getWidget(label, ButtonWidget())
   button.label = label
 

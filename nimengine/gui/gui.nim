@@ -8,25 +8,29 @@ type
   WidgetId* = Hash
 
   Widget* = ref object of RootObj
-    isFreelyPositionable*: bool
-    isReadyForDraw*: bool
     bounds*: Rect2
-    relativePosition*: Vec2
-    minimumSize*: Vec2
 
   WidgetContainer* = ref object of Widget
     widgets*: Table[WidgetId, Widget]
-    widgetZOrder*: seq[Widget]
-    widgetDeclarationOrder*: seq[Widget]
+    childStack*: seq[Widget]
+    childZOrder*: seq[Widget]
+    previousChildBounds*: Rect2
+
+  GuiTheme* = ref object
+    containerPadding*: float
+    widgetSpacing*: float
 
   Gui* = ref object
     osWindow*: Window
+    theme*: GuiTheme
     root*: WidgetContainer
     containerStack*: seq[WidgetContainer]
     widgetStack*: seq[Widget]
     hover*: Widget
     hoverParents*: seq[WidgetContainer]
     focus*: Widget
+    nextWidgetSizeStack*: seq[Vec2]
+    placeNextWidgetInSameRow*: bool
 
 method draw*(widget: Widget, gui: Gui) {.base.} = discard
 
@@ -37,8 +41,18 @@ template y*(widget: Widget): auto = widget.bounds.position.y
 template width*(widget: Widget): auto = widget.bounds.size.x
 template height*(widget: Widget): auto = widget.bounds.size.y
 
-func newGui*(osWindow: Window): Gui =
-  Gui(osWindow: osWindow, root: WidgetContainer())
+func defaultTheme*(): GuiTheme =
+  GuiTheme(
+    containerPadding: 5.0,
+    widgetSpacing: 5.0,
+  )
+
+func newGui*(osWindow: Window, theme = defaultTheme()): Gui =
+  Gui(
+    osWindow: osWindow,
+    theme: theme,
+    root: WidgetContainer(),
+  )
 
 template gfx*(gui: Gui): Gfx = gui.osWindow.gfx
 template time*(gui: Gui): float = gui.osWindow.time
@@ -88,43 +102,9 @@ template lostFocus*(gui: Gui): bool = gui.osWindow.lostFocus
 template mouseEntered*(gui: Gui): bool = gui.osWindow.mouseEntered
 template mouseExited*(gui: Gui): bool = gui.osWindow.mouseExited
 
-func drawChildrenInRows*(gui: Gui, container: WidgetContainer) =
-  let bounds = container.bounds
-  let padding = 5.0
-  let paddingX2 = padding * 2.0
-  let spacing = 5.0
-
-  let widgetArea = rect2(
-    bounds.x + padding,
-    bounds.y + padding,
-    bounds.width - paddingX2,
-    bounds.height - paddingX2,
-  )
-
-  let childCount = container.widgetZOrder.len
-  let childYAdvance = widgetArea.height / childCount.float
-  var childBounds = rect2(
-    widgetArea.x,
-    widgetArea.y,
-    widgetArea.width,
-    childYAdvance - spacing,
-  )
-
-  for child in container.widgetDeclarationOrder:
-    if child.isFreelyPositionable:
-      child.bounds.position = bounds.position + child.relativePosition
-    else:
-      child.bounds = childBounds
-      childBounds.position.y += childYAdvance
-
-    if child.isReadyForDraw:
-      child.draw(gui)
-
-    child.isReadyForDraw = true
-
 func getHover(gui: Gui, container: WidgetContainer): Widget =
-  for i in countdown(container.widgetZOrder.len - 1, 0, 1):
-    let child = container.widgetZOrder[i]
+  for i in countdown(container.childZOrder.len - 1, 0, 1):
+    let child = container.childZOrder[i]
     if child.bounds.contains(gui.mousePosition):
       gui.hoverParents.add container
       if child of WidgetContainer:
@@ -139,21 +119,25 @@ func getHover(gui: Gui, container: WidgetContainer): Widget =
 func clearForFrame(gui: Gui, widget: Widget) =
   if widget of WidgetContainer:
     let container = cast[WidgetContainer](widget)
-    container.widgetDeclarationOrder.setLen(0)
-    for child in container.widgetZOrder:
+    container.childStack.setLen(0)
+    container.previousChildBounds = rect2(
+      container.position + gui.theme.containerPadding,
+      vec2(0, 0),
+    )
+    for child in container.childZOrder:
       gui.clearForFrame(child)
 
 func bringToTop(container: WidgetContainer, child: Widget) =
   var foundChild = false
 
-  for i in 0 ..< container.widgetZOrder.len - 1:
-    if not foundChild and container.widgetZOrder[i] == child:
+  for i in 0 ..< container.childZOrder.len - 1:
+    if not foundChild and container.childZOrder[i] == child:
       foundChild = true
     if foundChild:
-      container.widgetZOrder[i] = container.widgetZOrder[i + 1]
+      container.childZOrder[i] = container.childZOrder[i + 1]
 
   if foundChild:
-    container.widgetZOrder[^1] = child
+    container.childZOrder[^1] = child
 
 func updateFocus(gui: Gui) =
   if gui.hover != nil:
@@ -173,7 +157,8 @@ proc beginFrame*(gui: Gui) =
 proc endFrame*(gui: Gui) =
   gui.hover = gui.getHover(gui.root)
   gui.updateFocus()
-  gui.drawChildrenInRows(gui.root)
+  for child in gui.root.childZOrder:
+    child.draw(gui)
 
 func currentContainer*(gui: Gui, T: typedesc = WidgetContainer): T =
   cast[T](
@@ -182,6 +167,9 @@ func currentContainer*(gui: Gui, T: typedesc = WidgetContainer): T =
     else:
       gui.root
   )
+
+func containerBounds*(gui: Gui): Rect2 =
+  gui.currentContainer().bounds
 
 func currentWidget*(gui: Gui, T: typedesc = Widget): T =
   cast[T](
@@ -197,24 +185,66 @@ func pushContainer*(gui: Gui, container: WidgetContainer) =
 func popContainer*(gui: Gui) =
   gui.containerStack.setLen(gui.containerStack.len - 1)
 
-func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): auto =
-  var res: T
+func pushWidgetSize*(gui: Gui, size: Vec2) =
+  gui.nextWidgetSizeStack.add size
 
+func popWidgetSize*(gui: Gui) =
+  gui.nextWidgetSizeStack.setLen(gui.nextWidgetSizeStack.len - 1)
+
+func nextWidgetBounds*(gui: Gui, container = gui.currentContainer()): Rect2 =
+  const fontHeight = 13.0
+  const widgetInnerPadding = 3.0
+
+  let padding = gui.theme.containerPadding
+  let spacing = gui.theme.widgetSpacing
+  let last = container.previousChildBounds
+
+  result.position =
+    if gui.placeNextWidgetInSameRow:
+      vec2(
+        last.x + last.width + spacing,
+        last.y,
+      )
+    else:
+      vec2(
+        padding,
+        if container.childStack.len > 0:
+          last.y + last.height + spacing
+        else:
+          last.y + last.height
+      )
+
+  result.size =
+    if gui.nextWidgetSizeStack.len == 0:
+      vec2(
+        gui.containerBounds.width - padding * 2.0,
+        fontHeight + widgetInnerPadding * 2.0,
+      )
+    else:
+      gui.nextWidgetSizeStack[gui.nextWidgetSizeStack.len - 1]
+
+func sameRow*(gui: Gui) =
+  gui.placeNextWidgetInSameRow = true
+
+func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T =
   let container = gui.currentContainer
 
   if container.widgets.hasKey(id):
-    res = cast[T](container.widgets[id])
+    result = cast[T](container.widgets[id])
   else:
-    res = initialState
-    container.widgets[id] = res
-    container.widgetZOrder.add res
+    result = initialState
+    container.widgets[id] = result
+    container.childZOrder.add result
 
-  gui.widgetStack.add res
-  container.widgetDeclarationOrder.add res
+  result.bounds = gui.nextWidgetBounds(container)
 
-  res
+  container.previousChildBounds = result.bounds
+  gui.placeNextWidgetInSameRow = false
 
-func getWidget*[T](gui: Gui, label: string, initialState: T): auto =
+  container.childStack.add result
+  gui.widgetStack.add result
+
+func getWidget*[T](gui: Gui, label: string, initialState: T): T =
   gui.getWidget(hash(label), initialState)
 
 func drawFrameWithoutHeader*(gfx: Gfx,

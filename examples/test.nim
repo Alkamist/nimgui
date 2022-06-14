@@ -22,12 +22,20 @@ w.onFrame = proc() =
   if gui.addButton("Click Me 1"):
     echo "Clicked 1"
 
-  discard gui.addButton("Click Me 2")
+  gui.pushWidgetSize(vec2(150, 30))
+
+  gui.addButton("Click Me 2")
   if gui.currentWidget(ButtonWidget).pressed:
     echo "Pressed 2"
 
+  gui.sameRow()
   if gui.addButton("Click Me 3"):
     echo "Clicked 3"
+
+  if gui.addButton("Click Me 4"):
+    echo "Clicked 4"
+
+  gui.popWidgetSize()
 
   gui.endFrame()
 

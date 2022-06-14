@@ -6,47 +6,30 @@ const consolaData = staticRead("consola.ttf")
 
 let w = newWindow()
 w.backgroundColor = rgb(13, 17, 23)
-w.gfx.addFont("consola", consolaData)
-w.gfx.font = "consola"
 
 let gui = newGui(w)
+discard gui.addFont(consolaData, 13)
 
 w.onFrame = proc() =
-  if w.mouseDown(Middle) and w.mouseMoved:
-    let zoomPull = w.mouseDeltaPixels.dot(vec2(1, 1).normalize)
-    w.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
-    w.frame.pixelDensity = w.frame.pixelDensity.clamp(0.25, 5.0)
+  # if w.mouseDown(Middle) and w.mouseMoved:
+  #   let zoomPull = w.mouseDeltaPixels.dot(vec2(1, 1).normalize)
+  #   w.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
+  #   w.frame.pixelDensity = w.frame.pixelDensity.clamp(0.25, 5.0)
 
   gui.beginFrame()
 
-  # gui.pushWidgetSize(vec2(90, 19))
-  # var i = 0
-  # for row in 0 ..< 50:
-  #   for col in 0 ..< 50:
-  #     if col > 0:
-  #       gui.sameRow()
-  #     if gui.addButton("Button " & $i):
-  #       echo "Clicked " & $i
-  #     inc i
-  # gui.popWidgetSize()
+  gui.window("Window"):
+    var i = 0
+    for row in 0 ..< 50:
+      for col in 0 ..< 50:
+        if col > 0:
+          gui.sameRow()
+        if gui.button("Button " & $i):
+          echo "Clicked " & $i
+        inc i
 
-  if gui.addButton("Click Me 1"):
-    echo "Clicked 1"
-
-  gui.pushWidgetSize(vec2(150, 30))
-
-  gui.addButton("Click Me 2")
-  if gui.currentWidget.mousePressed(Right):
-    echo "Pressed 2"
-
-  gui.sameRow()
-  if gui.addButton("Click Me 3"):
-    echo "Clicked 3"
-
-  if gui.addButton("Click Me 4"):
-    echo "Clicked 4"
-
-  gui.popWidgetSize()
+    # if gui.button("Button"):
+    #   echo "Yee"
 
   gui.endFrame()
 

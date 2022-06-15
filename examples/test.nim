@@ -7,5 +7,10 @@ import ../nimengine
 let gui = newGui()
 gui.backgroundColor = rgb(13, 17, 23)
 
+gui.onFrame = proc() =
+  gui.window("Window"):
+    if gui.button("Button"):
+      echo "Yee"
+
 while gui.isOpen:
   gui.update()

@@ -12,14 +12,18 @@ when defined(linux):
 elif defined(windows):
   {.passL: "-ldwmapi -lgdi32".}
 
-{.compile: "imgui/imgui.cpp",
+{.
+  compile: "imgui/imgui.cpp",
   compile: "imgui/imgui_draw.cpp",
   compile: "imgui/imgui_tables.cpp",
   compile: "imgui/imgui_widgets.cpp",
   compile: "imgui/imgui_demo.cpp",
-  compile: "imgui/backends/imgui_impl_opengl3.cpp".}
+  compile: "imgui/backends/imgui_impl_glfw.cpp",
+  compile: "imgui/backends/imgui_impl_opengl3.cpp",
+.}
 
 const imguiHeader = currentSourceDir() & "/imgui/imgui.h"
+const imguiImplGlfwHeader = currentSourceDir() & "/imgui/backends/imgui_impl_glfw.h"
 const imguiImplOpenGl3Header = currentSourceDir() & "/imgui/backends/imgui_impl_opengl3.h"
 
 const ImGuiMouseButton_Left* = 0.cint
@@ -341,12 +345,18 @@ proc ImGui_ImplOpenGL3_Shutdown*() {.importc, header: imguiImplOpenGl3Header.}
 proc ImGui_ImplOpenGL3_NewFrame*() {.importc, header: imguiImplOpenGl3Header.}
 proc ImGui_ImplOpenGL3_RenderDrawData*(draw_data: ptr ImDrawData) {.importc, header: imguiImplOpenGl3Header.}
 
-when defined(windows):
-  {.compile: "imgui/backends/imgui_impl_win32.cpp".}
-  const imguiImplWin32Header = currentSourceDir() & "/imgui/backends/imgui_impl_win32.h"
+proc ImGui_ImplGlfw_InitForOpenGL*(window: pointer, install_callbacks: bool): bool {.importc, header: imguiImplGlfwHeader.}
+proc ImGui_ImplGlfw_InitForVulkan*(window: pointer, install_callbacks: bool): bool {.importc, header: imguiImplGlfwHeader.}
+proc ImGui_ImplGlfw_InitForOther*(window: pointer, install_callbacks: bool): bool {.importc, header: imguiImplGlfwHeader.}
+proc ImGui_ImplGlfw_Shutdown*() {.importc, header: imguiImplGlfwHeader.}
+proc ImGui_ImplGlfw_NewFrame*() {.importc, header: imguiImplGlfwHeader.}
 
-  proc ImGui_ImplWin32_Init*(hwnd: pointer): bool {.importc, header: imguiImplWin32Header.}
-  proc ImGui_ImplWin32_Shutdown*() {.importc, header: imguiImplWin32Header.}
-  proc ImGui_ImplWin32_NewFrame*() {.importc, header: imguiImplWin32Header.}
+# when defined(windows):
+#   {.compile: "imgui/backends/imgui_impl_win32.cpp".}
+#   const imguiImplWin32Header = currentSourceDir() & "/imgui/backends/imgui_impl_win32.h"
+
+#   proc ImGui_ImplWin32_Init*(hwnd: pointer): bool {.importc, header: imguiImplWin32Header.}
+#   proc ImGui_ImplWin32_Shutdown*() {.importc, header: imguiImplWin32Header.}
+#   proc ImGui_ImplWin32_NewFrame*() {.importc, header: imguiImplWin32Header.}
 
 {.pop.}

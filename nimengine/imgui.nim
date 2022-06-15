@@ -17,7 +17,6 @@ elif defined(windows):
   compile: "imgui/imgui_tables.cpp",
   compile: "imgui/imgui_widgets.cpp",
   compile: "imgui/imgui_demo.cpp",
-  compile: "imgui/backends/imgui_impl_win32.cpp",
   compile: "imgui/backends/imgui_impl_opengl3.cpp".}
 
 const imguiHeader = currentSourceDir() & "/imgui/imgui.h"
@@ -31,7 +30,23 @@ const ImGuiMouseButton_COUNT* = 5.cint
 type
   ImGuiContext* {.importc, header: imguiHeader.} = object
 
+  ImGuiConfigFlags* {.size: sizeof(cint).} = enum
+    ImGuiConfigFlags_None = 0
+    ImGuiConfigFlags_NavEnableKeyboard = 1 shl 0
+    ImGuiConfigFlags_NavEnableGamepad = 1 shl 1
+    ImGuiConfigFlags_NavEnableSetMousePos = 1 shl 2
+    ImGuiConfigFlags_NavNoCaptureKeyboard = 1 shl 3
+    ImGuiConfigFlags_NoMouse = 1 shl 4
+    ImGuiConfigFlags_NoMouseCursorChange = 1 shl 5
+    ImGuiConfigFlags_DockingEnable = 1 shl 6
+    ImGuiConfigFlags_ViewportsEnable = 1 shl 10
+    ImGuiConfigFlags_DpiEnableScaleViewports = 1 shl 14
+    ImGuiConfigFlags_DpiEnableScaleFonts = 1 shl 15
+    ImGuiConfigFlags_IsSRGB = 1 shl 20
+    ImGuiConfigFlags_IsTouchScreen = 1 shl 21
+
   ImGuiIO* {.importc, header: imguiHeader.} = object
+    ConfigFlags*: ImGuiConfigFlags
     DisplaySize*: ImVec2
     DeltaTime*: cfloat
     Fonts*: ptr ImFontAtlas
@@ -301,6 +316,8 @@ proc ImGui_CreateContext*(shared_font_atlas: ptr ImFontAtlas = nil): ptr ImGuiCo
 proc ImGui_DestroyContext*(ctx: ptr ImGuiContext = nil) {.importc: "ImGui::DestroyContext", header: imguiHeader.}
 proc ImGui_GetCurrentContext*(): ptr ImGuiContext {.importc: "ImGui::GetCurrentContext", header: imguiHeader.}
 proc ImGui_SetCurrentContext*(ctx: ptr ImGuiContext) {.importc: "ImGui::SetCurrentContext", header: imguiHeader.}
+proc ImGui_UpdatePlatformWindows*() {.importc: "ImGui::UpdatePlatformWindows", header: imguiHeader.}
+proc ImGui_RenderPlatformWindowsDefault*(platform_render_arg: pointer = nil, renderer_render_arg: pointer = nil) {.importc: "ImGui::RenderPlatformWindowsDefault", header: imguiHeader.}
 proc ImGui_Text*(fmt: cstring) {.importc: "ImGui::Text", header: imguiHeader, varargs.}
 proc ImGui_Render*() {.importc: "ImGui::Render", header: imguiHeader.}
 proc ImGui_GetDrawData*(): ptr ImDrawData {.importc: "ImGui::GetDrawData", header: imguiHeader.}
@@ -323,5 +340,13 @@ proc ImGui_ImplOpenGL3_Init*(glsl_version: cstring = nil): bool {.importc, heade
 proc ImGui_ImplOpenGL3_Shutdown*() {.importc, header: imguiImplOpenGl3Header.}
 proc ImGui_ImplOpenGL3_NewFrame*() {.importc, header: imguiImplOpenGl3Header.}
 proc ImGui_ImplOpenGL3_RenderDrawData*(draw_data: ptr ImDrawData) {.importc, header: imguiImplOpenGl3Header.}
+
+when defined(windows):
+  {.compile: "imgui/backends/imgui_impl_win32.cpp".}
+  const imguiImplWin32Header = currentSourceDir() & "/imgui/backends/imgui_impl_win32.h"
+
+  proc ImGui_ImplWin32_Init*(hwnd: pointer): bool {.importc, header: imguiImplWin32Header.}
+  proc ImGui_ImplWin32_Shutdown*() {.importc, header: imguiImplWin32Header.}
+  proc ImGui_ImplWin32_NewFrame*() {.importc, header: imguiImplWin32Header.}
 
 {.pop.}

@@ -1,6 +1,6 @@
 import opengl
 
-var openGlIsInitialized {.threadvar.}: bool
+var openGlIsInitialized* {.threadvar.}: bool
 
 when defined(windows):
   import winim/lean

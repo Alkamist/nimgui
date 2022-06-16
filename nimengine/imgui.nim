@@ -147,6 +147,8 @@ type
     ImGuiCol_TabActive
     ImGuiCol_TabUnfocused
     ImGuiCol_TabUnfocusedActive
+    ImGuiCol_DockingPreview,
+    ImGuiCol_DockingEmptyBg,
     ImGuiCol_PlotLines
     ImGuiCol_PlotLinesHovered
     ImGuiCol_PlotHistogram

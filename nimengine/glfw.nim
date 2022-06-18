@@ -340,24 +340,24 @@ type
   GLFWmonitor* = pointer
   GLFWwindow* = pointer
   GLFWcursorhandle* = pointer
-  GLFWerrorfun* = proc (errorCode: cint, description: cstring) {.cdecl.}
-  GLFWwindowposfun* = proc (window: GLFWwindow, x: cint, y: cint) {.cdecl.}
-  GLFWwindowsizefun* = proc (window: GLFWwindow, width: cint, height: cint) {.cdecl.}
-  GLFWwindowclosefun* = proc (window: GLFWwindow) {.cdecl.}
-  GLFWwindowrefreshfun* = proc (window: GLFWwindow) {.cdecl.}
-  GLFWwindowfocusfun* = proc (window: GLFWwindow, focused: cint) {.cdecl.}
-  GLFWwindowiconifyfun* = proc (window: GLFWwindow, iconified: cint) {.cdecl.}
-  GLFWframebuffersizefun* = proc (window: GLFWwindow, width: cint, height: cint) {.cdecl.}
-  GLFWmousebuttonfun* = proc (window: GLFWwindow, button: cint, action: cint, modifiers: cint) {.cdecl.}
-  GLFWcursorposfun* = proc (window: GLFWwindow, x: cdouble, y: cdouble) {.cdecl.}
-  GLFWcursorenterfun* = proc (window: GLFWwindow, entered: cint) {.cdecl.}
-  GLFWscrollfun* = proc (window: GLFWwindow, xoffset: cdouble, yoffset: cdouble) {.cdecl.}
-  GLFWkeyfun* = proc (window: GLFWwindow, key: cint, scancode: cint, action: cint, modifiers: cint) {.cdecl.}
-  GLFWcharfun* = proc (window: GLFWwindow, character: cuint) {.cdecl.}
-  GLFWcharmodsfun* = proc (window: GLFWwindow, codepoint: cuint, mods: cint) {.cdecl.}
-  GLFWdropfun* = proc (window: GLFWwindow, count: cint, paths: cstringArray) {.cdecl.}
-  GLFWmonitorfun* = proc (monitor: GLFWmonitor, connected: cint) {.cdecl.}
-  GLFWjoystickfun* = proc (joy : cint, event: cint)
+  GLFWerrorfun* = proc(errorCode: cint, description: cstring) {.cdecl.}
+  GLFWwindowposfun* = proc(window: GLFWwindow, x: cint, y: cint) {.cdecl.}
+  GLFWwindowsizefun* = proc(window: GLFWwindow, width: cint, height: cint) {.cdecl.}
+  GLFWwindowclosefun* = proc(window: GLFWwindow) {.cdecl.}
+  GLFWwindowrefreshfun* = proc(window: GLFWwindow) {.cdecl.}
+  GLFWwindowfocusfun* = proc(window: GLFWwindow, focused: cint) {.cdecl.}
+  GLFWwindowiconifyfun* = proc(window: GLFWwindow, iconified: cint) {.cdecl.}
+  GLFWframebuffersizefun* = proc(window: GLFWwindow, width: cint, height: cint) {.cdecl.}
+  GLFWmousebuttonfun* = proc(window: GLFWwindow, button: cint, action: cint, modifiers: cint) {.cdecl.}
+  GLFWcursorposfun* = proc(window: GLFWwindow, x: cdouble, y: cdouble) {.cdecl.}
+  GLFWcursorenterfun* = proc(window: GLFWwindow, entered: cint) {.cdecl.}
+  GLFWscrollfun* = proc(window: GLFWwindow, xoffset: cdouble, yoffset: cdouble) {.cdecl.}
+  GLFWkeyfun* = proc(window: GLFWwindow, key: cint, scancode: cint, action: cint, modifiers: cint) {.cdecl.}
+  GLFWcharfun* = proc(window: GLFWwindow, character: cuint) {.cdecl.}
+  GLFWcharmodsfun* = proc(window: GLFWwindow, codepoint: cuint, mods: cint) {.cdecl.}
+  GLFWdropfun* = proc(window: GLFWwindow, count: cint, paths: cstringArray) {.cdecl.}
+  GLFWmonitorfun* = proc(monitor: GLFWmonitor, connected: cint) {.cdecl.}
+  GLFWjoystickfun* = proc(joy : cint, event: cint) {.cdecl.}
 
   GLFWvidmode* {.pure, final.} = object
     width*: cint
@@ -378,7 +378,7 @@ type
     height*: cint
     pixels*: cstring
 
-{.push importc, cdecl.}
+{.push importc, discardable.}
 
 proc glfwInit*(): cint
 proc glfwTerminate*()
@@ -442,7 +442,7 @@ proc glfwMaximizeWindow*(window: GLFWwindow)
 proc glfwRestoreWindow*(window: GLFWwindow)
 proc glfwSetCharCallback*(window: GLFWwindow, cbfun: GLFWcharfun): GLFWcharfun
 proc glfwSetCharModsCallback*(window: GLFWwindow, cbfun: GLFWcharmodsfun): GLFWcharmodsfun
-proc glfwSetClipboardString*(window: GLFWwindow, string: cstring)
+proc glfwSetClipboardString*(window: GLFWwindow, `string`: cstring)
 proc glfwSetCursor*(window: GLFWwindow, cursor: GLFWcursorhandle)
 proc glfwSetCursorEnterCallback*(window: GLFWwindow, cbfun: GLFWcursorenterfun): GLFWcursorenterfun
 proc glfwSetCursorPos*(window: GLFWwindow, xpos: cdouble, ypos: cdouble)
@@ -467,7 +467,7 @@ proc glfwSetWindowSize*(window: GLFWwindow, width: cint, height: cint)
 proc glfwSetWindowSizeCallback*(window: GLFWwindow, cbfun: GLFWwindowsizefun): GLFWwindowsizefun
 proc glfwSetWindowSizeLimits*(window: GLFWwindow, minwidth, minheight, maxwidth, maxheight: cint)
 proc glfwSetWindowTitle*(window: GLFWwindow, title: cstring)
-proc glfwSetWindowUserPointer*(window: GLFWwindow, pointer: pointer)
+proc glfwSetWindowUserPointer*(window: GLFWwindow, `pointer`: pointer)
 proc glfwShowWindow*(window: GLFWwindow)
 proc glfwSwapBuffers*(window: GLFWwindow)
 proc glfwWindowShouldClose*(window: GLFWwindow): cint

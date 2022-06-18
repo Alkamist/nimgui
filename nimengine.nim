@@ -1,3 +1,3 @@
-# import ./nimengine/ui; export ui
 import ./nimengine/math; export math
-import ./nimengine/gui; export gui
+import ./nimengine/window; export window
+import ./nimengine/gfx; export gfx

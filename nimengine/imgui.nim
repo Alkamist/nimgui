@@ -332,8 +332,37 @@ proc ImGui_GetIO*(): ptr ImGuiIO {.importc: "&ImGui::GetIO", header: imguiHeader
 proc ImGui_GetStyle*(): ptr ImGuiStyle {.importc: "&ImGui::GetStyle", header: imguiHeader.}
 proc ImGui_Begin*(name: cstring, p_open: ptr bool = nil, flags = 0.ImGuiWindowFlags): bool {.importc: "ImGui::Begin", header: imguiHeader.}
 proc ImGui_End*() {.importc: "ImGui::End", header: imguiHeader.}
+
 proc ImGui_Button*(label: cstring, size = imVec2(0, 0)): bool {.importc: "ImGui::Button", header: imguiHeader.}
 proc ImGui_SameLine*(offset_from_start_x: cfloat = 0.0, spacing: cfloat = -1.0) {.importc: "ImGui::SameLine", header: imguiHeader.}
+
+# proc DragFloat*(label: cstring, v: ptr cfloat, v_speed: cfloat = 1.0f, v_min: cfloat = 0.0f, v_max: cfloat = 0.0f, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragFloat", header: imguiHeader.}
+# proc DragFloat2*(label: cstring, v: array[2, cfloat], v_speed: cfloat = 1.0f, v_min: cfloat = 0.0f, v_max: cfloat = 0.0f, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragFloat2", header: imguiHeader.}
+# proc DragFloat3*(label: cstring, v: array[3, cfloat], v_speed: cfloat = 1.0f, v_min: cfloat = 0.0f, v_max: cfloat = 0.0f, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragFloat3", header: imguiHeader.}
+# proc DragFloat4*(label: cstring, v: array[4, cfloat], v_speed: cfloat = 1.0f, v_min: cfloat = 0.0f, v_max: cfloat = 0.0f, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragFloat4", header: imguiHeader.}
+# proc DragFloatRange2*(label: cstring, v_current_min, v_current_max: ptr cfloat, v_speed: cfloat = 1.0f, v_min: cfloat = 0.0f, v_max: cfloat = 0.0f, format: cstring = "%.3f", format_max: cstring = nil, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragFloatRange2", header: imguiHeader.}
+# proc DragInt*(label: cstring, v: ptr cint, v_speed: cfloat = 1.0f, v_min: cint = 0, v_max: cint = 0, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragInt", header: imguiHeader.}
+# proc DragInt2*(label: cstring, v: array[2, cint], v_speed: cfloat = 1.0f, v_min: cint = 0, v_max: cint = 0, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragInt2", header: imguiHeader.}
+# proc DragInt3*(label: cstring, v: array[3, cint], v_speed: cfloat = 1.0f, v_min: cint = 0, v_max: cint = 0, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragInt3", header: imguiHeader.}
+# proc DragInt4*(label: cstring, v: array[4, cint], v_speed: cfloat = 1.0f, v_min: cint = 0, v_max: cint = 0, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragInt4", header: imguiHeader.}
+# proc DragIntRange2*(label: cstring, v_current_min, v_current_max: ptr cint, v_speed: cfloat = 1.0f, v_min: cint = 0, v_max: cint = 0, format: cstring = "%d", format_max: cstring = nil, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragIntRange2", header: imguiHeader.}
+# proc DragScalar*(label: cstring, ImGuiDataType data_type, void* p_data, v_speed: cfloat = 1.0f, const void* p_min = NULL, const void* p_max = NULL, format: cstring = NULL, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragScalar", header: imguiHeader.}
+# proc DragScalarN*(label: cstring, ImGuiDataType data_type, void* p_data, int components, v_speed: cfloat = 1.0f, const void* p_min = NULL, const void* p_max = NULL, format: cstring = NULL, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::DragScalarN", header: imguiHeader.}
+
+# proc SliderFloat*(label: cstring, float* v, v_min: cfloat, v_max: cfloat, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderFloat", header: imguiHeader.}
+# proc SliderFloat2*(label: cstring, float v[2], v_min: cfloat, v_max: cfloat, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderFloat2", header: imguiHeader.}
+# proc SliderFloat3*(label: cstring, float v[3], v_min: cfloat, v_max: cfloat, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderFloat3", header: imguiHeader.}
+# proc SliderFloat4*(label: cstring, float v[4], v_min: cfloat, v_max: cfloat, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderFloat4", header: imguiHeader.}
+# proc SliderAngle*(label: cstring, float* v_rad, float v_degrees_min = -360.0f, float v_degrees_max = +360.0f, format: cstring = "%.0f deg", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderAngle", header: imguiHeader.}
+# proc SliderInt*(label: cstring, int* v, int v_min, int v_max, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderInt", header: imguiHeader.}
+# proc SliderInt2*(label: cstring, int v[2], int v_min, int v_max, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderInt2", header: imguiHeader.}
+# proc SliderInt3*(label: cstring, int v[3], int v_min, int v_max, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderInt3", header: imguiHeader.}
+# proc SliderInt4*(label: cstring, int v[4], int v_min, int v_max, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderInt4", header: imguiHeader.}
+# proc SliderScalar*(label: cstring, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, format: cstring = NULL, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderScalar", header: imguiHeader.}
+# proc SliderScalarN*(label: cstring, ImGuiDataType data_type, void* p_data, int components, const void* p_min, const void* p_max, format: cstring = NULL, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::SliderScalarN", header: imguiHeader.}
+# proc VSliderFloat*(label: cstring, const ImVec2& size, float* v, v_min: cfloat, v_max: cfloat, format: cstring = "%.3f", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::VSliderFloat", header: imguiHeader.}
+# proc VSliderInt*(label: cstring, const ImVec2& size, int* v, int v_min, int v_max, format: cstring = "%d", flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::VSliderInt", header: imguiHeader.}
+# proc VSliderScalar*(label: cstring, const ImVec2& size, ImGuiDataType data_type, void* p_data, const void* p_min, const void* p_max, format: cstring = NULL, flags: ImGuiSliderFlags  = 0): bool {.importc: "ImGui::VSliderScalar", header: imguiHeader.}
 
 proc ImGui_StyleColorsDark*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsDark", header: imguiHeader.}
 proc ImGui_StyleColorsLight*(dst: ptr ImGuiStyle = nil) {.importc: "ImGui::StyleColorsLight", header: imguiHeader.}

@@ -237,9 +237,11 @@ proc newGui*(): Gui =
   result.imguiContextPtr = cast[pointer](ImGui_CreateContext())
 
   var io = ImGui_GetIO()
-  io.ConfigFlags = (ImGuiConfigFlags_NavEnableKeyboard.cint or
-                    ImGuiConfigFlags_DockingEnable.cint or
-                    ImGuiConfigFlags_ViewportsEnable.cint).ImGuiConfigFlags
+  # io.ConfigFlags = (ImGuiConfigFlags_NavEnableKeyboard.cint or
+  #                   ImGuiConfigFlags_DockingEnable.cint or
+  #                   ImGuiConfigFlags_ViewportsEnable.cint).ImGuiConfigFlags
+
+  io.ConfigFlags = ImGuiConfigFlags_DockingEnable.ImGuiConfigFlags
 
   ImGui_ImplGlfw_InitForOpenGL(result.glfwWindow, true)
   ImGui_ImplOpenGL3_Init(glslVersion)

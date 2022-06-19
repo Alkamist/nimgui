@@ -4,34 +4,39 @@ import ../nimengine
 
 const consolaData = staticRead("consola.ttf")
 
-let w = newWindow()
-w.backgroundColor = rgb(13, 17, 23)
+let window = newWindow()
+window.backgroundColor = rgb(16, 16, 16)
+window.gfx.addFont("consola", consolaData)
 
-let gui = newGui(w)
-discard gui.addFont(consolaData, 13)
+const amount = 5
 
-w.onFrame = proc() =
-  # if w.mouseDown(Middle) and w.mouseMoved:
-  #   let zoomPull = w.mouseDeltaPixels.dot(vec2(1, 1).normalize)
-  #   w.frame.pixelDensity *= 2.0.pow(zoomPull * 0.005)
-  #   w.frame.pixelDensity = w.frame.pixelDensity.clamp(0.25, 5.0)
+var buttons: seq[GuiButton]
+for i in 0 ..< amount:
+  for j in 0 ..< amount:
+    let b = GuiButton()
+    b.mouseTriggers = {MouseButton.Left, Middle}
+    buttons.add b
 
-  gui.beginFrame()
+while window.isOpen:
+  pollEvents()
 
-  gui.window("Window"):
-    var i = 0
-    for row in 0 ..< 50:
-      for col in 0 ..< 50:
-        if col > 0:
-          gui.sameRow()
-        if gui.button("Button " & $i):
-          echo "Clicked " & $i
-        inc i
+  window.processFrame:
+    let width = window.width / amount
+    let height = window.height / amount
+    for i in 0 ..< amount:
+      for j in 0 ..< amount:
+        let b = buttons[i * amount + j]
+        b.bounds = rect2(
+          i.float * width,
+          j.float * height,
+          width * 0.9,
+          height * 0.9,
+        )
+        b.label = $b.bounds.x
 
-    # if gui.button("Button"):
-    #   echo "Yee"
+        b.update(window)
 
-  gui.endFrame()
+        if b.clicked:
+          echo "Clicked"
 
-while w.isOpen:
-  w.update()
+        b.draw(window)

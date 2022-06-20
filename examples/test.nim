@@ -6,11 +6,9 @@ let window = newWindow()
 window.backgroundColor = rgb(16, 16, 16)
 
 window.onFrame = proc() =
-  if window.mouseDown(Right) and window.mouseMoved:
-    window.bounds = rect2(
-      window.position,
-      window.size,
-    )
+  if window.mouseDown(Left) and window.mouseMoved:
+    window.position = window.position + window.mouseDelta
+    echo window.position
 
   let gfx = window.gfx
   gfx.beginPath()
@@ -19,4 +17,5 @@ window.onFrame = proc() =
   gfx.fill()
 
 while window.exists:
+  pollEvents()
   window.update()

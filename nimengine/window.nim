@@ -1,2 +1,1 @@
-when defined(windows):
-  import ./window/win32window; export win32window
+import ./window/windowglfw; export windowglfw

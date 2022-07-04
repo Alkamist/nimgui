@@ -2,19 +2,41 @@
 
 import ../nimengine
 
+const consolaData = staticRead("consola.ttf")
+
 let window = newWindow()
 window.backgroundColor = rgb(16, 16, 16)
+window.gfx.addFont("consola", consolaData)
+
+const amount = 5
+
+var buttons: seq[GuiButton]
+for i in 0 ..< amount:
+  for j in 0 ..< amount:
+    let b = GuiButton()
+    b.mouseTriggers = {MouseButton.Left, Middle}
+    buttons.add b
 
 window.onFrame = proc() =
-  if window.mouseDown(Left) and window.mouseMoved:
-    window.position = window.position + window.mouseDelta
-    echo window.position
+  let width = window.width / amount
+  let height = window.height / amount
+  for i in 0 ..< amount:
+    for j in 0 ..< amount:
+      let b = buttons[i * amount + j]
+      b.bounds = rect2(
+        i.float * width,
+        j.float * height,
+        width * 0.9,
+        height * 0.9,
+      )
+      b.label = $b.bounds.x
 
-  let gfx = window.gfx
-  gfx.beginPath()
-  gfx.roundedRect(rect2(50, 50, 200, 200), 5)
-  gfx.fillColor = rgb(200, 200, 0)
-  gfx.fill()
+      b.update(window)
+
+      if b.clicked:
+        echo "Clicked"
+
+      b.draw(window)
 
 while window.exists:
   pollEvents()

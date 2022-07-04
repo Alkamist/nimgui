@@ -71,6 +71,8 @@ type
     previousFrameState*: FrameState
     closeRequested*: bool
     backgroundColor*: Color
+    grabPosition*: Vec2
+    grabbed*: bool
 
 func time*(window: Window): float = window.frameState.time
 func exists*(window: Window): bool = window.frameState.exists

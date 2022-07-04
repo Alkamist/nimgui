@@ -211,9 +211,24 @@ proc updateFrameState(window: Window) =
     if key != Unknown:
       window.frameState.keyDown[key] = glfwGetKey(window.glfwWindow, keyboardKeyToGlfwKey[key]) == GLFW_TRUE
 
+# proc handleDragAndResize(window: Window) =
+#   if window.mousePressed(Left):
+#     window.grabPosition = window.mousePosition
+#     window.grabbed = true
+
+#   if window.grabbed:
+#     let delta = window.mousePosition - window.grabPosition
+#     if delta != vec2(0, 0):
+#       window.position = window.position + delta
+
+#   if window.mouseReleased(Left):
+#     window.grabbed = false
+
 proc update*(window: Window) =
   let window = cast[WindowGlfw](window)
   if window.exists:
+    # window.handleDragAndResize()
+
     window.makeContextCurrent()
 
     let frameBufferSize = window.frameBufferSize
@@ -330,6 +345,9 @@ proc newWindow*(): Window =
     # GL 3.0 + GLSL 130
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0)
+
+  # glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
+  # glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
 
   cast[WindowGlfw](result).glfwWindow = glfwCreateWindow(1280, 720, "Window", nil, nil)
   if result.glfwWindow == nil:

@@ -60,8 +60,18 @@ template defineGuiProcs*(): untyped {.dirty.} =
     gui.inputState.isFocused = true
     gui.previousInputState.isFocused = false
 
-  template processFrame(gui: Gui, inputStateChanges: untyped) =
+  template processFrame(gui: Gui) =
     if gui.isOpen:
+      gui.openGlContext.select()
+      glClear(GL_COLOR_BUFFER_BIT)
+
+      if gui.onFrame != nil:
+        gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
+        gui.onFrame()
+        gui.gfx.endFrame()
+
+      gui.openGlContext.swapBuffers()
+
       gui.previousInputState = gui.inputState
       gui.inputState.mouseWheel = vec2(0, 0)
       gui.inputState.text = ""
@@ -70,18 +80,6 @@ template defineGuiProcs*(): untyped {.dirty.} =
       gui.inputState.keyPresses.setLen(0)
       gui.inputState.keyReleases.setLen(0)
       gui.inputState.time = cpuTime()
-
-      inputStateChanges
-
-      gui.openGlContext.select()
-      glClear(GL_COLOR_BUFFER_BIT)
-
-      if gui.onFrame != nil:
-        # gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
-        gui.onFrame()
-        # gui.gfx.endFrame()
-
-      gui.openGlContext.swapBuffers()
 
   proc `backgroundColor=`*(gui: Gui, color: Color) =
     gui.openGlContext.select()

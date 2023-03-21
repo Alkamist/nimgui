@@ -4,17 +4,8 @@ import std/times
 import std/unicode
 import winim/lean except INPUT
 import ./guibase; export guibase
+import ../gfx; export gfx
 import ../openglwrappers/openglcontext
-
-# type
-#   MARGINS {.byCopy.} = object
-#     cxLeftWidth*: cint
-#     cxRightWidth*: cint
-#     cyTopHeight*: cint
-#     cyBottomHeight*: cint
-
-# proc DwmExtendFrameIntoClientArea*(hWnd: HWND, pMarInset: ptr MARGINS): HRESULT {.discardable, stdcall, dynlib: "dwmapi", importc.}
-# proc DwmDefWindowProc(hWnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM, plResult: ptr LRESULT): BOOL {.discardable, stdcall, dynlib: "dwmapi", importc.}
 
 type
   Gui* = ref object
@@ -25,6 +16,7 @@ type
     isOpen*: bool
     isChild*: bool
     openGlContext*: OpenGlContext
+    gfx*: Gfx
     moveTimer: UINT_PTR
 
 defineGuiProcs()
@@ -206,8 +198,9 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       else: KeyboardKey.Unknown
 
 proc update*(gui: Gui) =
-  gui.processFrame:
+  if not gui.isChild:
     gui.pollEvents()
+  gui.processFrame()
 
 proc stop*(gui: Gui) =
   if gui.isOpen:
@@ -238,17 +231,15 @@ proc newGui*(parentHandle: pointer = nil): Gui =
     RegisterClassEx(windowClass)
 
   let isChild = parentHandle != nil
-  let windowStyle =
-    if isChild:
-      WS_CHILD or WS_VISIBLE or WS_CLIPCHILDREN or WS_CLIPSIBLINGS
-    else:
-      WS_OVERLAPPEDWINDOW or WS_VISIBLE
+  var windowStyle = WS_OVERLAPPEDWINDOW or WS_VISIBLE
+  if isChild:
+    windowStyle = windowStyle or WS_POPUP
 
   result.isChild = isChild
 
   let hwnd = CreateWindow(
     lpClassName = windowClassName,
-    lpWindowName = "Gui",
+    lpWindowName = "",
     dwStyle = windowStyle.int32,
     x = 0,
     y = 0,
@@ -264,14 +255,12 @@ proc newGui*(parentHandle: pointer = nil): Gui =
   discard SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 
   result.updateBounds()
-  result.size = result.size
-
-  # var margins = MARGINS(cxLeftWidth: 10, cxRightWidth: 10,
-  #                       cyTopHeight: 10, cyBottomHeight: 10)
-  # DwmExtendFrameIntoClientArea(result.hwnd, margins.addr)
+  # result.size = result.size
 
   result.openGlContext = newOpenGlContext(result.handle)
   result.openGlContext.select()
+
+  result.gfx = newGfx()
 
   inc guiCount
 
@@ -294,10 +283,11 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   of WM_MOVE:
     gui.updateBounds()
+    gui.processFrame()
 
   of WM_SIZE:
-    gui.processFrame:
-      gui.updateBounds()
+    gui.updateBounds()
+    gui.processFrame()
 
   # of WM_ENTERSIZEMOVE:
   #   gui.platform.moveTimer = SetTimer(gui.hwnd, 1, USER_TIMER_MINIMUM, nil)
@@ -322,10 +312,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     dec guiCount
     guiCount = guiCount.max(0)
     if guiCount == 0:
-      UnregisterClass(windowClassName, GetModuleHandle(nil))
-
-  of WM_NCCALCSIZE:
-    return 0
+      UnregisterClass(windowClassName, 0)
 
   of WM_DPICHANGED:
     gui.inputState.pixelDensity = GetDpiForWindow(gui.hwnd).float / densityPixelDpi
@@ -342,18 +329,18 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       gui.inputState.isHovered = true
 
     gui.inputState.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
-
-    if gui.mouseDown(Left):
-      gui.position = gui.position + gui.mousePosition
+    gui.processFrame()
 
   of WM_MOUSELEAVE:
     gui.inputState.isHovered = false
 
   of WM_MOUSEWHEEL:
     gui.inputState.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    gui.processFrame()
 
   of WM_MOUSEHWHEEL:
     gui.inputState.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    gui.processFrame()
 
   of WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
      WM_MBUTTONDOWN, WM_MBUTTONDBLCLK,
@@ -384,41 +371,44 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     if wParam > 0 and wParam < 0x10000:
       gui.inputState.text &= cast[Rune](wParam).toUTF8
 
-  of WM_NCHITTEST:
-    const topBorder = 27
-    const bottomBorder = 8
-    const leftBorder = 8
-    const rightBorder = 8
+  # of WM_NCCALCSIZE:
+  #   return 0
 
-    var m = POINT(x: GET_X_LPARAM(lParam).int32, y: GET_Y_LPARAM(lParam).int32)
-    var w: RECT
-    GetWindowRect(hWnd, w.addr)
+  # of WM_NCHITTEST:
+  #   const topBorder = 27
+  #   const bottomBorder = 8
+  #   const leftBorder = 8
+  #   const rightBorder = 8
 
-    var frame = RECT()
-    AdjustWindowRectEx(frame.addr, WS_OVERLAPPEDWINDOW and not WS_CAPTION, false, 0)
+  #   var m = POINT(x: GET_X_LPARAM(lParam).int32, y: GET_Y_LPARAM(lParam).int32)
+  #   var w: RECT
+  #   GetWindowRect(hWnd, w.addr)
 
-    var row = 1
-    var col = 1
-    var onResizeBorder = false
+  #   var frame = RECT()
+  #   AdjustWindowRectEx(frame.addr, WS_OVERLAPPEDWINDOW and not WS_CAPTION, false, 0)
 
-    if m.y >= w.top and m.y < w.top + topBorder:
-      onResizeBorder = m.y < (w.top - frame.top)
-      row = 0
-    elif m.y < w.bottom and m.y >= w.bottom - bottomBorder:
-      row = 2
+  #   var row = 1
+  #   var col = 1
+  #   var onResizeBorder = false
 
-    if m.x >= w.left and m.x < w.left + leftBorder:
-      col = 0
-    elif m.x < w.right and m.x >= w.right - rightBorder:
-      col = 2
+  #   if m.y >= w.top and m.y < w.top + topBorder:
+  #     onResizeBorder = m.y < (w.top - frame.top)
+  #     row = 0
+  #   elif m.y < w.bottom and m.y >= w.bottom - bottomBorder:
+  #     row = 2
 
-    let hitTests = [
-      [HTTOPLEFT, if onResizeBorder: HTTOP else: HTCAPTION, HTTOPRIGHT],
-      [HTLEFT, HTNOWHERE, HTRIGHT],
-      [HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT],
-    ]
+  #   if m.x >= w.left and m.x < w.left + leftBorder:
+  #     col = 0
+  #   elif m.x < w.right and m.x >= w.right - rightBorder:
+  #     col = 2
 
-    return hitTests[row][col]
+  #   let hitTests = [
+  #     [HTTOPLEFT, if onResizeBorder: HTTOP else: HTCAPTION, HTTOPRIGHT],
+  #     [HTLEFT, HTNOWHERE, HTRIGHT],
+  #     [HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT],
+  #   ]
+
+  #   return hitTests[row][col]
 
   else:
     discard

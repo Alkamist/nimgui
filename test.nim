@@ -2,21 +2,26 @@
 
 import nimgui
 
-let gui = newGui()
-gui.backgroundColor = rgb(16, 16, 16)
+var position = vec2(50, 50)
 
-let gfx = newGfx()
+gui.window:
+  if gui.mouseDown(Left) and gui.mouseMoved:
+    position += gui.mouseDelta
 
-gui.onFrame = proc() =
-  gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
+  gui.beginPath()
+  gui.circle(position, 50)
+  gui.closePath()
+  gui.strokeColor = rgb(255, 255, 255)
+  gui.stroke()
 
-  gfx.beginPath()
-  gfx.rect(rect2(vec2(0.5, 0.5), vec2(gui.size.x - 1, 26)))
-  gfx.circle(vec2(gui.size.x * 0.5, 200), 50)
-  gfx.strokeColor = rgb(255, 0, 0)
-  gfx.stroke()
+# var position1 = vec2(50, 50)
 
-  gfx.endFrame()
+# gui.window:
+#   if gui.mouseDown(Left) and gui.mouseMoved:
+#     position1 += gui.mouseDelta
 
-while gui.isOpen:
-  gui.update()
+#   gui.beginPath()
+#   gui.circle(position1, 50)
+#   gui.closePath()
+#   gui.strokeColor = rgb(255, 255, 255)
+#   gui.stroke()

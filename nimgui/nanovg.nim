@@ -1,21 +1,21 @@
 import std/strutils
 import std/strformat
 
-proc getCurrentDir(): string {.compileTime.} =
+proc currentSourceDir(): string {.compileTime.} =
   result = currentSourcePath().replace("\\", "/")
   result = result[0 ..< result.rfind("/")]
 
-const currentDir = getCurrentDir()
+const nanovgDir = currentSourceDir() & "/nanovg"
 
-{.passC: &" -I{currentDir} -DNANOVG_GL3_IMPLEMENTATION".}
-{.compile: &"{currentDir}/nanovg/nanovg.c".}
-{.compile: &"{currentDir}/nanovg/glad.c".}
+{.passC: &" -I{nanovgDir} -DNANOVG_GL3_IMPLEMENTATION".}
+{.compile: &"{nanovgDir}/nanovg.c".}
+{.compile: &"{nanovgDir}/glad.c".}
 
 {.emit: &"""
-#include "{currentDir}/nanovg/glad/glad.h"
-#include "{currentDir}/nanovg/nanovg.h"
-#include "{currentDir}/nanovg/nanovg_gl.h"
-#include "{currentDir}/nanovg/nanovg_gl_utils.h"
+#include "glad/glad.h"
+#include "nanovg.h"
+#include "nanovg_gl.h"
+#include "nanovg_gl_utils.h"
 """.}
 
 type

@@ -1,5 +1,6 @@
 {.experimental: "overloadableEnums".}
 
+import std/times
 import ../math; export math
 
 const densityPixelDpi* = 96.0
@@ -55,83 +56,67 @@ type
     state*: UiState
     previousState*: UiState
 
-template initState(gui: Gui) =
-  let inputState = UiState(time: cpuTime(), pixelDensity: 1.0)
-  gui.inputState = inputState
-  gui.previousInputState = inputState
-  gui.isOpen = true
-  gui.inputState.isFocused = true
-  gui.previousInputState.isFocused = false
+proc initState*(ui: Ui) =
+  let state = UiState(time: cpuTime(), pixelDensity: 1.0)
+  ui.state = state
+  ui.previousState = state
+  ui.state.isFocused = true
+  ui.previousState.isFocused = false
 
-template processFrame(gui: Gui) =
-  if gui.isOpen:
-    gui.openGlContext.select()
-    glClear(GL_COLOR_BUFFER_BIT)
+proc updateState*(ui: Ui) =
+  ui.previousState = ui.state
+  ui.state.mouseWheel = vec2(0, 0)
+  ui.state.text = ""
+  ui.state.mousePresses.setLen(0)
+  ui.state.mouseReleases.setLen(0)
+  ui.state.keyPresses.setLen(0)
+  ui.state.keyReleases.setLen(0)
+  ui.state.time = cpuTime()
 
-    if gui.onFrame != nil:
-      gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
-      gui.onFrame()
-      gui.gfx.endFrame()
+func time*(ui: Ui): float = ui.state.time
+func isFocused*(ui: Ui): bool = ui.state.isFocused
+func isHovered*(ui: Ui): bool = ui.state.isHovered
+func pixelDensity*(ui: Ui): float = ui.state.pixelDensity
+func boundsPixels*(ui: Ui): Rect2 = ui.state.boundsPixels
+func mousePositionPixels*(ui: Ui): Vec2 = ui.state.mousePositionPixels
+func mouseWheel*(ui: Ui): Vec2 = ui.state.mouseWheel
+func mousePresses*(ui: Ui): seq[MouseButton] = ui.state.mousePresses
+func mouseReleases*(ui: Ui): seq[MouseButton] = ui.state.mouseReleases
+func mouseDown*(ui: Ui, button: MouseButton): bool = ui.state.mouseDown[button]
+func keyPresses*(ui: Ui): seq[KeyboardKey] = ui.state.keyPresses
+func keyReleases*(ui: Ui): seq[KeyboardKey] = ui.state.keyReleases
+func keyDown*(ui: Ui, key: KeyboardKey): bool = ui.state.keyDown[key]
+func text*(ui: Ui): string = ui.state.text
 
-    gui.openGlContext.swapBuffers()
-
-    gui.previousInputState = gui.inputState
-    gui.inputState.mouseWheel = vec2(0, 0)
-    gui.inputState.text = ""
-    gui.inputState.mousePresses.setLen(0)
-    gui.inputState.mouseReleases.setLen(0)
-    gui.inputState.keyPresses.setLen(0)
-    gui.inputState.keyReleases.setLen(0)
-    gui.inputState.time = cpuTime()
-
-proc `backgroundColor=`*(gui: Gui, color: Color) =
-  gui.openGlContext.select()
-  glClearColor(color.r, color.g, color.b, color.a)
-
-func time*(gui: Gui): float = gui.inputState.time
-func isFocused*(gui: Gui): bool = gui.inputState.isFocused
-func isHovered*(gui: Gui): bool = gui.inputState.isHovered
-func pixelDensity*(gui: Gui): float = gui.inputState.pixelDensity
-func boundsPixels*(gui: Gui): Rect2 = gui.inputState.boundsPixels
-func mousePositionPixels*(gui: Gui): Vec2 = gui.inputState.mousePositionPixels
-func mouseWheel*(gui: Gui): Vec2 = gui.inputState.mouseWheel
-func mousePresses*(gui: Gui): seq[MouseButton] = gui.inputState.mousePresses
-func mouseReleases*(gui: Gui): seq[MouseButton] = gui.inputState.mouseReleases
-func mouseDown*(gui: Gui, button: MouseButton): bool = gui.inputState.mouseDown[button]
-func keyPresses*(gui: Gui): seq[KeyboardKey] = gui.inputState.keyPresses
-func keyReleases*(gui: Gui): seq[KeyboardKey] = gui.inputState.keyReleases
-func keyDown*(gui: Gui, key: KeyboardKey): bool = gui.inputState.keyDown[key]
-func text*(gui: Gui): string = gui.inputState.text
-
-func deltaTime*(gui: Gui): float = gui.inputState.time - gui.previousInputState.time
-func mousePosition*(gui: Gui): Vec2 = gui.inputState.mousePositionPixels / gui.inputState.pixelDensity
-func mouseDeltaPixels*(gui: Gui): Vec2 = gui.inputState.mousePositionPixels - gui.previousInputState.mousePositionPixels
-func mouseDelta*(gui: Gui): Vec2 = gui.mouseDeltaPixels / gui.inputState.pixelDensity
-func mouseMoved*(gui: Gui): bool = gui.inputState.mousePositionPixels != gui.previousInputState.mousePositionPixels
-func mouseWheelMoved*(gui: Gui): bool = gui.inputState.mouseWheel.x != 0.0 or gui.inputState.mouseWheel.y != 0.0
-func mousePressed*(gui: Gui, button: MouseButton): bool = gui.inputState.mouseDown[button] and not gui.previousInputState.mouseDown[button]
-func mouseReleased*(gui: Gui, button: MouseButton): bool = gui.previousInputState.mouseDown[button] and not gui.inputState.mouseDown[button]
-func anyMousePressed*(gui: Gui): bool = gui.inputState.mousePresses.len > 0
-func anyMouseReleased*(gui: Gui): bool = gui.inputState.mouseReleases.len > 0
-func keyPressed*(gui: Gui, key: KeyboardKey): bool = gui.inputState.keyDown[key] and not gui.previousInputState.keyDown[key]
-func keyReleased*(gui: Gui, key: KeyboardKey): bool = gui.previousInputState.keyDown[key] and not gui.inputState.keyDown[key]
-func anyKeyPressed*(gui: Gui): bool = gui.inputState.keyPresses.len > 0
-func anyKeyReleased*(gui: Gui): bool = gui.inputState.keyReleases.len > 0
-func bounds*(gui: Gui): Rect2 = rect2(gui.inputState.boundsPixels.position / gui.inputState.pixelDensity, gui.inputState.boundsPixels.size / gui.inputState.pixelDensity)
-func positionPixels*(gui: Gui): Vec2 = gui.inputState.boundsPixels.position
-func position*(gui: Gui): Vec2 = gui.inputState.boundsPixels.position / gui.inputState.pixelDensity
-func sizePixels*(gui: Gui): Vec2 = gui.inputState.boundsPixels.size
-func size*(gui: Gui): Vec2 = gui.inputState.boundsPixels.size / gui.inputState.pixelDensity
-func scale*(gui: Gui): float = 1.0 / gui.inputState.pixelDensity
-func moved*(gui: Gui): bool = gui.inputState.boundsPixels.position != gui.previousInputState.boundsPixels.position
-func positionDeltaPixels*(gui: Gui): Vec2 = gui.inputState.boundsPixels.position - gui.previousInputState.boundsPixels.position
-func positionDelta*(gui: Gui): Vec2 = gui.positionDeltaPixels / gui.inputState.pixelDensity
-func resized*(gui: Gui): bool = gui.inputState.boundsPixels.size != gui.previousInputState.boundsPixels.size
-func sizeDeltaPixels*(gui: Gui): Vec2 = gui.inputState.boundsPixels.size - gui.previousInputState.boundsPixels.size
-func sizeDelta*(gui: Gui): Vec2 = gui.sizeDeltaPixels / gui.inputState.pixelDensity
-func pixelDensityChanged*(gui: Gui): bool = gui.inputState.pixelDensity != gui.previousInputState.pixelDensity
-func aspectRatio*(gui: Gui): float = gui.inputState.boundsPixels.size.x / gui.inputState.boundsPixels.size.y
-func gainedFocus*(gui: Gui): bool = gui.inputState.isFocused and not gui.previousInputState.isFocused
-func lostFocus*(gui: Gui): bool = gui.previousInputState.isFocused and not gui.inputState.isFocused
-func mouseEntered*(gui: Gui): bool = gui.inputState.isHovered and not gui.previousInputState.isHovered
-func mouseExited*(gui: Gui): bool = gui.previousInputState.isHovered and not gui.inputState.isHovered
+func deltaTime*(ui: Ui): float = ui.state.time - ui.previousState.time
+func mousePosition*(ui: Ui): Vec2 = ui.state.mousePositionPixels / ui.state.pixelDensity
+func mouseDeltaPixels*(ui: Ui): Vec2 = ui.state.mousePositionPixels - ui.previousState.mousePositionPixels
+func mouseDelta*(ui: Ui): Vec2 = ui.mouseDeltaPixels / ui.state.pixelDensity
+func mouseMoved*(ui: Ui): bool = ui.state.mousePositionPixels != ui.previousState.mousePositionPixels
+func mouseWheelMoved*(ui: Ui): bool = ui.state.mouseWheel.x != 0.0 or ui.state.mouseWheel.y != 0.0
+func mousePressed*(ui: Ui, button: MouseButton): bool = ui.state.mouseDown[button] and not ui.previousState.mouseDown[button]
+func mouseReleased*(ui: Ui, button: MouseButton): bool = ui.previousState.mouseDown[button] and not ui.state.mouseDown[button]
+func anyMousePressed*(ui: Ui): bool = ui.state.mousePresses.len > 0
+func anyMouseReleased*(ui: Ui): bool = ui.state.mouseReleases.len > 0
+func keyPressed*(ui: Ui, key: KeyboardKey): bool = ui.state.keyDown[key] and not ui.previousState.keyDown[key]
+func keyReleased*(ui: Ui, key: KeyboardKey): bool = ui.previousState.keyDown[key] and not ui.state.keyDown[key]
+func anyKeyPressed*(ui: Ui): bool = ui.state.keyPresses.len > 0
+func anyKeyReleased*(ui: Ui): bool = ui.state.keyReleases.len > 0
+func bounds*(ui: Ui): Rect2 = rect2(ui.state.boundsPixels.position / ui.state.pixelDensity, ui.state.boundsPixels.size / ui.state.pixelDensity)
+func positionPixels*(ui: Ui): Vec2 = ui.state.boundsPixels.position
+func position*(ui: Ui): Vec2 = ui.state.boundsPixels.position / ui.state.pixelDensity
+func sizePixels*(ui: Ui): Vec2 = ui.state.boundsPixels.size
+func size*(ui: Ui): Vec2 = ui.state.boundsPixels.size / ui.state.pixelDensity
+func scale*(ui: Ui): float = 1.0 / ui.state.pixelDensity
+func moved*(ui: Ui): bool = ui.state.boundsPixels.position != ui.previousState.boundsPixels.position
+func positionDeltaPixels*(ui: Ui): Vec2 = ui.state.boundsPixels.position - ui.previousState.boundsPixels.position
+func positionDelta*(ui: Ui): Vec2 = ui.positionDeltaPixels / ui.state.pixelDensity
+func resized*(ui: Ui): bool = ui.state.boundsPixels.size != ui.previousState.boundsPixels.size
+func sizeDeltaPixels*(ui: Ui): Vec2 = ui.state.boundsPixels.size - ui.previousState.boundsPixels.size
+func sizeDelta*(ui: Ui): Vec2 = ui.sizeDeltaPixels / ui.state.pixelDensity
+func pixelDensityChanged*(ui: Ui): bool = ui.state.pixelDensity != ui.previousState.pixelDensity
+func aspectRatio*(ui: Ui): float = ui.state.boundsPixels.size.x / ui.state.boundsPixels.size.y
+func gainedFocus*(ui: Ui): bool = ui.state.isFocused and not ui.previousState.isFocused
+func lostFocus*(ui: Ui): bool = ui.previousState.isFocused and not ui.state.isFocused
+func mouseEntered*(ui: Ui): bool = ui.state.isHovered and not ui.previousState.isHovered
+func mouseExited*(ui: Ui): bool = ui.previousState.isHovered and not ui.state.isHovered

@@ -10,8 +10,6 @@ type
   WidgetId* = Hash
 
   Widget* = ref object of RootObj
-    justCreated*: bool
-    update*: proc(widget: Widget)
     id*: WidgetId
     position*: Vec2 # The relative position of the widget inside the container.
     size*: Vec2 # The size of the widget.
@@ -34,7 +32,7 @@ type
     theme*: GuiTheme # The theme that the gui uses.
     root*: WidgetContainer # The top level dummy container for the operating system window.
     containerStack*: seq[WidgetContainer] # A stack of containers to keep track of heirarchy.
-    # widgetStack*: seq[Widget] # A stack of widgets to keep track of heirarchy.
+    widgetStack*: seq[Widget] # A stack of widgets to keep track of heirarchy.
     hover*: Widget # The current widget that the mouse is hovering over.
     hoverParents*: seq[WidgetContainer]
     focus*: Widget # The current widget that is focused.
@@ -42,7 +40,7 @@ type
     # placeNextWidgetInSameRow*: bool
     storedBackgroundColor: Color # The background color of the operating system window stored in case it needs to be accessed later.
 
-# method draw*(widget: Widget, gui: Gui) {.base.} = discard
+method draw*(widget: Widget, gui: Gui) {.base.} = discard
 
 template x*(widget: Widget): auto = widget.position.x
 template `x=`*(widget: Widget, value: float) = widget.position.x = value
@@ -179,9 +177,9 @@ func updateFocus*(gui: Gui) =
 #     else:
 #       child.draw(gui)
 
-proc updateChildren*(container: WidgetContainer, gui: Gui) =
+proc drawChildren*(container: WidgetContainer, gui: Gui) =
   for child in container.childZOrder:
-    child.update(child)
+    child.draw(gui)
 
 proc beginFrame*(gui: Gui) =
   gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
@@ -189,12 +187,12 @@ proc beginFrame*(gui: Gui) =
   gui.clearForFrame(gui.root)
   gui.hoverParents.setLen(0)
   gui.containerStack.setLen(0)
-  # gui.widgetStack.setLen(0)
+  gui.widgetStack.setLen(0)
 
 proc endFrame*(gui: Gui) =
   gui.hover = gui.getHover(gui.root)
   gui.updateFocus()
-  gui.root.updateChildren(gui)
+  gui.root.drawChildren(gui)
   gui.gfx.endFrame()
 
 template onFrame*(gui: Gui, code: untyped): untyped =
@@ -211,13 +209,13 @@ func currentContainer*(gui: Gui, T: typedesc = WidgetContainer): T =
       gui.root
   )
 
-# func currentWidget*(gui: Gui, T: typedesc = Widget): T =
-#   cast[T](
-#     if gui.widgetStack.len > 0:
-#       gui.widgetStack[gui.widgetStack.len - 1]
-#     else:
-#       gui.root
-#   )
+func currentWidget*(gui: Gui, T: typedesc = Widget): T =
+  cast[T](
+    if gui.widgetStack.len > 0:
+      gui.widgetStack[gui.widgetStack.len - 1]
+    else:
+      gui.root
+  )
 
 func pushContainer*(gui: Gui, container: WidgetContainer) =
   gui.containerStack.add container
@@ -266,16 +264,14 @@ func popContainer*(gui: Gui) =
 # func sameRow*(gui: Gui) =
 #   gui.placeNextWidgetInSameRow = true
 
-func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
+func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T =
   let container = gui.currentContainer
 
   if container.widgets.hasKey(id):
     result = cast[T](container.widgets[id])
-    result.justCreated = false
   else:
     result = initialState
     result.id = id
-    result.justCreated = true
     container.widgets[id] = result
     container.childZOrder.add result
 
@@ -287,9 +283,9 @@ func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
   # gui.placeNextWidgetInSameRow = false
 
   container.childStack.add result
-  # gui.widgetStack.add result
+  gui.widgetStack.add result
 
-func getWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} =
+func getWidget*[T](gui: Gui, label: string, initialState: T): T =
   gui.getWidget(hash(label), initialState)
 
 func drawFrameWithoutHeader*(gfx: Gfx,

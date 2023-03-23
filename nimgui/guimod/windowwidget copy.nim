@@ -33,43 +33,6 @@ proc resizeHandleBounds(window: WindowWidget): Rect2 =
     vec2(24.0, 24.0),
   )
 
-proc windowBehavior*(window: WindowWidget, gui: Gui) =
-  window.moved = false
-
-  let isHovered = gui.hover == window
-
-  window.isOpen = true
-
-  window.headerIsHovered =
-    not window.headerIsGrabbed and
-    isHovered and
-    window.headerBounds.contains(gui.mousePosition)
-
-  if window.headerIsHovered and gui.mousePressed(Left):
-    window.headerIsGrabbed = true
-
-  if window.headerIsGrabbed and gui.mouseReleased(Left):
-    window.headerIsGrabbed = false
-
-  if window.headerIsGrabbed and gui.mouseMoved:
-    window.position += gui.mouseDelta
-    window.moved = true
-
-  window.resizeHandleIsHovered =
-    window.isResizable and
-    isHovered and
-    window.resizeHandleBounds.contains(gui.mousePosition)
-
-  if window.resizeHandleIsHovered and gui.mousePressed(Left):
-    window.resizeHandleIsGrabbed = true
-
-  if window.resizeHandleIsGrabbed and gui.mouseReleased(Left):
-    window.resizeHandleIsGrabbed = false
-
-  if window.resizeHandleIsGrabbed and gui.mouseMoved:
-    window.size += gui.mouseDelta
-    window.resized = true
-
 proc draw*(window: WindowWidget, gui: Gui) =
   let gfx = gui.gfx
   let bounds = window.bounds
@@ -139,18 +102,54 @@ proc draw*(window: WindowWidget, gui: Gui) =
 
   gfx.restoreState()
 
-template window*(gui: Gui, id: string, code: untyped): WindowWidget =
-  gui.getWidget(id):
+proc beginWindow*(gui: Gui, id: string): WindowWidget {.discardable.} =
+  let window = gui.getWidget(id):
     WindowWidget(
       title: id,
       headerHeight: 24,
       size: vec2(300, 200),
       isResizable: true,
-      update: proc(widget: Widget) =
-        let window {.inject.} = cast[WindowWidget](widget)
-        gui.pushContainer window
-        window.windowBehavior(gui)
-        code
-        window.draw(gui)
-        gui.popContainer()
     )
+
+  window.moved = false
+
+  let isHovered = gui.hover == window
+
+  window.isOpen = true
+
+  window.headerIsHovered =
+    not window.headerIsGrabbed and
+    isHovered and
+    window.headerBounds.contains(gui.mousePosition)
+
+  if window.headerIsHovered and gui.mousePressed(Left):
+    window.headerIsGrabbed = true
+
+  if window.headerIsGrabbed and gui.mouseReleased(Left):
+    window.headerIsGrabbed = false
+
+  if window.headerIsGrabbed and gui.mouseMoved:
+    window.position += gui.mouseDelta
+    window.moved = true
+
+  window.resizeHandleIsHovered =
+    window.isResizable and
+    isHovered and
+    window.resizeHandleBounds.contains(gui.mousePosition)
+
+  if window.resizeHandleIsHovered and gui.mousePressed(Left):
+    window.resizeHandleIsGrabbed = true
+
+  if window.resizeHandleIsGrabbed and gui.mouseReleased(Left):
+    window.resizeHandleIsGrabbed = false
+
+  if window.resizeHandleIsGrabbed and gui.mouseMoved:
+    window.size += gui.mouseDelta
+    window.resized = true
+
+  gui.pushContainer window
+
+  return window
+
+func endWindow*(gui: Gui) =
+  gui.popContainer()

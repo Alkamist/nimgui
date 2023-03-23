@@ -34,7 +34,7 @@ type
 
 defineButtonBehavior(ButtonWidget)
 
-proc draw*(button: ButtonWidget, gui: Gui) =
+method draw*(button: ButtonWidget, gui: Gui) =
   let gfx = gui.gfx
   let bounds = button.bounds
   let isHovered = gui.hover == button
@@ -76,14 +76,8 @@ proc draw*(button: ButtonWidget, gui: Gui) =
 
   gfx.restoreState()
 
-template button*(gui: Gui, id: string, code: untyped): ButtonWidget =
-  gui.getWidget(id):
-    ButtonWidget(
-      label: id,
-      size: vec2(96, 32),
-      update: proc(widget: Widget) =
-        let button {.inject.} = cast[ButtonWidget](widget)
-        buttonBehavior(button, gui, Left)
-        code
-        button.draw(gui)
-    )
+proc button*(gui: Gui, id: string): ButtonWidget {.discardable.} =
+  let button = gui.getWidget(id, ButtonWidget())
+  button.label = id
+  buttonBehavior(button, gui, Left)
+  return button

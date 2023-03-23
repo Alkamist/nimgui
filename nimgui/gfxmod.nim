@@ -236,6 +236,9 @@ proc radialGradient*(gfx: Gfx, center: Vec2, innerRadius, outerRadius: float, in
 {.pop.}
 
 proc newText*(gfx: Gfx, data: string): Text =
+  if data.len == 0:
+    return nil
+
   let runes = data.toRunes
   result = Text(
     data: data,
@@ -274,6 +277,9 @@ proc drawText*(gfx: Gfx,
                alignY = TextAlignY.Top,
                wordWrap = false,
                clip = true) =
+  if text == nil:
+    return
+
   proc drawLine(text: Text, line: TextLine, lineBounds: Rect2) =
     let startGlyph = text.glyphs[line.startIndex]
     let endGlyph = text.glyphs[line.endIndex]

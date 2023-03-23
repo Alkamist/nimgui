@@ -29,6 +29,6 @@ method draw*(button: ButtonWidget, gui: Gui) =
     clip = true,
   )
 
-proc button*(gui: Gui, label: string) =
-  let b = gui.getWidget(label, ButtonWidget())
-  b.label = label
+proc button*(gui: Gui, id: string) =
+  let b = gui.getWidget(id, ButtonWidget())
+  b.label = id

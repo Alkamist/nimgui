@@ -10,7 +10,6 @@ type
   WidgetId* = Hash
 
   Widget* = ref object of RootObj
-    id*: WidgetId
     bounds*: Rect2
 
   WidgetContainer* = ref object of Widget
@@ -23,8 +22,7 @@ type
     containerPadding*: float
     widgetSpacing*: float
 
-  Gui* = ref object
-    osWindow*: OsWindow
+  Gui* = ref object of OsWindow
     gfx*: Gfx
     theme*: GuiTheme
     root*: WidgetContainer
@@ -35,55 +33,6 @@ type
     focus*: Widget
     nextWidgetSizeStack*: seq[Vec2]
     placeNextWidgetInSameRow*: bool
-
-template update*(gui: Gui) = gui.osWindow.update()
-template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
-template time*(gui: Gui): float = gui.osWindow.time
-template isFocused*(gui: Gui): bool = gui.osWindow.isFocused
-template isHovered*(gui: Gui): bool = gui.osWindow.isHovered
-template pixelDensity*(gui: Gui): float = gui.osWindow.pixelDensity
-template boundsPixels*(gui: Gui): Rect2 = gui.osWindow.boundsPixels
-template mousePositionPixels*(gui: Gui): Vec2 = gui.osWindow.mousePositionPixels
-template mouseWheel*(gui: Gui): Vec2 = gui.osWindow.mouseWheel
-template mousePresses*(gui: Gui): seq[MouseButton] = gui.osWindow.mousePresses
-template mouseReleases*(gui: Gui): seq[MouseButton] = gui.osWindow.mouseReleases
-template mouseDown*(gui: Gui, button: MouseButton): bool = gui.osWindow.mouseDown(button)
-template keyPresses*(gui: Gui): seq[KeyboardKey] = gui.osWindow.keyPresses
-template keyReleases*(gui: Gui): seq[KeyboardKey] = gui.osWindow.keyReleases
-template keyDown*(gui: Gui, key: KeyboardKey): bool = gui.osWindow.keyDown(key)
-template text*(gui: Gui): string = gui.osWindow.text
-template deltaTime*(gui: Gui): float = gui.osWindow.deltaTime
-template mousePosition*(gui: Gui): Vec2 = gui.osWindow.mousePosition
-template mouseDeltaPixels*(gui: Gui): Vec2 = gui.osWindow.mouseDeltaPixels
-template mouseDelta*(gui: Gui): Vec2 = gui.osWindow.mouseDelta
-template mouseMoved*(gui: Gui): bool = gui.osWindow.mouseMoved
-template mouseWheelMoved*(gui: Gui): bool = gui.osWindow.mouseWheelMoved
-template mousePressed*(gui: Gui, button: MouseButton): bool = gui.osWindow.mousePressed(button)
-template mouseReleased*(gui: Gui, button: MouseButton): bool = gui.osWindow.mouseReleased(button)
-template anyMousePressed*(gui: Gui): bool = gui.osWindow.anyMousePressed
-template anyMouseReleased*(gui: Gui): bool = gui.osWindow.anyMouseReleased
-template keyPressed*(gui: Gui, key: KeyboardKey): bool = gui.osWindow.keyPressed(key)
-template keyReleased*(gui: Gui, key: KeyboardKey): bool = gui.osWindow.keyReleased(key)
-template anyKeyPressed*(gui: Gui): bool = gui.osWindow.anyKeyPressed
-template anyKeyReleased*(gui: Gui): bool = gui.osWindow.anyKeyReleased
-template bounds*(gui: Gui): Rect2 = gui.osWindow.bounds
-template positionPixels*(gui: Gui): Vec2 = gui.osWindow.positionPixels
-template position*(gui: Gui): Vec2 = gui.osWindow.position
-template sizePixels*(gui: Gui): Vec2 = gui.osWindow.sizePixels
-template size*(gui: Gui): Vec2 = gui.osWindow.size
-template scale*(gui: Gui): float = gui.osWindow.scale
-template moved*(gui: Gui): bool = gui.osWindow.moved
-template positionDeltaPixels*(gui: Gui): Vec2 = gui.osWindow.positionDeltaPixels
-template positionDelta*(gui: Gui): Vec2 = gui.osWindow.positionDelta
-template resized*(gui: Gui): bool = gui.osWindow.resized
-template sizeDeltaPixels*(gui: Gui): Vec2 = gui.osWindow.sizeDeltaPixels
-template sizeDelta*(gui: Gui): Vec2 = gui.osWindow.sizeDelta
-template pixelDensityChanged*(gui: Gui): bool = gui.osWindow.pixelDensityChanged
-template aspectRatio*(gui: Gui): float = gui.osWindow.aspectRatio
-template gainedFocus*(gui: Gui): bool = gui.osWindow.gainedFocus
-template lostFocus*(gui: Gui): bool = gui.osWindow.lostFocus
-template mouseEntered*(gui: Gui): bool = gui.osWindow.mouseEntered
-template mouseExited*(gui: Gui): bool = gui.osWindow.mouseExited
 
 method draw*(widget: Widget, gui: Gui) {.base.} = discard
 
@@ -101,13 +50,12 @@ func defaultTheme*(): GuiTheme =
   )
 
 proc newGui*(theme = defaultTheme()): Gui =
-  result = Gui()
-  result.osWindow = newOsWindow()
+  result = cast[Gui](newOsWindow())
   result.gfx = newGfx()
   result.theme = theme
   result.root = WidgetContainer()
 
-func getHover*(gui: Gui, container: WidgetContainer): Widget =
+func getHover(gui: Gui, container: WidgetContainer): Widget =
   for i in countdown(container.childZOrder.len - 1, 0, 1):
     let child = container.childZOrder[i]
     if child.bounds.contains(gui.mousePosition):
@@ -121,7 +69,7 @@ func getHover*(gui: Gui, container: WidgetContainer): Widget =
       else:
         return child
 
-func clearForFrame*(gui: Gui, widget: Widget) =
+func clearForFrame(gui: Gui, widget: Widget) =
   if widget of WidgetContainer:
     let container = cast[WidgetContainer](widget)
     container.childStack.setLen(0)
@@ -144,7 +92,7 @@ func bringToTop(container: WidgetContainer, child: Widget) =
   if foundChild:
     container.childZOrder[^1] = child
 
-func updateFocus*(gui: Gui) =
+func updateFocus(gui: Gui) =
   if gui.hover != nil:
     if gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):
       gui.focus = gui.hover
@@ -152,22 +100,22 @@ func updateFocus*(gui: Gui) =
         gui.hoverParents[i].bringToTop(gui.hoverParents[i + 1])
       gui.hoverParents[^1].bringToTop(gui.focus)
 
-template onFrame*(gui: Gui, code: untyped): untyped =
-  gui.osWindow.onFrame = proc() =
-    gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
-    gui.root.bounds.size = gui.size
-    gui.clearForFrame(gui.root)
-    gui.hoverParents.setLen(0)
-    gui.containerStack.setLen(0)
-    gui.widgetStack.setLen(0)
+proc beginFrame*(gui: Gui) =
+  gui.pollEvents()
+  gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
+  gui.root.bounds.size = gui.size
+  gui.clearForFrame(gui.root)
+  gui.hoverParents.setLen(0)
+  gui.containerStack.setLen(0)
+  gui.widgetStack.setLen(0)
 
-    code
-
-    gui.hover = gui.getHover(gui.root)
-    gui.updateFocus()
-    for child in gui.root.childZOrder:
-      child.draw(gui)
-    gui.gfx.endFrame()
+proc endFrame*(gui: Gui) =
+  gui.hover = gui.getHover(gui.root)
+  gui.updateFocus()
+  for child in gui.root.childZOrder:
+    child.draw(gui)
+  gui.update()
+  gui.gfx.endFrame()
 
 func currentContainer*(gui: Gui, T: typedesc = WidgetContainer): T =
   cast[T](
@@ -259,7 +207,7 @@ func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T =
     container.childZOrder.add result
 
   result.bounds = gui.nextWidgetBounds(container)
-  # gui.updateMouseStates(result)
+  gui.updateMouseStates(result)
 
   container.previousChildBounds = result.bounds
   gui.placeNextWidgetInSameRow = false

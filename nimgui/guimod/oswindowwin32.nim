@@ -2,17 +2,26 @@
 
 import std/unicode
 import winim/lean
-import ./ui; export ui
+import ./oswindowbase; export oswindowbase
 import ../openglwrappers/openglcontext
 
 type
-  OsWindow* = ref object of Ui
-    onFrame*: proc(window: OsWindow)
+  OsWindow* = ref object
+    inputState*: InputState
+    previousInputState*: InputState
+    onFrame*: proc()
     handle*: pointer
     isOpen*: bool
     isChild*: bool
     openGlContext*: OpenGlContext
     # moveTimer: UINT_PTR
+
+proc `=destroy`*(window: var type OsWindow()[]) =
+  if window.isOpen:
+    window.isOpen = false
+    DestroyWindow(cast[HWND](window.handle))
+
+defineBaseTemplates()
 
 template hwnd(window: OsWindow): HWND =
   cast[HWND](window.handle)
@@ -50,19 +59,8 @@ template updateBounds(window: OsWindow) =
   GetClientRect(window.hwnd, rect.addr)
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.left.addr))
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.right.addr))
-  window.state.boundsPixels.position = vec2(rect.left.float, rect.top.float)
-  window.state.boundsPixels.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
-
-template processFrame(window: OsWindow) =
-  if window.isOpen:
-    window.openGlContext.select()
-    glClear(GL_COLOR_BUFFER_BIT)
-
-    if window.onFrame != nil:
-      window.onFrame(window)
-
-    window.openGlContext.swapBuffers()
-    window.updateState()
+  window.inputState.boundsPixels.position = vec2(rect.left.float, rect.top.float)
+  window.inputState.boundsPixels.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
 
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
   window.openGlContext.select()
@@ -199,24 +197,35 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       of 222: KeyboardKey.Quote
       else: KeyboardKey.Unknown
 
+template renderFrameWithoutPollingEvents(window: OsWindow): untyped =
+  window.openGlContext.select()
+  glClear(GL_COLOR_BUFFER_BIT)
+
+  if window.onFrame != nil:
+    window.onFrame()
+
+  window.openGlContext.swapBuffers()
+  window.updateInputState()
+
 proc update*(window: OsWindow) =
   if not window.isChild:
     var msg: MSG
     while PeekMessage(msg, window.hwnd, 0, 0, PM_REMOVE) != 0:
       TranslateMessage(msg)
       DispatchMessage(msg)
-  window.processFrame()
+
+  window.renderFrameWithoutPollingEvents()
 
 proc close*(window: OsWindow) =
   if window.isOpen:
-    DestroyWindow(window.hwnd)
     window.isOpen = false
+    DestroyWindow(window.hwnd)
 
 proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
   loadLibraries()
 
   result = OsWindow()
-  result.initState()
+  result.initInputState()
 
   if windowCount == 0:
     var windowClass = WNDCLASSEX(
@@ -280,18 +289,18 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
   case msg:
 
   of WM_SETFOCUS:
-    window.state.isFocused = true
+    window.inputState.isFocused = true
 
   of WM_KILLFOCUS:
-    window.state.isFocused = false
+    window.inputState.isFocused = false
 
   of WM_MOVE:
     window.updateBounds()
-    window.processFrame()
+    window.renderFrameWithoutPollingEvents()
 
   of WM_SIZE:
     window.updateBounds()
-    window.processFrame()
+    window.renderFrameWithoutPollingEvents()
 
   # of WM_ENTERSIZEMOVE:
   #   window.platform.moveTimer = SetTimer(window.hwnd, 1, USER_TIMER_MINIMUM, nil)
@@ -319,32 +328,32 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       UnregisterClass(windowClassName, 0)
 
   of WM_DPICHANGED:
-    window.state.pixelDensity = GetDpiForWindow(window.hwnd).float / densityPixelDpi
+    window.inputState.pixelDensity = GetDpiForWindow(window.hwnd).float / densityPixelDpi
     window.updateBounds()
 
   of WM_MOUSEMOVE:
-    if not window.state.isHovered:
+    if not window.inputState.isHovered:
       var tme: TTRACKMOUSEEVENT
       ZeroMemory(tme.addr, sizeof(tme))
       tme.cbSize = sizeof(tme).cint
       tme.dwFlags = TME_LEAVE
       tme.hwndTrack = window.hwnd
       TrackMouseEvent(tme.addr)
-      window.state.isHovered = true
+      window.inputState.isHovered = true
 
-    window.state.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
-    window.processFrame()
+    window.inputState.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
+    window.renderFrameWithoutPollingEvents()
 
   of WM_MOUSELEAVE:
-    window.state.isHovered = false
+    window.inputState.isHovered = false
 
   of WM_MOUSEWHEEL:
-    window.state.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
-    window.processFrame()
+    window.inputState.mouseWheel.y += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    window.renderFrameWithoutPollingEvents()
 
   of WM_MOUSEHWHEEL:
-    window.state.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
-    window.processFrame()
+    window.inputState.mouseWheel.x += GET_WHEEL_DELTA_WPARAM(wParam).float / WHEEL_DELTA.float
+    window.renderFrameWithoutPollingEvents()
 
   of WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
      WM_MBUTTONDOWN, WM_MBUTTONDBLCLK,
@@ -352,28 +361,28 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
      WM_XBUTTONDOWN, WM_XBUTTONDBLCLK:
     SetCapture(window.hwnd)
     let button = toMouseButton(msg, wParam)
-    window.state.mousePresses.add button
-    window.state.mouseDown[button] = true
+    window.inputState.mousePresses.add button
+    window.inputState.mouseDown[button] = true
 
   of WM_LBUTTONUP, WM_MBUTTONUP, WM_RBUTTONUP, WM_XBUTTONUP:
     ReleaseCapture()
     let button = toMouseButton(msg, wParam)
-    window.state.mouseReleases.add button
-    window.state.mouseDown[button] = false
+    window.inputState.mouseReleases.add button
+    window.inputState.mouseDown[button] = false
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     let key = toKeyboardKey(wParam, lParam)
-    window.state.keyPresses.add key
-    window.state.keyDown[key] = true
+    window.inputState.keyPresses.add key
+    window.inputState.keyDown[key] = true
 
   of WM_KEYUP, WM_SYSKEYUP:
     let key = toKeyboardKey(wParam, lParam)
-    window.state.keyReleases.add key
-    window.state.keyDown[key] = false
+    window.inputState.keyReleases.add key
+    window.inputState.keyDown[key] = false
 
   of WM_CHAR, WM_SYSCHAR:
     if wParam > 0 and wParam < 0x10000:
-      window.state.text &= cast[Rune](wParam).toUTF8
+      window.inputState.text &= cast[Rune](wParam).toUTF8
 
   # of WM_NCCALCSIZE:
   #   return 0

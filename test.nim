@@ -15,13 +15,12 @@ gui.onFrame:
   # let w = gui.getWidget("Container 1", WidgetContainer(position: vec2(50, 50)))
   # gui.pushContainer w
 
-  gui.beginWindow("Window 1")
-  gui.beginWindow("Window 2")
+  # gui.beginWindow("Window 1")
+  # gui.beginWindow("Window 2")
 
-  gui.button("Button 1")
-  let button = gui.currentWidget(ButtonWidget)
-  button.position = vec2(5, 30)
-  button.size = vec2(100, 48)
+  let b = gui.button("Button 1")
+  b.position = vec2(50, 50)
+  b.size = vec2(100, 48)
 
   # let gfx = gui.gfx
   # gfx.beginPath()
@@ -30,8 +29,8 @@ gui.onFrame:
   # gfx.strokeColor = rgb(255, 50, 50)
   # gfx.stroke()
 
-  gui.endWindow()
-  gui.endWindow()
+  # gui.endWindow()
+  # gui.endWindow()
 
 
 

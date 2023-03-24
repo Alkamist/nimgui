@@ -266,7 +266,7 @@ func popContainer*(gui: Gui) =
 # func sameRow*(gui: Gui) =
 #   gui.placeNextWidgetInSameRow = true
 
-func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
+func addWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
   let container = gui.currentContainer
 
   if container.widgets.hasKey(id):
@@ -289,8 +289,8 @@ func getWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
   container.childStack.add result
   # gui.widgetStack.add result
 
-func getWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} =
-  gui.getWidget(hash(label), initialState)
+func addWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} =
+  gui.addWidget(hash(label), initialState)
 
 func drawFrameWithoutHeader*(gfx: Gfx,
                              bounds: Rect2,

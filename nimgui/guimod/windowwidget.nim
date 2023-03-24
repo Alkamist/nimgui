@@ -1,6 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import ../guimod
+import ./buttonwidget
 
 type
   WindowWidget* = ref object of WidgetContainer
@@ -12,8 +13,6 @@ type
     headerHeight*: float
     headerIsHovered*: bool
     headerIsGrabbed*: bool
-    resizeHandleIsHovered*: bool
-    resizeHandleIsGrabbed*: bool
 
 proc headerBounds(window: WindowWidget): Rect2 =
   rect2(
@@ -25,12 +24,6 @@ proc bodyBounds(window: WindowWidget): Rect2 =
   rect2(
     window.bounds.position + vec2(0, window.headerHeight),
     window.bounds.size - vec2(0, window.headerHeight),
-  )
-
-proc resizeHandleBounds(window: WindowWidget): Rect2 =
-  rect2(
-    window.bounds.position + window.size - 24.0,
-    vec2(24.0, 24.0),
   )
 
 proc windowBehavior*(window: WindowWidget, gui: Gui) =
@@ -55,26 +48,18 @@ proc windowBehavior*(window: WindowWidget, gui: Gui) =
     window.position += gui.mouseDelta
     window.moved = true
 
-  window.resizeHandleIsHovered =
-    window.isResizable and
-    isHovered and
-    window.resizeHandleBounds.contains(gui.mousePosition)
-
-  if window.resizeHandleIsHovered and gui.mousePressed(Left):
-    window.resizeHandleIsGrabbed = true
-
-  if window.resizeHandleIsGrabbed and gui.mouseReleased(Left):
-    window.resizeHandleIsGrabbed = false
-
-  if window.resizeHandleIsGrabbed and gui.mouseMoved:
-    window.size += gui.mouseDelta
-    window.resized = true
+proc resizeButtonBehavior*(window: WindowWidget, gui: Gui) =
+  if window.isResizable:
+    gui.button("Resize Button"):
+      button.position = window.size - button.size
+      if button.isDown and gui.mouseMoved:
+        window.size += gui.mouseDelta
+        window.resized = true
 
 proc draw*(window: WindowWidget, gui: Gui) =
   let gfx = gui.gfx
   let bounds = window.bounds
   let headerBounds = window.headerBounds
-  let resizeHandleBounds = window.resizeHandleBounds
   let cornerRadius = 5.0
 
   gfx.saveState()
@@ -117,26 +102,6 @@ proc draw*(window: WindowWidget, gui: Gui) =
   gfx.clip(clipRect)
   window.updateChildren(gui)
 
-  # Resize handle.
-  if window.isResizable:
-    const resizeInset = 4.0
-    let resizeLeft = resizeHandleBounds.x + resizeInset
-    let resizeRight = resizeHandleBounds.x + resizeHandleBounds.width - resizeInset
-    let resizeBottom = resizeHandleBounds.y + resizeHandleBounds.height - resizeInset
-    let resizeTop = resizeHandleBounds.y + resizeInset
-    let resizeHandleColor =
-      if window.resizeHandleIsGrabbed: rgb(22, 27, 34).lighten(0.1)
-      elif window.resizeHandleIsHovered: rgb(22, 27, 34).lighten(0.2)
-      else: rgb(22, 27, 34)
-
-    gfx.beginPath()
-    gfx.moveTo vec2(resizeLeft, resizeBottom)
-    gfx.lineTo vec2(resizeRight, resizeBottom)
-    gfx.lineTo vec2(resizeRight, resizeTop)
-    gfx.closePath()
-    gfx.fillColor = resizeHandleColor
-    gfx.fill()
-
   gfx.restoreState()
 
 template window*(gui: Gui, id: string, code: untyped): WindowWidget =
@@ -151,6 +116,7 @@ template window*(gui: Gui, id: string, code: untyped): WindowWidget =
         gui.pushContainer window
         window.windowBehavior(gui)
         code
+        window.resizeButtonBehavior(gui)
         window.draw(gui)
         gui.popContainer()
     )

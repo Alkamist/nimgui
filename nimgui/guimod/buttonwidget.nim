@@ -76,14 +76,14 @@ proc draw*(button: ButtonWidget, gui: Gui) =
 
   gfx.restoreState()
 
-template button*(gui: Gui, id: string, code: untyped): ButtonWidget =
-  gui.getWidget(id):
+template button*(gui: Gui, id: string, code: untyped) =
+  let self = gui.addWidget(id):
     ButtonWidget(
       label: id,
       size: vec2(96, 32),
-      update: proc(widget: Widget) =
-        let button {.inject.} = cast[ButtonWidget](widget)
-        buttonBehavior(button, gui, Left)
-        code
-        button.draw(gui)
     )
+  self.update = proc(widget: Widget) =
+    let button {.inject.} = cast[ButtonWidget](widget)
+    buttonBehavior(button, gui, Left)
+    code
+    button.draw(gui)

@@ -77,59 +77,45 @@ proc draw*(button: ButtonWidget, gui: Gui) =
 
   gfx.restoreState()
 
-# macro button*(gui: Gui, id, code: untyped): untyped =
-#   let idString = id.strVal
-#   quote do:
-#     let self = `gui`.addWidget(`idString`, ButtonWidget(
-#       size: vec2(96, 32),
-#     ))
-
-#     self.update = proc(widget: Widget) =
-#       let `id` {.inject.} = cast[ButtonWidget](widget)
-#       buttonBehavior(`id`, `gui`, Left)
-#       `code`
-#       `id`.draw(`gui`)
-
-#     let `id` {.inject.} = self
-
-# macro button*(gui: Gui, id, code): untyped =
-#   var idIdent: NimNode
-#   var idString: string
-#   if id.kind == nnkIdent:
-#     idIdent = id
-#     idString = id.strVal
-#   elif id.kind == nnkBracketExpr:
-#     idIdent = id[0]
-#     idString = id[0].strVal & "_iteration_" & $(id[1].intVal)
-#   else:
-#     error("Id must be an identifier with an optional iteration value in brackets.")
-
-#   quote do:
-#     let self = `gui`.addWidget(`idString`, ButtonWidget(
-#       size: vec2(96, 32),
-#     ))
-
-#     self.update = proc(widget: Widget) =
-#       let `idIdent` {.inject.} = cast[ButtonWidget](widget)
-#       buttonBehavior(`idIdent`, `gui`, Left)
-#       `code`
-#       `idIdent`.draw(`gui`)
-
-#     let `idIdent` {.inject.} = self
-
 macro button*(gui: Gui, id, iteration, code: untyped): untyped =
-  var captureProcIdent = ident(id.strVal & "CaptureIterator")
   var idString = id.strVal
   quote do:
-    proc `captureProcIdent`(`iteration`: int): ButtonWidget =
-      result = `gui`.addWidget(`idString` & "_iteration_" & $`iteration`, ButtonWidget(
-        size: vec2(96, 32),
-      ))
+    let `id` {.inject.} = `gui`.addWidget(`idString` & "_iteration_" & $`iteration`, ButtonWidget(
+      size: vec2(96, 32),
+    ))
 
-      result.update = proc(widget: Widget) =
-        let `id` {.inject.} = cast[ButtonWidget](widget)
-        buttonBehavior(`id`, `gui`, Left)
-        `code`
-        `id`.draw(`gui`)
+    `id`.update = proc(widget: Widget) =
+      let `id` {.inject.} = cast[ButtonWidget](widget)
+      buttonBehavior(`id`, `gui`, Left)
+      `code`
+      `id`.draw(`gui`)
 
-    let `id` {.inject.} = `captureProcIdent`(`iteration`)
+macro button*(gui: Gui, id, code: untyped): untyped =
+  var idString = id.strVal
+  quote do:
+    let `id` {.inject.} = `gui`.addWidget(`idString`, ButtonWidget(
+      size: vec2(96, 32),
+    ))
+
+    `id`.update = proc(widget: Widget) =
+      let `id` {.inject.} = cast[ButtonWidget](widget)
+      buttonBehavior(`id`, `gui`, Left)
+      `code`
+      `id`.draw(`gui`)
+
+# macro button*(gui: Gui, id, iteration, code: untyped): untyped =
+#   var captureProcIdent = ident(id.strVal & "CaptureIterator")
+#   var idString = id.strVal
+#   quote do:
+#     proc `captureProcIdent`(`iteration`: int): ButtonWidget =
+#       result = `gui`.addWidget(`idString` & "_iteration_" & $`iteration`, ButtonWidget(
+#         size: vec2(96, 32),
+#       ))
+
+#       result.update = proc(widget: Widget) =
+#         let `id` {.inject.} = cast[ButtonWidget](widget)
+#         buttonBehavior(`id`, `gui`, Left)
+#         `code`
+#         `id`.draw(`gui`)
+
+#     let `id` {.inject.} = `captureProcIdent`(`iteration`)

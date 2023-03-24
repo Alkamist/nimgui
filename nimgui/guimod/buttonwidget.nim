@@ -77,45 +77,46 @@ proc draw*(button: ButtonWidget, gui: Gui) =
 
   gfx.restoreState()
 
-macro button*(gui: Gui, id, iteration, code: untyped): untyped =
-  var idString = id.strVal
-  quote do:
-    let `id` {.inject.} = `gui`.addWidget(`idString` & "_iteration_" & $`iteration`, ButtonWidget(
-      size: vec2(96, 32),
-    ))
-
-    `id`.update = proc(widget: Widget) =
-      let `id` {.inject.} = cast[ButtonWidget](widget)
-      buttonBehavior(`id`, `gui`, Left)
-      `code`
-      `id`.draw(`gui`)
-
-macro button*(gui: Gui, id, code: untyped): untyped =
-  var idString = id.strVal
-  quote do:
-    let `id` {.inject.} = `gui`.addWidget(`idString`, ButtonWidget(
-      size: vec2(96, 32),
-    ))
-
-    `id`.update = proc(widget: Widget) =
-      let `id` {.inject.} = cast[ButtonWidget](widget)
-      buttonBehavior(`id`, `gui`, Left)
-      `code`
-      `id`.draw(`gui`)
-
 # macro button*(gui: Gui, id, iteration, code: untyped): untyped =
-#   var captureProcIdent = ident(id.strVal & "CaptureIterator")
 #   var idString = id.strVal
 #   quote do:
-#     proc `captureProcIdent`(`iteration`: int): ButtonWidget =
-#       result = `gui`.addWidget(`idString` & "_iteration_" & $`iteration`, ButtonWidget(
-#         size: vec2(96, 32),
-#       ))
+#     let `id` {.inject.} = `gui`.addWidget(`idString` & "_iteration_" & $`iteration`, ButtonWidget(
+#       size: vec2(96, 32),
+#     ))
 
-#       result.update = proc(widget: Widget) =
-#         let `id` {.inject.} = cast[ButtonWidget](widget)
-#         buttonBehavior(`id`, `gui`, Left)
-#         `code`
-#         `id`.draw(`gui`)
+#     `id`.update = proc(widget: Widget) =
+#       let `id` {.inject.} = cast[ButtonWidget](widget)
+#       buttonBehavior(`id`, `gui`, Left)
+#       `code`
+#       `id`.draw(`gui`)
 
-#     let `id` {.inject.} = `captureProcIdent`(`iteration`)
+# macro button*(gui: Gui, id, code: untyped): untyped =
+#   var idString = id.strVal
+#   quote do:
+#     let `id` {.inject.} = `gui`.addWidget(`idString`, ButtonWidget(
+#       size: vec2(96, 32),
+#     ))
+
+#     `id`.update = proc(widget: Widget) =
+#       let `id` {.inject.} = cast[ButtonWidget](widget)
+#       buttonBehavior(`id`, `gui`, Left)
+#       `code`
+#       `id`.draw(`gui`)
+
+template macroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
+  template widgetInjection(gui, id, idString, code: untyped): untyped =
+    let `id` {.inject.} = gui.addWidget(idString, initialState)
+    id.update = proc(widget: Widget) =
+      let `id` {.inject.} = cast[initialState.typeof](widget)
+      behavior
+      id.draw(gui)
+
+  macro `name`*(gui: Gui, id, code: untyped): untyped =
+    getAst(widgetInjection(gui, id, id.strVal, code))
+
+macro implementWidget*(name, initialState, behavior: untyped): untyped =
+  getAst(macroDefinition(name, initialState, behavior))
+
+implementWidget(button, ButtonWidget(size: vec2(96, 32))):
+  buttonBehavior(id, gui, Left)
+  code

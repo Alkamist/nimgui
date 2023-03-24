@@ -16,14 +16,20 @@ import std/sugar
 import std/macros
 
 gui.onFrame:
-  # gui.window(window1):
-    # window1.title = "Window 1"
-
   gui.button(button1):
     button1.label = "Button 1"
     button1.position = vec2(20.0, 40.0)
     if button1.pressed:
       echo "Button 1 Pressed"
+
+  # gui.window(window1):
+    # window1.title = "Window 1"
+
+  # gui.button(button1):
+  #   button1.label = "Button 1"
+  #   button1.position = vec2(20.0, 40.0)
+  #   if button1.pressed:
+  #     echo "Button 1 Pressed"
 
   # gui.button(button2):
   #   button2.label = "Button 2"

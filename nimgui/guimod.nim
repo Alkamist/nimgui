@@ -1,5 +1,6 @@
 {.experimental: "overloadableEnums".}
 
+import std/macros; export macros
 import std/hashes
 import std/tables
 import ./gfxmod; export gfxmod

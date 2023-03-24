@@ -1,5 +1,6 @@
 {.experimental: "overloadableEnums".}
 
+import std/macros
 import ../guimod
 import ./buttonwidget
 
@@ -50,9 +51,9 @@ proc windowBehavior*(window: WindowWidget, gui: Gui) =
 
 proc resizeButtonBehavior*(window: WindowWidget, gui: Gui) =
   if window.isResizable:
-    gui.button("Resize Button"):
-      button.position = window.size - button.size
-      if button.isDown and gui.mouseMoved:
+    gui.button(resizeButton):
+      resizeButton.position = window.size - resizeButton.size
+      if resizeButton.isDown and gui.mouseMoved:
         window.size += gui.mouseDelta
         window.resized = true
 
@@ -104,19 +105,37 @@ proc draw*(window: WindowWidget, gui: Gui) =
 
   gfx.restoreState()
 
-template window*(gui: Gui, id: string, code: untyped): WindowWidget =
-  gui.getWidget(id):
-    WindowWidget(
-      title: id,
+# template window*(gui: Gui, id: string, code: untyped) =
+#   let self = gui.addWidget(id, WindowWidget(
+#     title: id,
+#     headerHeight: 24,
+#     size: vec2(300, 200),
+#     isResizable: true,
+#   ))
+
+#   self.update = proc(widget: Widget) =
+#     let window = cast[WindowWidget](widget)
+#     gui.pushContainer window
+#     window.windowBehavior(gui)
+#     code
+#     window.resizeButtonBehavior(gui)
+#     window.draw(gui)
+#     gui.popContainer()
+
+macro window*(gui: Gui, id, code: untyped): untyped =
+  let idString = id.strVal
+  quote do:
+    let self = `gui`.addWidget(`idString`, WindowWidget(
       headerHeight: 24,
       size: vec2(300, 200),
       isResizable: true,
-      update: proc(widget: Widget) =
-        let window {.inject.} = cast[WindowWidget](widget)
-        gui.pushContainer window
-        window.windowBehavior(gui)
-        code
-        window.resizeButtonBehavior(gui)
-        window.draw(gui)
-        gui.popContainer()
-    )
+    ))
+
+    self.update = proc(widget: Widget) =
+      let `id` {.inject.} = cast[WindowWidget](widget)
+      `gui`.pushContainer `id`
+      `id`.windowBehavior(`gui`)
+      `code`
+      `id`.resizeButtonBehavior(`gui`)
+      `id`.draw(`gui`)
+      `gui`.popContainer()

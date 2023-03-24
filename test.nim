@@ -2,8 +2,8 @@
 
 # Figure out how to purge unused widgets from the table.
 
+import std/strformat
 import nimgui
-import std/sugar
 
 const fontData = readFile("consola.ttf")
 
@@ -12,42 +12,52 @@ gui.backgroundColor = rgb(13, 17, 23)
 gui.gfx.addFont("consola", fontData)
 gui.gfx.font = "consola"
 
-const rows = 25
-const columns = 25
-
-var elapsed = 0.0
-var frames = 0
+import std/macros
 
 gui.onFrame:
-  let gfx = gui.gfx
+  # gui.window(window1):
+    # window1.title = "Window 1"
 
-  let buttonWidth = gui.size.x / rows.float
-  let buttonHeight = gui.size.y / columns.float
-  for i in 0 ..< rows:
-    for j in 0 ..< columns:
-      capture i, j:
-        let buttonId = "Button " & $(i * rows + j)
-        gui.button(buttonId):
-          button.position = vec2(i.float * buttonWidth, 40 + j.float * buttonHeight)
-          button.size = vec2(buttonWidth * 0.9, buttonHeight * 0.9)
-          if button.pressed:
-            echo buttonId
+  # gui.button(button1):
+  #   button1.label = "Button 1"
+  #   button1.position = vec2(5.0, 30.0)
+  #   if button1.pressed:
+  #     echo "Button 1 Pressed"
 
-  elapsed += gui.deltaTime
-  let fps = frames.float / elapsed
+  # gui.button(button2):
+  #   button2.label = "Button 2"
+  #   button2.position = vec2(5.0, 70.0)
+  #   if button2.pressed:
+  #     echo "Button 2 Pressed"
 
-  gfx.fontSize = 13
-  gfx.fillColor = rgb(201, 209, 217)
-  gfx.drawText(
-    text = gfx.newText($fps),
-    bounds = rect2(vec2(0, 0), vec2(gui.size.x, 32)),
-    alignX = Center,
-    alignY = Center,
-    wordWrap = false,
-    clip = true,
-  )
+  for i in 0 ..< 4:
+    gui.button(button, i):
+      button.label = "Button " & $i
+      button.position = vec2(i.float * 120.0, 160.0)
+      if button.pressed:
+        echo "Button " & $i & " Pressed"
 
-  frames += 1
+
+
+  # for i in 0 ..< 4:
+  #   gui.button(button[i]):
+  #     button.label = &"Button {i}"
+  #     button.position = vec2(i.float * 120.0, 160.0)
+  #     if button.pressed:
+  #       echo &"Button {i} Pressed"
+
+  # gui.window("Window 1"):
+  #   gui.window("Window 2"):
+  #     gui.button("Button 1"):
+  #       # button.width = window.width
+  #       button.position = vec2(5.0, 30.0)
+  #       if button.pressed:
+  #         echo "Button 1"
+
+  #     gui.button("Button 2"):
+  #       button.position = vec2(5.0, 70.0)
+  #       if button.pressed:
+  #         echo "Button 2"
 
 while gui.isOpen:
   gui.update()

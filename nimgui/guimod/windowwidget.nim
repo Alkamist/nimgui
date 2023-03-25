@@ -55,6 +55,8 @@ proc resizeButtonBehavior*(window: WindowWidget, gui: Gui) =
       resizeButton.position = window.size - resizeButton.size
       if resizeButton.isDown and gui.mouseMoved:
         window.size += gui.mouseDelta
+        if window.width < 100.0: window.width = 100.0
+        if window.height < 100.0: window.height = 100.0
         window.resized = true
 
 proc draw*(window: WindowWidget, gui: Gui) =
@@ -105,37 +107,14 @@ proc draw*(window: WindowWidget, gui: Gui) =
 
   gfx.restoreState()
 
-# template window*(gui: Gui, id: string, code: untyped) =
-#   let self = gui.addWidget(id, WindowWidget(
-#     title: id,
-#     headerHeight: 24,
-#     size: vec2(300, 200),
-#     isResizable: true,
-#   ))
-
-#   self.update = proc(widget: Widget) =
-#     let window = cast[WindowWidget](widget)
-#     gui.pushContainer window
-#     window.windowBehavior(gui)
-#     code
-#     window.resizeButtonBehavior(gui)
-#     window.draw(gui)
-#     gui.popContainer()
-
-macro window*(gui: Gui, id, code: untyped): untyped =
-  let idString = id.strVal
-  quote do:
-    let self = `gui`.addWidget(`idString`, WindowWidget(
-      headerHeight: 24,
-      size: vec2(300, 200),
-      isResizable: true,
-    ))
-
-    self.update = proc(widget: Widget) =
-      let `id` {.inject.} = cast[WindowWidget](widget)
-      `gui`.pushContainer `id`
-      `id`.windowBehavior(`gui`)
-      `code`
-      `id`.resizeButtonBehavior(`gui`)
-      `id`.draw(`gui`)
-      `gui`.popContainer()
+implementWidget(window, WindowWidget(
+  headerHeight: 24,
+  size: vec2(300, 200),
+  isResizable: true,
+)):
+  gui.pushContainer widget
+  widget.windowBehavior(gui)
+  code
+  widget.resizeButtonBehavior(gui)
+  widget.draw(gui)
+  gui.popContainer()

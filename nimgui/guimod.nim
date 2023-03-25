@@ -299,14 +299,12 @@ template macroDefinition(name, initialState, behavior: untyped): untyped {.dirty
     widget.update = proc(widgetBase: Widget) =
       let `widget` {.inject.} = cast[initialState.typeof](widgetBase)
       behavior
-      widget.draw(gui)
 
   macro `name`*(gui: Gui, widget, iteration, code: untyped): untyped =
     let idStr = widget.strVal
     let id = quote do:
       `idStr` & "_iteration_" & $`iteration`
-    result = getAst(widgetInjection(gui, widget, id, code))
-    echo result.repr
+    getAst(widgetInjection(gui, widget, id, code))
 
   macro `name`*(gui: Gui, widget, code: untyped): untyped =
     getAst(widgetInjection(gui, widget, widget.strVal, code))

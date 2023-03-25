@@ -77,6 +77,9 @@ proc draw*(button: ButtonWidget, gui: Gui) =
 
   gfx.restoreState()
 
-implementWidget(button, ButtonWidget(size: vec2(96, 32))):
+implementWidget(button, ButtonWidget(
+  size: vec2(96, 32),
+)):
   buttonBehavior(widget, gui, Left)
   code
+  widget.draw(gui)

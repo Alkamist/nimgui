@@ -1,6 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-import std/macros
 import ../guimod
 
 template defineButtonBehavior*(T: typedesc): untyped {.dirty.} =

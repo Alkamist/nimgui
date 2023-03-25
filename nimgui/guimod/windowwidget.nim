@@ -1,6 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-import std/macros
 import ../guimod
 import ./buttonwidget
 
@@ -107,14 +106,12 @@ proc draw*(window: WindowWidget, gui: Gui) =
 
   gfx.restoreState()
 
-implementWidget(window, WindowWidget(
+implementContainerWidget(window, WindowWidget(
   headerHeight: 24,
   size: vec2(300, 200),
   isResizable: true,
 )):
-  gui.pushContainer widget
   widget.windowBehavior(gui)
   code
   widget.resizeButtonBehavior(gui)
   widget.draw(gui)
-  gui.popContainer()

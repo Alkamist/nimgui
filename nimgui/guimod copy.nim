@@ -1,6 +1,6 @@
 {.experimental: "overloadableEnums".}
 
-import std/macros; export macros
+import std/macros
 import std/hashes
 import std/tables
 import ./gfxmod; export gfxmod
@@ -205,13 +205,7 @@ func addWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
 func addWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} =
   gui.addWidget(hash(label), initialState)
 
-# Template and macro wizardry to enable streamlined implementation of widgets.
-# It's kind of messy because there are two versions copy pasted and you need
-# to call the right version between normal and container widgets.
-# Ideally this would somehow be overloaded at compiletime so you can just
-# call implementWidget and not have to worry but I will figure that out later.
-
-template widgetMacroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
+template macroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
   template widgetInjection(gui, widget, idString, code: untyped): untyped =
     let `widget` {.inject.} = gui.addWidget(idString, initialState)
     widget.update = proc(widgetBase: Widget) =
@@ -228,28 +222,7 @@ template widgetMacroDefinition(name, initialState, behavior: untyped): untyped {
     getAst(widgetInjection(gui, widget, widget.strVal, code))
 
 macro implementWidget*(name, initialState, behavior: untyped): untyped =
-  getAst(widgetMacroDefinition(name, initialState, behavior))
-
-template containerWidgetMacroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
-  template widgetInjection(gui, widget, idString, code: untyped): untyped =
-    let `widget` {.inject.} = gui.addWidget(idString, initialState)
-    widget.update = proc(widgetBase: Widget) =
-      let `widget` {.inject.} = cast[initialState.typeof](widgetBase)
-      gui.containerStack.add `widget`
-      behavior
-      gui.containerStack.setLen(gui.containerStack.len - 1)
-
-  macro `name`*(gui: Gui, widget, iteration, code: untyped): untyped =
-    let idStr = widget.strVal
-    let id = quote do:
-      `idStr` & "_iteration_" & $`iteration`
-    getAst(widgetInjection(gui, widget, id, code))
-
-  macro `name`*(gui: Gui, widget, code: untyped): untyped =
-    getAst(widgetInjection(gui, widget, widget.strVal, code))
-
-macro implementContainerWidget*(name, initialState, behavior: untyped): untyped =
-  getAst(containerWidgetMacroDefinition(name, initialState, behavior))
+  getAst(macroDefinition(name, initialState, behavior))
 
 func drawFrameWithoutHeader*(gfx: Gfx,
                              bounds: Rect2,

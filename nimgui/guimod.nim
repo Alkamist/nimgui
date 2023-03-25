@@ -1,6 +1,6 @@
 {.experimental: "overloadableEnums".}
 
-import std/macros; export macros
+import std/macros
 import std/hashes
 import std/tables
 import ./gfxmod; export gfxmod
@@ -292,6 +292,27 @@ func addWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
 
 func addWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} =
   gui.addWidget(hash(label), initialState)
+
+template macroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
+  template widgetInjection(gui, widget, idString, code: untyped): untyped =
+    let `widget` {.inject.} = gui.addWidget(idString, initialState)
+    widget.update = proc(widgetBase: Widget) =
+      let `widget` {.inject.} = cast[initialState.typeof](widgetBase)
+      behavior
+      widget.draw(gui)
+
+  macro `name`*(gui: Gui, widget, iteration, code: untyped): untyped =
+    let idStr = widget.strVal
+    let id = quote do:
+      `idStr` & "_iteration_" & $`iteration`
+    result = getAst(widgetInjection(gui, widget, id, code))
+    echo result.repr
+
+  macro `name`*(gui: Gui, widget, code: untyped): untyped =
+    getAst(widgetInjection(gui, widget, widget.strVal, code))
+
+macro implementWidget*(name, initialState, behavior: untyped): untyped =
+  getAst(macroDefinition(name, initialState, behavior))
 
 func drawFrameWithoutHeader*(gfx: Gfx,
                              bounds: Rect2,

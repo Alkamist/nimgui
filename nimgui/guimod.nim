@@ -3,7 +3,9 @@
 import std/macros; export macros
 import std/hashes
 import std/tables
-import ./gfxmod; export gfxmod
+import ./guimod/drawlist; export drawlist
+import ./guimod/drawlistrenderernanovg
+
 when defined(windows):
   import ./guimod/oswindowwin32; export oswindowwin32
 
@@ -12,12 +14,12 @@ type
 
   Widget* = ref object of RootObj
     justCreated*: bool
-    update*: proc(widget: Widget)
     position*: Vec2 # The relative position of the widget inside the container.
     size*: Vec2 # The size of the widget.
     parentPosition: Vec2 # The position of the parent for absolute bounds calculation.
 
   WidgetContainer* = ref object of Widget
+    drawList*: DrawList
     widgets*: Table[WidgetId, Widget]
     childZOrder*: seq[Widget]
 
@@ -27,7 +29,7 @@ type
 
   Gui* = ref object
     osWindow*: OsWindow # The operating system window that the gui is hosted in.
-    gfx*: Gfx # The nanovg wrapper responsible for drawing vector graphics in the window.
+    renderer*: DrawListRenderer # The backend for rendering the draw list to the screen.
     theme*: GuiTheme # The theme that the gui uses.
     root*: WidgetContainer # The top level dummy container for the operating system window.
     containerStack*: seq[WidgetContainer] # A stack of containers to keep track of heirarchy.
@@ -114,11 +116,11 @@ func defaultTheme*(): GuiTheme =
 proc newGui*(theme = defaultTheme()): Gui =
   result = Gui()
   result.osWindow = newOsWindow()
-  result.gfx = newGfx()
+  result.renderer = newDrawListRenderer()
   result.theme = theme
-  result.root = WidgetContainer()
+  result.root = WidgetContainer(drawList: newDrawList())
 
-func getHover*(gui: Gui, container: WidgetContainer): Widget =
+func getHover(gui: Gui, container: WidgetContainer): Widget =
   for i in countdown(container.childZOrder.len - 1, 0, 1):
     let child = container.childZOrder[i]
     if child.bounds.contains(gui.mousePosition):
@@ -144,7 +146,7 @@ func bringToTop(container: WidgetContainer, child: Widget) =
   if foundChild:
     container.childZOrder[^1] = child
 
-func updateFocus*(gui: Gui) =
+func updateFocus(gui: Gui) =
   if gui.hover != nil:
     if gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):
       gui.focus = gui.hover
@@ -152,21 +154,30 @@ func updateFocus*(gui: Gui) =
         gui.hoverParents[i].bringToTop(gui.hoverParents[i + 1])
       gui.hoverParents[^1].bringToTop(gui.focus)
 
-proc updateChildren*(container: WidgetContainer, gui: Gui) =
+func clearForFrame(container: WidgetContainer) =
+  container.drawList.clearCommands()
   for child in container.childZOrder:
-    child.update(child)
+    if child of WidgetContainer:
+      cast[WidgetContainer](child).clearForFrame()
+
+proc renderChildren(container: WidgetContainer, gui: Gui) =
+  gui.renderer.render(container.drawList)
+  for child in container.childZOrder:
+    if child of WidgetContainer:
+      cast[WidgetContainer](child).renderChildren(gui)
 
 proc beginFrame*(gui: Gui) =
-  gui.gfx.beginFrame(gui.sizePixels, gui.pixelDensity)
+  gui.renderer.beginFrame(gui.sizePixels, gui.pixelDensity)
   gui.root.size = gui.size
+  gui.root.clearForFrame()
   gui.hoverParents.setLen(0)
   gui.containerStack.setLen(0)
 
 proc endFrame*(gui: Gui) =
   gui.hover = gui.getHover(gui.root)
   gui.updateFocus()
-  gui.root.updateChildren(gui)
-  gui.gfx.endFrame()
+  gui.root.renderChildren(gui)
+  gui.renderer.endFrame(gui.sizePixels)
 
 template onFrame*(gui: Gui, code: untyped): untyped =
   gui.osWindow.onFrame = proc() =
@@ -182,28 +193,34 @@ func currentContainer*(gui: Gui, T: typedesc = WidgetContainer): T =
       gui.root
   )
 
+func drawList*(gui: Gui): DrawList =
+  gui.currentContainer.drawList
+
 func pushContainer*(gui: Gui, container: WidgetContainer) =
   gui.containerStack.add container
 
 func popContainer*(gui: Gui) =
   gui.containerStack.setLen(gui.containerStack.len - 1)
 
-func addWidget*[T](gui: Gui, id: WidgetId, initialState: T): T {.discardable.} =
+func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
   let container = gui.currentContainer
 
   if container.widgets.hasKey(id):
     result = cast[T](container.widgets[id])
     result.justCreated = false
   else:
-    result = initialState
+    result = T.new()
+    when T is WidgetContainer:
+      result.drawList = newDrawList()
     result.justCreated = true
+
     container.widgets[id] = result
     container.childZOrder.add result
 
   result.parentPosition = container.position + container.parentPosition
 
-func addWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} =
-  gui.addWidget(hash(label), initialState)
+func addWidget*(gui: Gui, label: string, T: typedesc): T {.discardable.} =
+  gui.addWidget(hash(label), T)
 
 # Template and macro wizardry to enable streamlined implementation of widgets.
 # It's kind of messy because there are two versions copy pasted and you need
@@ -211,12 +228,32 @@ func addWidget*[T](gui: Gui, label: string, initialState: T): T {.discardable.} 
 # Ideally this would somehow be overloaded at compiletime so you can just
 # call implementWidget and not have to worry but I will figure that out later.
 
-template widgetMacroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
+template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
+  template widgetInjection(gui, widget, idString: untyped): untyped =
+    let `widget` {.inject.} = gui.addWidget(idString, T)
+    widget.update(gui)
+
+  macro `name`*(gui: Gui, widget, iteration: untyped): untyped =
+    let idStr = widget.strVal
+    let id = quote do:
+      `idStr` & "_iteration_" & $`iteration`
+    getAst(widgetInjection(gui, widget, id))
+
+  macro `name`*(gui: Gui, widget: untyped): untyped =
+    getAst(widgetInjection(gui, widget, widget.strVal))
+
+macro implementWidget*(name, T: untyped): untyped =
+  getAst(widgetMacroDefinition(name, T))
+
+# Container version:
+
+template containerWidgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
   template widgetInjection(gui, widget, idString, code: untyped): untyped =
-    let `widget` {.inject.} = gui.addWidget(idString, initialState)
-    widget.update = proc(widgetBase: Widget) =
-      let `widget` {.inject.} = cast[initialState.typeof](widgetBase)
-      behavior
+    let `widget` {.inject.} = gui.addWidget(idString, T)
+    gui.pushContainer widget
+    widget.update(gui)
+    code
+    gui.popContainer()
 
   macro `name`*(gui: Gui, widget, iteration, code: untyped): untyped =
     let idStr = widget.strVal
@@ -227,190 +264,105 @@ template widgetMacroDefinition(name, initialState, behavior: untyped): untyped {
   macro `name`*(gui: Gui, widget, code: untyped): untyped =
     getAst(widgetInjection(gui, widget, widget.strVal, code))
 
-macro implementWidget*(name, initialState, behavior: untyped): untyped =
-  getAst(widgetMacroDefinition(name, initialState, behavior))
+macro implementContainerWidget*(name, T: untyped): untyped =
+  getAst(containerWidgetMacroDefinition(name, T))
 
-template containerWidgetMacroDefinition(name, initialState, behavior: untyped): untyped {.dirty.} =
-  template widgetInjection(gui, widget, idString, code: untyped): untyped =
-    let `widget` {.inject.} = gui.addWidget(idString, initialState)
-    widget.update = proc(widgetBase: Widget) =
-      let `widget` {.inject.} = cast[initialState.typeof](widgetBase)
-      gui.containerStack.add `widget`
-      behavior
-      gui.containerStack.setLen(gui.containerStack.len - 1)
+# func drawFrameWithHeader*(gfx: Gfx,
+#                           bounds: Rect2,
+#                           borderThickness, headerHeight: float,
+#                           cornerRadius: float,
+#                           bodyColor, headerColor, borderColor: Color) =
+#   let headerHeight = headerHeight.pixelAlign(gfx)
+#   let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
+#   let halfBorderThickness = borderThickness * 0.5
+#   let bounds = bounds.pixelAlign(gfx)
 
-  macro `name`*(gui: Gui, widget, iteration, code: untyped): untyped =
-    let idStr = widget.strVal
-    let id = quote do:
-      `idStr` & "_iteration_" & $`iteration`
-    getAst(widgetInjection(gui, widget, id, code))
+#   let leftOuter = bounds.x
+#   let leftMiddle = leftOuter + halfBorderThickness
+#   let leftInner = leftMiddle + halfBorderThickness
+#   let rightOuter = bounds.x + bounds.width
+#   let rightMiddle = rightOuter - halfBorderThickness
+#   let rightInner = rightMiddle - halfBorderThickness
+#   let topOuter = bounds.y
+#   let topMiddle = topOuter + halfBorderThickness
+#   let topInner = topMiddle + halfBorderThickness
+#   let headerOuter = bounds.y + headerHeight
+#   let headerMiddle = headerOuter - halfBorderThickness
+#   let headerInner = headerMiddle - halfBorderThickness
+#   let bottomOuter = bounds.y + bounds.height
+#   let bottomMiddle = bottomOuter - halfBorderThickness
+#   let bottomInner = bottomMiddle - halfBorderThickness
 
-  macro `name`*(gui: Gui, widget, code: untyped): untyped =
-    getAst(widgetInjection(gui, widget, widget.strVal, code))
+#   let innerWidth = rightInner - leftInner
+#   let middleWidth = rightMiddle - leftMiddle
 
-macro implementContainerWidget*(name, initialState, behavior: untyped): untyped =
-  getAst(containerWidgetMacroDefinition(name, initialState, behavior))
+#   let outerCornerRadius = cornerRadius
+#   let middleCornerRadius = outerCornerRadius - halfBorderThickness
+#   let innerCornerRadius = middleCornerRadius - halfBorderThickness
 
-func drawFrameWithoutHeader*(gfx: Gfx,
-                             bounds: Rect2,
-                             borderThickness: float,
-                             cornerRadius: float,
-                             bodyColor, borderColor: Color) =
-  let halfBorderThickness = borderThickness * 0.5
-  let bounds = bounds.pixelAlign(gfx)
+#   # Header fill.
+#   gfx.beginPath()
+#   gfx.roundedRect(
+#     rect2(
+#       leftMiddle,
+#       topMiddle,
+#       middleWidth,
+#       headerMiddle - topMiddle,
+#     ),
+#     middleCornerRadius,
+#     middleCornerRadius,
+#     0, 0,
+#   )
+#   gfx.fillColor = headerColor
+#   gfx.fill()
 
-  let leftOuter = bounds.x
-  let leftMiddle = leftOuter + halfBorderThickness
-  let leftInner = leftMiddle + halfBorderThickness
-  let rightOuter = bounds.x + bounds.width
-  let rightMiddle = rightOuter - halfBorderThickness
-  let rightInner = rightMiddle - halfBorderThickness
-  let topOuter = bounds.y
-  let topMiddle = topOuter + halfBorderThickness
-  let topInner = topMiddle + halfBorderThickness
-  let bottomOuter = bounds.y + bounds.height
-  let bottomMiddle = bottomOuter - halfBorderThickness
-  let bottomInner = bottomMiddle - halfBorderThickness
+#   # Body fill.
+#   gfx.beginPath()
+#   gfx.roundedRect(
+#     rect2(
+#       leftMiddle,
+#       headerMiddle,
+#       middleWidth,
+#       bottomMiddle - headerMiddle,
+#     ),
+#     0, 0,
+#     middleCornerRadius,
+#     middleCornerRadius,
+#   )
+#   gfx.fillColor = bodyColor
+#   gfx.fill()
 
-  let outerCornerRadius = cornerRadius
-  let middleCornerRadius = outerCornerRadius - halfBorderThickness
-  let innerCornerRadius = middleCornerRadius - halfBorderThickness
+#   # Border outer.
+#   gfx.beginPath()
+#   gfx.roundedRect(bounds, cornerRadius)
 
-  # Body fill.
-  gfx.beginPath()
-  gfx.roundedRect(
-    rect2(
-      leftMiddle,
-      topMiddle,
-      rightMiddle - leftMiddle,
-      bottomMiddle - topMiddle,
-    ),
-    middleCornerRadius,
-    middleCornerRadius,
-    middleCornerRadius,
-    middleCornerRadius,
-  )
-  gfx.fillColor = bodyColor
-  gfx.fill()
+#   # Header inner hole.
+#   gfx.roundedRect(
+#     rect2(
+#       leftInner,
+#       topInner,
+#       innerWidth,
+#       headerInner - topInner,
+#     ),
+#     innerCornerRadius,
+#     innerCornerRadius,
+#     0, 0,
+#   )
+#   gfx.pathWinding = Hole
 
-  # Border outer.
-  gfx.beginPath()
-  gfx.roundedRect(bounds, cornerRadius)
+#   # Body inner hole.
+#   gfx.roundedRect(
+#     rect2(
+#       leftInner,
+#       headerOuter,
+#       innerWidth,
+#       bottomInner - headerOuter,
+#     ),
+#     0, 0,
+#     innerCornerRadius,
+#     innerCornerRadius,
+#   )
+#   gfx.pathWinding = Hole
 
-  # Body inner hole.
-  gfx.roundedRect(
-    rect2(
-      leftInner,
-      topInner,
-      rightInner - leftInner,
-      bottomInner - topInner,
-    ),
-    innerCornerRadius,
-    innerCornerRadius,
-    innerCornerRadius,
-    innerCornerRadius,
-  )
-  gfx.pathWinding = Hole
-
-  gfx.fillColor = borderColor
-  gfx.fill()
-
-func drawFrameWithHeader*(gfx: Gfx,
-                          bounds: Rect2,
-                          borderThickness, headerHeight: float,
-                          cornerRadius: float,
-                          bodyColor, headerColor, borderColor: Color) =
-  let headerHeight = headerHeight.pixelAlign(gfx)
-  let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
-  let halfBorderThickness = borderThickness * 0.5
-  let bounds = bounds.pixelAlign(gfx)
-
-  let leftOuter = bounds.x
-  let leftMiddle = leftOuter + halfBorderThickness
-  let leftInner = leftMiddle + halfBorderThickness
-  let rightOuter = bounds.x + bounds.width
-  let rightMiddle = rightOuter - halfBorderThickness
-  let rightInner = rightMiddle - halfBorderThickness
-  let topOuter = bounds.y
-  let topMiddle = topOuter + halfBorderThickness
-  let topInner = topMiddle + halfBorderThickness
-  let headerOuter = bounds.y + headerHeight
-  let headerMiddle = headerOuter - halfBorderThickness
-  let headerInner = headerMiddle - halfBorderThickness
-  let bottomOuter = bounds.y + bounds.height
-  let bottomMiddle = bottomOuter - halfBorderThickness
-  let bottomInner = bottomMiddle - halfBorderThickness
-
-  let innerWidth = rightInner - leftInner
-  let middleWidth = rightMiddle - leftMiddle
-
-  let outerCornerRadius = cornerRadius
-  let middleCornerRadius = outerCornerRadius - halfBorderThickness
-  let innerCornerRadius = middleCornerRadius - halfBorderThickness
-
-  # Header fill.
-  gfx.beginPath()
-  gfx.roundedRect(
-    rect2(
-      leftMiddle,
-      topMiddle,
-      middleWidth,
-      headerMiddle - topMiddle,
-    ),
-    middleCornerRadius,
-    middleCornerRadius,
-    0, 0,
-  )
-  gfx.fillColor = headerColor
-  gfx.fill()
-
-  # Body fill.
-  gfx.beginPath()
-  gfx.roundedRect(
-    rect2(
-      leftMiddle,
-      headerMiddle,
-      middleWidth,
-      bottomMiddle - headerMiddle,
-    ),
-    0, 0,
-    middleCornerRadius,
-    middleCornerRadius,
-  )
-  gfx.fillColor = bodyColor
-  gfx.fill()
-
-  # Border outer.
-  gfx.beginPath()
-  gfx.roundedRect(bounds, cornerRadius)
-
-  # Header inner hole.
-  gfx.roundedRect(
-    rect2(
-      leftInner,
-      topInner,
-      innerWidth,
-      headerInner - topInner,
-    ),
-    innerCornerRadius,
-    innerCornerRadius,
-    0, 0,
-  )
-  gfx.pathWinding = Hole
-
-  # Body inner hole.
-  gfx.roundedRect(
-    rect2(
-      leftInner,
-      headerOuter,
-      innerWidth,
-      bottomInner - headerOuter,
-    ),
-    0, 0,
-    innerCornerRadius,
-    innerCornerRadius,
-  )
-  gfx.pathWinding = Hole
-
-  gfx.fillColor = borderColor
-  gfx.fill()
+#   gfx.fillColor = borderColor
+#   gfx.fill()

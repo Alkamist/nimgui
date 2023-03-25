@@ -1,17 +1,13 @@
 {.experimental: "overloadableEnums".}
 
 import ../guimod
+# import ./layerwidget
 import ./buttonwidget
 
 type
   WindowWidget* = ref object of WidgetContainer
     title*: string
     headerHeight*: float
-
-proc new*(T: type WindowWidget): T =
-  result = T()
-  result.headerHeight = 24
-  result.size = vec2(300, 200)
 
 proc update*(window: WindowWidget, gui: Gui) =
   let gfx = gui.drawList
@@ -25,7 +21,7 @@ proc update*(window: WindowWidget, gui: Gui) =
     vec2(window.width, window.headerHeight),
   )
 
-  let cornerRadius = 5.0
+  # let cornerRadius = 5.0
   # let shadowFeather = 15.0
 
   # # Drop shadow.
@@ -37,16 +33,16 @@ proc update*(window: WindowWidget, gui: Gui) =
   # gfx.fillPaint = shadowPaint
   # gfx.fill()
 
-  # Frame.
-  gfx.drawFrameWithHeader(
-    bounds = bounds,
-    borderThickness = 1.0,
-    headerHeight = headerBounds.height,
-    cornerRadius = cornerRadius,
-    bodyColor = rgb(13, 17, 23),
-    headerColor = rgb(22, 27, 34),
-    borderColor = rgb(52, 59, 66),
-  )
+  # # Frame.
+  # gfx.drawFrameWithHeader(
+  #   bounds = bounds,
+  #   borderThickness = 1.0,
+  #   headerHeight = headerBounds.height,
+  #   cornerRadius = 5.0,
+  #   bodyColor = rgb(13, 17, 23),
+  #   headerColor = rgb(22, 27, 34),
+  #   borderColor = rgb(52, 59, 66),
+  # )
 
   # # Title text.
   # gfx.fontSize = 13
@@ -60,11 +56,16 @@ proc update*(window: WindowWidget, gui: Gui) =
   #   clip = true,
   # )
 
-  gui.button(headerButton)
-  headerButton.size = headerBounds.size
-  if headerButton.isDown and gui.mouseMoved:
-    window.position += gui.mouseDelta
+  # gui.button(headerButton)
+  # headerButton.size = headerBounds.size
+  # if headerButton.isDown and gui.mouseMoved:
+  #   window.position += gui.mouseDelta
 
   # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
+  # window.updateChildren(gui)
+  # gfx.resetClip()
 
-implementContainerWidget(window, WindowWidget)
+implementContainerWidget(window, WindowWidget(
+  headerHeight: 24,
+  size: vec2(300, 200),
+))

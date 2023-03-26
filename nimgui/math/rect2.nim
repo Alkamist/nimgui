@@ -10,9 +10,6 @@ type
 
 {.push inline.}
 
-# func rect2*(position, size: Vec2): Rect2 =
-#   (position: position, size: size)
-
 func rect2*(position, size = vec2()): Rect2 =
   Rect2(position: position, size: size)
 

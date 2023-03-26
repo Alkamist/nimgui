@@ -83,6 +83,6 @@ proc update*(window: WindowWidget, gui: Gui) =
 
   if gui.isHoveredIncludingChildren(window) and
      (gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)):
-    gui.bringContainerToTopOfParentContainer(window)
+    gui.containerParent.bringToTop(window)
 
 implementWidget(window, WindowWidget)

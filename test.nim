@@ -14,11 +14,24 @@ gui.backgroundColor = rgb(13, 17, 23)
 # const columns = 25
 
 gui.onFrame:
-  gui.window(window1):
-    discard
+  let asdf = gui.addWidget("Asdf", WidgetContainer)
+  gui.containerStack.add asdf
+  asdf.position = vec2(50, 50)
+  asdf.size = gui.size
 
-  gui.window(window2):
-    discard
+  gui.button(button1)
+
+  gui.containerStack.setLen(gui.containerStack.len - 1)
+
+  # gui.row(row1):
+  #   for i in 0 ..< 4:
+  #     gui.button(loopButton[i])
+
+  # gui.window(window1):
+  #   discard
+
+  # gui.window(window2):
+  #   discard
 
   # let buttonWidth = gui.size.x / rows.float
   # let buttonHeight = gui.size.y / columns.float

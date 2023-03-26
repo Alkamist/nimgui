@@ -1,7 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import opengl
-import ../nanovg
+import ./nanovg
 import ./drawlist
 
 proc gladLoadGL(): int {.cdecl, importc.}

@@ -1,37 +1,37 @@
 {.experimental: "overloadableEnums".}
 
+import ./frame
 import ../guimod
 
-template drawButton(button, gui, drawDown: untyped): untyped =
-  let gfx = gui.drawList
-  let isHovered = gui.isHovered(button)
-  let bounds = button.bounds
+# template drawButton(button, gui, drawDown: untyped): untyped =
+#   let gfx = gui.drawList
+#   let isHovered = gui.isHovered(button)
+#   let bounds = button.bounds
 
-  let bodyColor = rgb(33, 38, 45)
-  let borderColor = rgb(52, 59, 66)
-  # let textColor = rgb(201, 209, 217)
+#   let bodyColor = rgb(33, 38, 45)
+#   let borderColor = rgb(52, 59, 66)
+#   # let textColor = rgb(201, 209, 217)
 
-  let bodyColorHighlighted =
-    if drawDown: bodyColor.darken(0.3)
-    elif isHovered: bodyColor.lighten(0.05)
-    else: bodyColor
+#   let bodyColorHighlighted =
+#     if drawDown: bodyColor.darken(0.3)
+#     elif isHovered: bodyColor.lighten(0.05)
+#     else: bodyColor
 
-  let borderColorHighlighted =
-    if drawDown: borderColor.darken(0.1)
-    elif isHovered: borderColor.lighten(0.4)
-    else: borderColor
+#   let borderColorHighlighted =
+#     if drawDown: borderColor.darken(0.1)
+#     elif isHovered: borderColor.lighten(0.4)
+#     else: borderColor
 
-  gfx.drawFrame(
-    bounds = bounds,
-    borderThickness = 1.0,
-    cornerRadius = 5.0,
-    bodyColor = bodyColorHighlighted,
-    borderColor = borderColorHighlighted,
-  )
+#   gfx.drawFrame(
+#     bounds = bounds,
+#     borderThickness = 1.0,
+#     cornerRadius = 5.0,
+#     bodyColor = bodyColorHighlighted,
+#     borderColor = borderColorHighlighted,
+#   )
 
 type
   InvisibleButtonWidget* = ref object of Widget
-    label*: string
     isDown*: bool
     wasDown*: bool
     clicked*: bool
@@ -39,12 +39,12 @@ type
 template pressed*(button: InvisibleButtonWidget): bool = button.isDown and not button.wasDown
 template released*(button: InvisibleButtonWidget): bool = button.wasDown and not button.isDown
 
-proc new*(T: type InvisibleButtonWidget, gui: Gui): T =
-  result = T()
-  result.size = vec2(96, 32)
+proc initialize*(button: InvisibleButtonWidget) =
+  button.size = vec2(96, 32)
 
-proc update*(button: InvisibleButtonWidget, gui: Gui) =
-  let isHovered = gui.isHovered(button)
+proc update*(button: InvisibleButtonWidget) =
+  let gui = button.gui
+  let isHovered = button.isHovered
 
   button.clicked = false
   button.wasDown = button.isDown
@@ -61,10 +61,36 @@ implementWidget(invisibleButton, InvisibleButtonWidget)
 
 type
   ButtonWidget* = ref object of InvisibleButtonWidget
+    label*: string
 
-proc update*(button: ButtonWidget, gui: Gui) =
-  InvisibleButtonWidget(button).update(gui)
-  drawButton(button, gui, button.isDown)
+proc update*(button: ButtonWidget) =
+  InvisibleButtonWidget(button).update()
+
+  let gfx = button.container.drawList
+  let isHovered = button.isHovered
+  let bounds = button.bounds
+
+  let bodyColor = rgb(33, 38, 45)
+  let borderColor = rgb(52, 59, 66)
+  # let textColor = rgb(201, 209, 217)
+
+  let bodyColorHighlighted =
+    if button.isDown: bodyColor.darken(0.3)
+    elif isHovered: bodyColor.lighten(0.05)
+    else: bodyColor
+
+  let borderColorHighlighted =
+    if button.isDown: borderColor.darken(0.1)
+    elif isHovered: borderColor.lighten(0.4)
+    else: borderColor
+
+  gfx.drawFrame(
+    bounds = bounds,
+    borderThickness = 1.0,
+    cornerRadius = 5.0,
+    bodyColor = bodyColorHighlighted,
+    borderColor = borderColorHighlighted,
+  )
 
 implementWidget(button, ButtonWidget)
 

@@ -7,9 +7,6 @@ type
 
 {.push inline.}
 
-# func color*(r, g, b, a: float): Color =
-#   (r: r, g: g, b: b, a: a)
-
 func color*(r, g, b, a = 0.0): Color =
   Color(r: r, g: g, b: b, a: a)
 

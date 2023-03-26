@@ -1,20 +1,18 @@
 {.experimental: "overloadableEnums".}
 
 import std/macros; export macros
-import std/hashes
 import std/tables
 import ./oswindow; export oswindow
 import ./drawlist/drawlist; export drawlist
 import ./drawlist/drawlistrenderernanovg
 
 type
-  WidgetId* = Hash
+  WidgetId* = string
 
   Widget* = ref object of RootObj
-    gui* {.cursor.}: Gui
     container* {.cursor.}: WidgetContainer
-    position*: Vec2 # The relative position of the widget inside the container.
-    size*: Vec2 # The size of the widget.
+    position*: Vec2 # The relative position of the widget inside its container.
+    size*: Vec2
     justCreated*: bool
 
   WidgetContainer* = ref object of Widget
@@ -106,29 +104,18 @@ template lostFocus*(gui: Gui): bool = gui.osWindow.lostFocus
 template mouseEntered*(gui: Gui): bool = gui.osWindow.mouseEntered
 template mouseExited*(gui: Gui): bool = gui.osWindow.mouseExited
 
-func getHover*(container: WidgetContainer): Widget =
-  let gui = container.gui
+func findHover*(container: WidgetContainer, position: Vec2): Widget =
   for i in countdown(container.childZOrder.len - 1, 0, 1):
     let child = container.childZOrder[i]
-    if child.absoluteBounds.contains(gui.mousePosition):
+    if child.absoluteBounds.contains(position):
       if child of WidgetContainer:
-        let hoverOfChild = cast[WidgetContainer](child).getHover()
+        let hoverOfChild = cast[WidgetContainer](child).findHover(position)
         if hoverOfChild == nil:
           return child
         else:
           return hoverOfChild
       else:
         return child
-
-func isHovered*(widget: Widget): bool =
-  widget.gui.hover == widget
-
-func isHoveredIncludingChildren*(container: WidgetContainer): bool =
-  if container.gui.hover == container:
-    return true
-  for child in container.childZOrder:
-    if container.gui.hover == child:
-      return true
 
 func clearForFrame*(container: WidgetContainer) =
   container.activeWidgets.setLen(0)
@@ -162,7 +149,6 @@ proc newGui*(): Gui =
   result.osWindow = newOsWindow()
   result.renderer = newDrawListRenderer()
   result.root = WidgetContainer()
-  result.root.gui = result
   result.root.drawList = newDrawList()
   result.root.justCreated = true
 
@@ -179,7 +165,7 @@ proc beginFrame*(gui: Gui) =
   gui.containerStack = @[gui.root]
 
 proc endFrame*(gui: Gui) =
-  gui.hover = gui.root.getHover()
+  gui.hover = gui.root.findHover(gui.mousePosition)
   gui.renderContainer(gui.root)
   gui.renderer.endFrame(gui.sizePixels)
   gui.root.justCreated = false
@@ -190,6 +176,16 @@ template onFrame*(gui: Gui, code: untyped): untyped =
     code
     gui.endFrame()
 
+func isHovered*(gui: Gui, widget: Widget): bool =
+  gui.hover == widget
+
+func isHoveredIncludingChildren*(gui: Gui, container: WidgetContainer): bool =
+  if gui.hover == container:
+    return true
+  for child in container.childZOrder:
+    if gui.hover == child:
+      return true
+
 func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
   let container = gui.containerStack[^1]
 
@@ -198,73 +194,75 @@ func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
     result.justCreated = false
   else:
     result = T()
-    result.gui = gui
     result.container = container
     result.justCreated = true
-
-    when T is WidgetContainer:
-      result.drawList = newDrawList()
-
-    when compiles(result.initialize()):
-      result.initialize()
-
     container.widgets[id] = result
     container.childZOrder.add result
-    container.activeWidgets.add result
 
-func addWidget*(gui: Gui, name: string, T: typedesc): T {.discardable.} =
-  gui.addWidget(hash(name), T)
+  container.activeWidgets.add result
+
+func currentContainer*(gui: Gui, T: typedesc): T =
+  T(gui.containerStack[^1])
+
+func beginContainer*(gui: Gui, name: string, T: typedesc): T {.discardable.} =
+  let container = gui.addWidget(name, T)
+  container.drawList = newDrawList()
+  gui.containerStack.add container
+  container
+
+func endContainer*(gui: Gui) =
+  gui.containerStack.setLen(gui.containerStack.len - 1)
 
 # Template and macro wizardry to enable streamlined implementation of widgets.
 
-template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
-  when T is WidgetContainer:
-    template widgetInjection(gui, widget, idString, code: untyped): untyped =
-      let `widget` {.inject.} = gui.addWidget(idString, T)
-      gui.containerStack.add widget
-      when compiles(widget.preUpdate()):
-        widget.preUpdate()
-      code
-      when compiles(widget.postUpdate()):
-        widget.postUpdate()
-      gui.containerStack.setLen(gui.containerStack.len - 1)
+# template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
+#   when T is WidgetContainer:
+#     template widgetInjection(gui, widget, idString, code: untyped): untyped =
+#       let `widget` {.inject.} = gui.addWidget(idString, T)
+#       gui.containerStack.add widget
+#       when compiles(widget.preUpdate()):
+#         widget.preUpdate()
+#       code
+#       when compiles(widget.postUpdate()):
+#         widget.postUpdate()
+#       gui.containerStack.setLen(gui.containerStack.len - 1)
 
-    macro `name`*(gui: Gui, widget, code: untyped): untyped =
-      case widget.kind:
-      of nnkIdent:
-        let widgetAsString = widget.strVal
-        let id = quote do:
-          `widgetAsString`
-        result = getAst(widgetInjection(gui, widget, id, code))
-      of nnkBracketExpr:
-        let widgetAsString = widget[0].strVal
-        let iteration = widget[1]
-        let id = quote do:
-          `widgetAsString` & "_iteration_" & $`iteration`
-        result = getAst(widgetInjection(gui, widget[0], id, code))
-      else:
-        error("Widget identifiers must be in the form name, or name[i].")
-  else:
-    template widgetInjection(gui, widget, idString: untyped): untyped =
-      let `widget` {.inject.} = gui.addWidget(idString, T)
-      when compiles(widget.update()):
-        widget.update()
+#     macro `name`*(gui: Gui, widget, code: untyped): untyped =
+#       case widget.kind:
+#       of nnkIdent:
+#         let widgetAsString = widget.strVal
+#         let id = quote do:
+#           `widgetAsString`
+#         result = getAst(widgetInjection(gui, widget, id, code))
+#       of nnkBracketExpr:
+#         let widgetAsString = widget[0].strVal
+#         let iteration = widget[1]
+#         let id = quote do:
+#           `widgetAsString` & "_iteration_" & $`iteration`
+#         result = getAst(widgetInjection(gui, widget[0], id, code))
+#       else:
+#         error("Widget identifiers must be in the form name, or name[i].")
+#   else:
+#     template widgetInjection(gui, widget, idString: untyped): untyped =
+#       let `widget` {.inject.} = gui.addWidget(idString, T)
+#       when compiles(widget.update()):
+#         widget.update()
 
-    macro `name`*(gui: Gui, widget: untyped): untyped =
-      case widget.kind:
-      of nnkIdent:
-        let widgetAsString = widget.strVal
-        let id = quote do:
-          `widgetAsString`
-        result = getAst(widgetInjection(gui, widget, id))
-      of nnkBracketExpr:
-        let widgetAsString = widget[0].strVal
-        let iteration = widget[1]
-        let id = quote do:
-          `widgetAsString` & "_iteration_" & $`iteration`
-        result = getAst(widgetInjection(gui, widget[0], id))
-      else:
-        error("Widget identifiers must be in the form name, or name[i].")
+#     macro `name`*(gui: Gui, widget: untyped): untyped =
+#       case widget.kind:
+#       of nnkIdent:
+#         let widgetAsString = widget.strVal
+#         let id = quote do:
+#           `widgetAsString`
+#         result = getAst(widgetInjection(gui, widget, id))
+#       of nnkBracketExpr:
+#         let widgetAsString = widget[0].strVal
+#         let iteration = widget[1]
+#         let id = quote do:
+#           `widgetAsString` & "_iteration_" & $`iteration`
+#         result = getAst(widgetInjection(gui, widget[0], id))
+#       else:
+#         error("Widget identifiers must be in the form name, or name[i].")
 
-macro implementWidget*(name, T: untyped): untyped =
-  getAst(widgetMacroDefinition(name, T))
+# macro implementWidget*(name, T: untyped): untyped =
+#   getAst(widgetMacroDefinition(name, T))

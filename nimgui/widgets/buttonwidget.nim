@@ -3,32 +3,19 @@
 import ./frame
 import ../guimod
 
-# template drawButton(button, gui, drawDown: untyped): untyped =
-#   let gfx = gui.drawList
-#   let isHovered = gui.isHovered(button)
-#   let bounds = button.bounds
+template buttonBehavior*(button, isHovered, activate, deactivate: untyped): untyped =
+  button.clicked = false
+  button.wasDown = button.isDown
 
-#   let bodyColor = rgb(33, 38, 45)
-#   let borderColor = rgb(52, 59, 66)
-#   # let textColor = rgb(201, 209, 217)
+  if isHovered and activate:
+    button.isDown = true
 
-#   let bodyColorHighlighted =
-#     if drawDown: bodyColor.darken(0.3)
-#     elif isHovered: bodyColor.lighten(0.05)
-#     else: bodyColor
+  if button.isDown and deactivate:
+    button.isDown = false
+    if isHovered:
+      button.clicked = true
 
-#   let borderColorHighlighted =
-#     if drawDown: borderColor.darken(0.1)
-#     elif isHovered: borderColor.lighten(0.4)
-#     else: borderColor
 
-#   gfx.drawFrame(
-#     bounds = bounds,
-#     borderThickness = 1.0,
-#     cornerRadius = 5.0,
-#     bodyColor = bodyColorHighlighted,
-#     borderColor = borderColorHighlighted,
-#   )
 
 type
   InvisibleButtonWidget* = ref object of Widget
@@ -39,37 +26,29 @@ type
 template pressed*(button: InvisibleButtonWidget): bool = button.isDown and not button.wasDown
 template released*(button: InvisibleButtonWidget): bool = button.wasDown and not button.isDown
 
-proc initialize*(button: InvisibleButtonWidget) =
-  button.size = vec2(96, 32)
+proc addInvisibleButton*(gui: Gui, id: WidgetId): InvisibleButtonWidget {.discardable.} =
+  let button = gui.addWidget(id, InvisibleButtonWidget)
+  let isHovered = gui.isHovered(button)
+  buttonBehavior(button, isHovered, gui.mousePressed(Left), gui.mouseReleased(Left))
 
-proc update*(button: InvisibleButtonWidget) =
-  let gui = button.gui
-  let isHovered = button.isHovered
 
-  button.clicked = false
-  button.wasDown = button.isDown
-
-  if isHovered and gui.mousePressed(Left):
-    button.isDown = true
-
-  if button.isDown and gui.mouseReleased(Left):
-    button.isDown = false
-    if isHovered:
-      button.clicked = true
-
-implementWidget(invisibleButton, InvisibleButtonWidget)
 
 type
-  ButtonWidget* = ref object of InvisibleButtonWidget
-    label*: string
+  ButtonWidget* = ref object of Widget
+    isDown*: bool
+    wasDown*: bool
+    clicked*: bool
 
-proc update*(button: ButtonWidget) =
-  InvisibleButtonWidget(button).update()
+template pressed*(button: ButtonWidget): bool = button.isDown and not button.wasDown
+template released*(button: ButtonWidget): bool = button.wasDown and not button.isDown
+
+proc addButton*(gui: Gui, id: WidgetId): ButtonWidget {.discardable.} =
+  let button = gui.addWidget(id, ButtonWidget)
+  let isHovered = gui.isHovered(button)
+
+  buttonBehavior(button, isHovered, gui.mousePressed(Left), gui.mouseReleased(Left))
 
   let gfx = button.container.drawList
-  let isHovered = button.isHovered
-  let bounds = button.absoluteBounds
-
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)
@@ -85,100 +64,11 @@ proc update*(button: ButtonWidget) =
     else: borderColor
 
   gfx.drawFrame(
-    bounds = bounds,
+    bounds = button.absoluteBounds,
     borderThickness = 1.0,
     cornerRadius = 5.0,
     bodyColor = bodyColorHighlighted,
     borderColor = borderColorHighlighted,
   )
 
-implementWidget(button, ButtonWidget)
-
-# type
-#   MultiButtonWidget* = ref object of Widget
-#     label*: string
-#     mouseButtons*: set[MouseButton]
-#     isDownStates*: array[MouseButton, bool]
-#     wasDownStates*: array[MouseButton, bool]
-#     clickedStates*: array[MouseButton, bool]
-
-# template isDown*(button: MultiButtonWidget, mb: MouseButton): bool = button.isDownStates[mb]
-# template pressed*(button: MultiButtonWidget, mb: MouseButton): bool = button.isDownStates[mb] and not button.wasDownStates[mb]
-# template released*(button: MultiButtonWidget, mb: MouseButton): bool = button.wasDownStates[mb] and not button.isDownStates[mb]
-# template clicked*(button: MultiButtonWidget, mb: MouseButton): bool = button.clickedStates[mb]
-
-# proc isDown*(button: MultiButtonWidget): bool =
-#   for mb in MouseButton:
-#     if button.isDown(mb):
-#       return true
-
-# proc pressed*(button: MultiButtonWidget): bool =
-#   for mb in MouseButton:
-#     if button.pressed(mb):
-#       return true
-
-# proc released*(button: MultiButtonWidget): bool =
-#   for mb in MouseButton:
-#     if button.released(mb):
-#       return true
-
-# proc clicked*(button: MultiButtonWidget): bool =
-#   for mb in MouseButton:
-#     if button.clicked(mb):
-#       return true
-
-# proc new*(T: type MultiButtonWidget, gui: Gui): T =
-#   result = T()
-#   result.size = vec2(96, 32)
-#   result.mouseButtons = {Left}
-
-# proc update*(button: MultiButtonWidget, gui: Gui) =
-#   let gfx = gui.drawList
-#   let isHovered = gui.isHovered(button)
-
-#   var drawDown = false
-
-#   for mb in MouseButton:
-#     if mb in button.mouseButtons:
-#       button.clickedStates[mb] = false
-#       button.wasDownStates[mb] = button.isDownStates[mb]
-
-#       if isHovered and gui.mousePressed(mb):
-#         button.isDownStates[mb] = true
-
-#       if button.isDownStates[mb]:
-#         drawDown = true
-
-#       if button.isDownStates[mb] and gui.mouseReleased(mb):
-#         button.isDownStates[mb] = false
-#         if isHovered:
-#           button.clickedStates[mb] = true
-
-#   drawButton(button, gui, drawDown)
-
-# implementWidget(multiButton, MultiButtonWidget)
-
-# type
-#   ClosureButtonWidget* = ref object of Widget
-#     label*: string
-#     isDown*: bool
-#     wasDown*: bool
-#     clicked*: bool
-#     activation*: proc(button: ClosureButtonWidget): bool
-#     deactivation*: proc(button: ClosureButtonWidget): bool
-
-# template pressed*(button: ClosureButtonWidget): bool = button.isDown and not button.wasDown
-# template released*(button: ClosureButtonWidget): bool = button.wasDown and not button.isDown
-
-# proc new*(T: type ClosureButtonWidget, gui: Gui): T =
-#   result = T()
-#   result.size = vec2(96, 32)
-#   result.activation = proc(button: ClosureButtonWidget): bool =
-#     gui.isHovered(button) and gui.mousePressed(Left)
-#   result.deactivation = proc(button: ClosureButtonWidget): bool =
-#     gui.mouseReleased(Left)
-
-# proc update*(button: ClosureButtonWidget, gui: Gui) =
-#   buttonBehavior(button, gui, button.activation(button), button.deactivation(button))
-
-# implementWidget(closureButton, ClosureButtonWidget)
+  button

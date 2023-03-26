@@ -2,14 +2,19 @@ import ../guimod
 
 type
   RowWidget* = ref object of WidgetContainer
+    spacing*: float
 
-proc initialize*(row: RowWidget) =
-  row.size = vec2(row.container.width, 24)
+proc beginRow*(gui: Gui, id: WidgetId): RowWidget {.discardable.} =
+  let row = gui.beginContainer(id, RowWidget)
+  if row.justCreated:
+    row.spacing = 5.0
+  row.size = vec2(row.container.width, row.container.height)
+  row
 
-proc postUpdate*(row: RowWidget) =
+proc endRow*(gui: Gui) =
+  let row = gui.currentContainer(RowWidget)
+  var cursor = 0.0
   for i, child in row.activeWidgets:
-    child.width = row.width / row.activeWidgets.len.float
-    child.height = row.height
-    child.x = i.float * child.width
-
-implementWidget(row, RowWidget)
+    child.x = cursor
+    cursor += child.width + row.spacing
+  gui.endContainer()

@@ -1,10 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-# Write macro that gets string id from variable name and iteration.
-# Maybe offload initialization to individual widgets instead of the boilerplate macro.
-# Potentially allow button to take in a set of buttons? Figure out how to customize the activation.
-# Activation conditions, and overloaded to take in MouseButton or KeyboardKey?
-
 import nimgui
 
 let gui = newGui()
@@ -14,18 +9,17 @@ gui.backgroundColor = rgb(13, 17, 23)
 # const columns = 25
 
 gui.onFrame:
-  let asdf = gui.addWidget("Asdf", WidgetContainer)
-  gui.containerStack.add asdf
-  asdf.position = vec2(50, 50)
-  asdf.size = gui.size
-
   gui.button(button1)
+  button1.size = vec2(20.0, 20.0)
 
-  gui.containerStack.setLen(gui.containerStack.len - 1)
+  gui.button(button2)
+  button2.size = vec2(40.0, 20.0)
 
-  # gui.row(row1):
-  #   for i in 0 ..< 4:
-  #     gui.button(loopButton[i])
+  gui.button(button3)
+  button3.size = vec2(30.0, 20.0)
+
+  gui.button(button4)
+  button4.size = vec2(70.0, 20.0)
 
   # gui.window(window1):
   #   discard

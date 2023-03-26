@@ -3,13 +3,13 @@ import ../guimod
 type
   RowWidget* = ref object of WidgetContainer
 
-proc new*(T: type RowWidget, gui: Gui): T =
-  result = T()
-  result.size = vec2(gui.containerParent.width, 24)
+proc initialize*(row: RowWidget) =
+  row.size = vec2(row.container.width, 24)
 
-proc update*(row: RowWidget, gui: Gui) =
-  for child in row.activeWidgets:
+proc postUpdate*(row: RowWidget) =
+  for i, child in row.activeWidgets:
     child.width = row.width / row.activeWidgets.len.float
     child.height = row.height
+    child.x = i.float * child.width
 
 implementWidget(row, RowWidget)

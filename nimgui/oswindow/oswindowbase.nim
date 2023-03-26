@@ -102,9 +102,17 @@ template defineBaseTemplates*(): untyped {.dirty.} =
   template anyKeyReleased*(window: OsWindow): bool = window.inputState.keyReleases.len > 0
   template bounds*(window: OsWindow): Rect2 = rect2(window.inputState.boundsPixels.position / window.inputState.pixelDensity, window.inputState.boundsPixels.size / window.inputState.pixelDensity)
   template positionPixels*(window: OsWindow): Vec2 = window.inputState.boundsPixels.position
+  template xPixels*(window: OsWindow): float = window.positionPixels.x
+  template yPixels*(window: OsWindow): float = window.positionPixels.y
   template position*(window: OsWindow): Vec2 = window.inputState.boundsPixels.position / window.inputState.pixelDensity
+  template x*(window: OsWindow): float = window.position.x
+  template y*(window: OsWindow): float = window.position.y
   template sizePixels*(window: OsWindow): Vec2 = window.inputState.boundsPixels.size
+  template widthPixels*(window: OsWindow): float = window.sizePixels.x
+  template heightPixels*(window: OsWindow): float = window.heightPixels.y
   template size*(window: OsWindow): Vec2 = window.inputState.boundsPixels.size / window.inputState.pixelDensity
+  template width*(window: OsWindow): float = window.size.x
+  template height*(window: OsWindow): float = window.size.y
   template scale*(window: OsWindow): float = 1.0 / window.inputState.pixelDensity
   template moved*(window: OsWindow): bool = window.inputState.boundsPixels.position != window.previousInputState.boundsPixels.position
   template positionDeltaPixels*(window: OsWindow): Vec2 = window.inputState.boundsPixels.position - window.previousInputState.boundsPixels.position

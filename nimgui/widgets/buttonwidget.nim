@@ -68,7 +68,7 @@ proc update*(button: ButtonWidget) =
 
   let gfx = button.container.drawList
   let isHovered = button.isHovered
-  let bounds = button.bounds
+  let bounds = button.absoluteBounds
 
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)

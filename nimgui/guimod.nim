@@ -37,8 +37,7 @@ func absolutePosition*(widget: Widget): Vec2 =
   else:
     widget.position + widget.container.absolutePosition
 
-# This is the absolute bounds of the widget.
-func bounds*(widget: Widget): Rect2 =
+func absoluteBounds*(widget: Widget): Rect2 =
   rect2(widget.absolutePosition, widget.size)
 
 template x*(widget: Widget): auto = widget.position.x
@@ -82,9 +81,17 @@ template anyKeyPressed*(gui: Gui): bool = gui.osWindow.anyKeyPressed
 template anyKeyReleased*(gui: Gui): bool = gui.osWindow.anyKeyReleased
 template bounds*(gui: Gui): Rect2 = gui.osWindow.bounds
 template positionPixels*(gui: Gui): Vec2 = gui.osWindow.positionPixels
+template xPixels*(gui: Gui): float = gui.osWindow.xPixels
+template yPixels*(gui: Gui): float = gui.osWindow.yPixels
 template position*(gui: Gui): Vec2 = gui.osWindow.position
+template x*(gui: Gui): float = gui.osWindow.x
+template y*(gui: Gui): float = gui.osWindow.y
 template sizePixels*(gui: Gui): Vec2 = gui.osWindow.sizePixels
+template widthPixels*(gui: Gui): float = gui.osWindow.widthPixels
+template heightPixels*(gui: Gui): float = gui.osWindow.heightPixels
 template size*(gui: Gui): Vec2 = gui.osWindow.size
+template width*(gui: Gui): float = gui.osWindow.width
+template height*(gui: Gui): float = gui.osWindow.height
 template scale*(gui: Gui): float = gui.osWindow.scale
 template moved*(gui: Gui): bool = gui.osWindow.moved
 template positionDeltaPixels*(gui: Gui): Vec2 = gui.osWindow.positionDeltaPixels
@@ -103,7 +110,7 @@ func getHover*(container: WidgetContainer): Widget =
   let gui = container.gui
   for i in countdown(container.childZOrder.len - 1, 0, 1):
     let child = container.childZOrder[i]
-    if child.bounds.contains(gui.mousePosition):
+    if child.absoluteBounds.contains(gui.mousePosition):
       if child of WidgetContainer:
         let hoverOfChild = cast[WidgetContainer](child).getHover()
         if hoverOfChild == nil:
@@ -214,10 +221,13 @@ template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
   when T is WidgetContainer:
     template widgetInjection(gui, widget, idString, code: untyped): untyped =
       let `widget` {.inject.} = gui.addWidget(idString, T)
-      gui.pushContainer widget
-      widget.update()
+      gui.containerStack.add widget
+      when compiles(widget.preUpdate()):
+        widget.preUpdate()
       code
-      gui.popContainer()
+      when compiles(widget.postUpdate()):
+        widget.postUpdate()
+      gui.containerStack.setLen(gui.containerStack.len - 1)
 
     macro `name`*(gui: Gui, widget, code: untyped): untyped =
       case widget.kind:
@@ -237,7 +247,8 @@ template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
   else:
     template widgetInjection(gui, widget, idString: untyped): untyped =
       let `widget` {.inject.} = gui.addWidget(idString, T)
-      widget.update()
+      when compiles(widget.update()):
+        widget.update()
 
     macro `name`*(gui: Gui, widget: untyped): untyped =
       case widget.kind:

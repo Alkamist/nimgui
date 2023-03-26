@@ -209,7 +209,7 @@ func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
     result = cast[T](container.widgets[id])
     result.justCreated = false
   else:
-    result = T.new()
+    result = T.new(gui)
     when T is WidgetContainer:
       result.drawList = newDrawList()
     result.justCreated = true
@@ -223,49 +223,55 @@ func addWidget*(gui: Gui, label: string, T: typedesc): T {.discardable.} =
   gui.addWidget(hash(label), T)
 
 # Template and macro wizardry to enable streamlined implementation of widgets.
-# It's kind of messy because there are two versions copy pasted and you need
-# to call the right version between normal and container widgets.
-# Ideally this would somehow be overloaded at compiletime so you can just
-# call implementWidget and not have to worry but I will figure that out later.
 
 template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
-  template widgetInjection(gui, widget, idString: untyped): untyped =
-    let `widget` {.inject.} = gui.addWidget(idString, T)
-    widget.update(gui)
+  when T is WidgetContainer:
+    template widgetInjection(gui, widget, idString, code: untyped): untyped =
+      let `widget` {.inject.} = gui.addWidget(idString, T)
+      gui.pushContainer widget
+      widget.update(gui)
+      code
+      gui.popContainer()
 
-  macro `name`*(gui: Gui, widget, iteration: untyped): untyped =
-    let idStr = widget.strVal
-    let id = quote do:
-      `idStr` & "_iteration_" & $`iteration`
-    getAst(widgetInjection(gui, widget, id))
+    macro `name`*(gui: Gui, widget, code: untyped): untyped =
+      case widget.kind:
+      of nnkIdent:
+        let widgetAsString = widget.strVal
+        let id = quote do:
+          `widgetAsString`
+        result = getAst(widgetInjection(gui, widget, id, code))
+      of nnkBracketExpr:
+        let widgetAsString = widget[0].strVal
+        let iteration = widget[1]
+        let id = quote do:
+          `widgetAsString` & "_iteration_" & $`iteration`
+        result = getAst(widgetInjection(gui, widget[0], id, code))
+      else:
+        error("Widget identifiers must be in the form name, or name[i].")
+  else:
+    template widgetInjection(gui, widget, idString: untyped): untyped =
+      let `widget` {.inject.} = gui.addWidget(idString, T)
+      widget.update(gui)
 
-  macro `name`*(gui: Gui, widget: untyped): untyped =
-    getAst(widgetInjection(gui, widget, widget.strVal))
+    macro `name`*(gui: Gui, widget: untyped): untyped =
+      case widget.kind:
+      of nnkIdent:
+        let widgetAsString = widget.strVal
+        let id = quote do:
+          `widgetAsString`
+        result = getAst(widgetInjection(gui, widget, id))
+      of nnkBracketExpr:
+        let widgetAsString = widget[0].strVal
+        let iteration = widget[1]
+        let id = quote do:
+          `widgetAsString` & "_iteration_" & $`iteration`
+        result = getAst(widgetInjection(gui, widget[0], id))
+      else:
+        error("Widget identifiers must be in the form name, or name[i].")
 
 macro implementWidget*(name, T: untyped): untyped =
   getAst(widgetMacroDefinition(name, T))
 
-# Container version:
-
-template containerWidgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
-  template widgetInjection(gui, widget, idString, code: untyped): untyped =
-    let `widget` {.inject.} = gui.addWidget(idString, T)
-    gui.pushContainer widget
-    widget.update(gui)
-    code
-    gui.popContainer()
-
-  macro `name`*(gui: Gui, widget, iteration, code: untyped): untyped =
-    let idStr = widget.strVal
-    let id = quote do:
-      `idStr` & "_iteration_" & $`iteration`
-    getAst(widgetInjection(gui, widget, id, code))
-
-  macro `name`*(gui: Gui, widget, code: untyped): untyped =
-    getAst(widgetInjection(gui, widget, widget.strVal, code))
-
-macro implementContainerWidget*(name, T: untyped): untyped =
-  getAst(containerWidgetMacroDefinition(name, T))
 
 # func drawFrameWithHeader*(gfx: Gfx,
 #                           bounds: Rect2,

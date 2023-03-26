@@ -8,7 +8,7 @@ type
     title*: string
     headerHeight*: float
 
-proc new*(T: type WindowWidget): T =
+proc new*(T: type WindowWidget, gui: Gui): T =
   result = T()
   result.headerHeight = 24
   result.size = vec2(300, 200)
@@ -67,4 +67,4 @@ proc update*(window: WindowWidget, gui: Gui) =
 
   # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
 
-implementContainerWidget(window, WindowWidget)
+implementWidget(window, WindowWidget)

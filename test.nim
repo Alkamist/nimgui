@@ -10,15 +10,32 @@ import nimgui
 let gui = newGui()
 gui.backgroundColor = rgb(13, 17, 23)
 
+const rows = 25
+const columns = 25
+
 gui.onFrame:
-  gui.window(window1):
-    discard
-    # gui.button(button1)
+  # gui.window(window1):
+  #   discard
+  let buttonWidth = gui.size.x / rows.float
+  let buttonHeight = gui.size.y / columns.float
+  for row in 0 ..< rows:
+    for col in 0 ..< columns:
+      let i = row * rows + col
+      gui.button(loopButton[i])
+      loopButton.position = vec2(row.float * buttonWidth, col.float * buttonHeight)
+      loopButton.size = vec2(buttonWidth * 0.9, buttonHeight * 0.9)
+      if loopButton.clicked:
+        echo "Button " & $i & " clicked."
 
-  # let button1 = gui.addWidget("Button 1", ButtonWidget)
-  # button1.update(gui)
+  # gui.multiButton(buttonLeft)
+  # if buttonLeft.clicked(Left):
+  #   echo "Left clicked."
 
-  # gui.button(button1)
+  # gui.multiButton(buttonRight)
+  # buttonRight.mouseButtons = {Right}
+  # buttonRight.position = vec2(200, 0)
+  # if buttonRight.clicked(Right):
+  #   echo "Right clicked."
 
 while gui.isOpen:
   gui.update()

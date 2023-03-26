@@ -35,7 +35,7 @@ type
     containerStack*: seq[WidgetContainer] # A stack of containers to keep track of heirarchy.
     hover*: Widget # The current widget that the mouse is hovering over.
     hoverParents*: seq[WidgetContainer]
-    focus*: Widget # The current widget that is focused.
+    # focus*: Widget # The current widget that is focused.
     storedBackgroundColor: Color # The background color of the operating system window stored in case it needs to be accessed later.
 
 template x*(widget: Widget): auto = widget.position.x
@@ -134,7 +134,17 @@ func getHover(gui: Gui, container: WidgetContainer): Widget =
       else:
         return child
 
-func bringToTop(container: WidgetContainer, child: Widget) =
+func isHovered*(gui: Gui, widget: Widget): bool =
+  gui.hover == widget
+
+func isHoveredIncludingChildren*(gui: Gui, container: WidgetContainer): bool =
+  if gui.hover == container:
+    return true
+  for child in container.childZOrder:
+    if gui.hover == child:
+      return true
+
+func bringToTop*(container: WidgetContainer, child: Widget) =
   var foundChild = false
 
   for i in 0 ..< container.childZOrder.len - 1:
@@ -146,19 +156,19 @@ func bringToTop(container: WidgetContainer, child: Widget) =
   if foundChild:
     container.childZOrder[^1] = child
 
-func updateFocus(gui: Gui) =
-  if gui.hover != nil:
-    if gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):
-      gui.focus = gui.hover
-      for i in 0 ..< gui.hoverParents.len - 1:
-        gui.hoverParents[i].bringToTop(gui.hoverParents[i + 1])
-      gui.hoverParents[^1].bringToTop(gui.focus)
+# func updateFocus(gui: Gui) =
+#   if gui.hover != nil:
+#     if gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):
+#       gui.focus = gui.hover
+#       for i in 0 ..< gui.hoverParents.len - 1:
+#         gui.hoverParents[i].bringToTop(gui.hoverParents[i + 1])
+#       gui.hoverParents[^1].bringToTop(gui.focus)
 
-func clearForFrame(container: WidgetContainer) =
+func clearDrawList(container: WidgetContainer) =
   container.drawList.clearCommands()
   for child in container.childZOrder:
     if child of WidgetContainer:
-      cast[WidgetContainer](child).clearForFrame()
+      cast[WidgetContainer](child).clearDrawList()
 
 proc renderChildren(container: WidgetContainer, gui: Gui) =
   gui.renderer.render(container.drawList)
@@ -169,13 +179,13 @@ proc renderChildren(container: WidgetContainer, gui: Gui) =
 proc beginFrame*(gui: Gui) =
   gui.renderer.beginFrame(gui.sizePixels, gui.pixelDensity)
   gui.root.size = gui.size
-  gui.root.clearForFrame()
+  gui.root.clearDrawList()
   gui.hoverParents.setLen(0)
-  gui.containerStack.setLen(0)
+  gui.containerStack = @[gui.root]
 
 proc endFrame*(gui: Gui) =
   gui.hover = gui.getHover(gui.root)
-  gui.updateFocus()
+  # gui.updateFocus()
   gui.root.renderChildren(gui)
   gui.renderer.endFrame(gui.sizePixels)
 
@@ -185,25 +195,19 @@ template onFrame*(gui: Gui, code: untyped): untyped =
     code
     gui.endFrame()
 
-func currentContainer*(gui: Gui, T: typedesc = WidgetContainer): T =
-  cast[T](
-    if gui.containerStack.len > 0:
-      gui.containerStack[gui.containerStack.len - 1]
-    else:
-      gui.root
-  )
-
 func drawList*(gui: Gui): DrawList =
-  gui.currentContainer.drawList
+  gui.containerStack[^1].drawList
 
 func pushContainer*(gui: Gui, container: WidgetContainer) =
   gui.containerStack.add container
 
 func popContainer*(gui: Gui) =
+  if gui.containerStack.len <= 1:
+    raise newException(Exception, "Called popContainer when only the root was left in the stack. Make sure you match a call to popContainer with a call to pushContainer.")
   gui.containerStack.setLen(gui.containerStack.len - 1)
 
 func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
-  let container = gui.currentContainer
+  let container = gui.containerStack[^1]
 
   if container.widgets.hasKey(id):
     result = cast[T](container.widgets[id])
@@ -213,7 +217,6 @@ func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
     when T is WidgetContainer:
       result.drawList = newDrawList()
     result.justCreated = true
-
     container.widgets[id] = result
     container.childZOrder.add result
 

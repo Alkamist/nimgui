@@ -4,7 +4,7 @@ import ../guimod
 
 template drawButton(button, gui, drawDown: untyped): untyped =
   let gfx = gui.drawList
-  let isHovered = gui.hover == button
+  let isHovered = gui.isHovered(button)
   let bounds = button.bounds
 
   let bodyColor = rgb(33, 38, 45)
@@ -44,7 +44,7 @@ proc new*(T: type InvisibleButtonWidget, gui: Gui): T =
   result.size = vec2(96, 32)
 
 proc update*(button: InvisibleButtonWidget, gui: Gui) =
-  let isHovered = gui.hover == button
+  let isHovered = gui.isHovered(button)
 
   button.clicked = false
   button.wasDown = button.isDown
@@ -108,7 +108,7 @@ implementWidget(button, ButtonWidget)
 
 # proc update*(button: MultiButtonWidget, gui: Gui) =
 #   let gfx = gui.drawList
-#   let isHovered = gui.hover == button
+#   let isHovered = gui.isHovered(button)
 
 #   var drawDown = false
 
@@ -148,7 +148,7 @@ implementWidget(button, ButtonWidget)
 #   result = T()
 #   result.size = vec2(96, 32)
 #   result.activation = proc(button: ClosureButtonWidget): bool =
-#     gui.hover == button and gui.mousePressed(Left)
+#     gui.isHovered(button) and gui.mousePressed(Left)
 #   result.deactivation = proc(button: ClosureButtonWidget): bool =
 #     gui.mouseReleased(Left)
 

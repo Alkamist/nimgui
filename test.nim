@@ -20,10 +20,6 @@ gui.onFrame:
   gui.window(window2):
     discard
 
-  # gui.root.bringToTop(window1)
-
-  # echo gui.root.childZOrder[0] == window1
-
   # let buttonWidth = gui.size.x / rows.float
   # let buttonHeight = gui.size.y / columns.float
   # for row in 0 ..< rows:

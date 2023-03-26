@@ -66,22 +66,23 @@ proc update*(window: WindowWidget, gui: Gui) =
     window.position += gui.mouseDelta
 
   const headerPadding = vec2(3, 3)
-  gui.button(closeButton)
+  gui.invisibleButton(closeButton)
   let closeButtonHeight = headerBounds.height - headerPadding.y * 2.0
   closeButton.size = vec2(closeButtonHeight, closeButtonHeight)
   closeButton.position = vec2(window.width - closeButton.width - headerPadding.x, headerPadding.y)
-  # gfx.beginPath()
-  # gfx.roundedRect(closeButton.bounds, 2.0)
-  # let closeButtonColor = rgb(16, 140, 16)
-  # if closeButton.isDown: gfx.fillColor = closeButtonColor.darken(0.3)
-  # elif gui.hover == closeButton: gfx.fillColor = closeButtonColor.lighten(0.05)
-  # else: gfx.fillColor = closeButtonColor
-  # gfx.fill()
+  gfx.beginPath()
+  gfx.roundedRect(closeButton.bounds, 2.0)
+  let closeButtonColor = rgb(16, 120, 16)
+  if closeButton.isDown: gfx.fillColor = closeButtonColor.darken(0.3)
+  elif gui.hover == closeButton: gfx.fillColor = closeButtonColor.lighten(0.05)
+  else: gfx.fillColor = closeButtonColor
+  gfx.fill()
 
 
   # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
 
-  if gui.isHoveredIncludingChildren(window) and gui.mousePressed(Left):
-    gui.containerStack[^2].bringToTop(window)
+  if gui.isHoveredIncludingChildren(window) and
+     (gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)):
+    gui.bringContainerToTopOfParentContainer(window)
 
 implementWidget(window, WindowWidget)

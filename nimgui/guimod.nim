@@ -156,6 +156,9 @@ func bringToTop*(container: WidgetContainer, child: Widget) =
   if foundChild:
     container.childZOrder[^1] = child
 
+func bringContainerToTopOfParentContainer*(gui: Gui, container: WidgetContainer) =
+  gui.containerStack[^2].bringToTop(container)
+
 # func updateFocus(gui: Gui) =
 #   if gui.hover != nil:
 #     if gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):

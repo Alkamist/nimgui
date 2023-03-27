@@ -1,6 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import ../guimod
+import ./frame
 import ./buttonwidget
 
 type
@@ -8,20 +9,20 @@ type
     title*: string
     headerHeight*: float
 
-proc new*(T: type WindowWidget, gui: Gui): T =
-  result = T()
-  result.headerHeight = 24
-  result.size = vec2(300, 200)
+proc beginWindow*(gui: Gui, id: WidgetId): WindowWidget {.discardable.} =
+  let window = gui.beginContainer(id, WindowWidget)
+  if window.justCreated:
+    window.headerHeight = 24
+    window.size = vec2(300, 200)
 
-proc update*(window: WindowWidget, gui: Gui) =
-  let gfx = gui.drawList
-  let bounds = window.bounds
+  let gfx = window.drawList
+  let bounds = window.absoluteBounds
   let bodyBounds = rect2(
-    window.bounds.position + vec2(0, window.headerHeight),
-    window.bounds.size - vec2(0, window.headerHeight),
+    bounds.position + vec2(0, window.headerHeight),
+    bounds.size - vec2(0, window.headerHeight),
   )
   let headerBounds = rect2(
-    window.bounds.position,
+    bounds.position,
     vec2(window.width, window.headerHeight),
   )
 
@@ -60,29 +61,32 @@ proc update*(window: WindowWidget, gui: Gui) =
   #   clip = true,
   # )
 
-  gui.invisibleButton(headerButton)
+  let headerButton = gui.addInvisibleButton("Header Button")
   headerButton.size = headerBounds.size
   if headerButton.isDown and gui.mouseMoved:
     window.position += gui.mouseDelta
 
   const headerPadding = vec2(3, 3)
-  gui.invisibleButton(closeButton)
+  let closeButton = gui.addInvisibleButton("Close Button")
   let closeButtonHeight = headerBounds.height - headerPadding.y * 2.0
   closeButton.size = vec2(closeButtonHeight, closeButtonHeight)
   closeButton.position = vec2(window.width - closeButton.width - headerPadding.x, headerPadding.y)
   gfx.beginPath()
-  gfx.roundedRect(closeButton.bounds, 2.0)
+  gfx.roundedRect(closeButton.absoluteBounds, 2.0)
   let closeButtonColor = rgb(16, 120, 16)
   if closeButton.isDown: gfx.fillColor = closeButtonColor.darken(0.3)
   elif gui.hover == closeButton: gfx.fillColor = closeButtonColor.lighten(0.05)
   else: gfx.fillColor = closeButtonColor
   gfx.fill()
 
-
-  # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
-
   if gui.isHoveredIncludingChildren(window) and
      (gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)):
-    gui.containerParent.bringToTop(window)
+    window.bringToTop()
 
-implementWidget(window, WindowWidget)
+  gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
+
+proc endWindow*(gui: Gui) =
+  let window = gui.currentContainer(WindowWidget)
+  let gfx = window.drawList
+  gfx.resetClip()
+  gui.endContainer()

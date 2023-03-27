@@ -7,10 +7,10 @@ import ./drawlist
 proc gladLoadGL(): int {.cdecl, importc.}
 var gladIsInitialized {.threadvar.}: bool
 
-proc toNVGEnum(winding: Winding): cint =
-  case winding:
-  of CounterClockwise: NVG_CCW
-  of Clockwise: NVG_CW
+# proc toNVGEnum(winding: Winding): cint =
+#   case winding:
+#   of CounterClockwise: NVG_CCW
+#   of Clockwise: NVG_CW
 
 proc toNVGEnum(winding: PathWinding): cint =
   case winding:
@@ -19,17 +19,17 @@ proc toNVGEnum(winding: PathWinding): cint =
   of Solid: NVG_SOLID
   of Hole: NVG_HOLE
 
-proc toNVGEnum(cap: LineCap): cint =
-  case cap:
-  of Butt: NVG_BUTT
-  of Round: NVG_ROUND
-  of Square: NVG_SQUARE
+# proc toNVGEnum(cap: LineCap): cint =
+#   case cap:
+#   of Butt: NVG_BUTT
+#   of Round: NVG_ROUND
+#   of Square: NVG_SQUARE
 
-proc toNVGEnum(join: LineJoin): cint =
-  case join:
-  of Round: NVG_ROUND
-  of Bevel: NVG_BEVEL
-  of Miter: NVG_MITER
+# proc toNVGEnum(join: LineJoin): cint =
+#   case join:
+#   of Round: NVG_ROUND
+#   of Bevel: NVG_BEVEL
+#   of Miter: NVG_MITER
 
 proc toNvgColor(color: Color): NVGcolor =
   nvgRGBAf(color.r, color.g, color.b, color.a)
@@ -65,24 +65,32 @@ proc endFrame*(renderer: DrawListRenderer, sizePixels: Vec2) =
   nvgEndFrame(renderer.nvgContext)
 
 proc render*(renderer: DrawListRenderer, drawList: DrawList) =
+  let ctx = renderer.nvgContext
   for command in drawList.commands:
     case command.kind:
-    of BeginPath: nvgBeginPath(renderer.nvgContext)
-    of ClosePath: nvgClosePath(renderer.nvgContext)
-    of Fill: nvgFill(renderer.nvgContext)
+    of BeginPath: nvgBeginPath(ctx)
+    of ClosePath: nvgClosePath(ctx)
+    of Fill: nvgFill(ctx)
+    of ResetClip: nvgResetScissor(ctx)
     of Rect:
       let c = command.rect
-      nvgRect(renderer.nvgContext, c.rect.x, c.rect.y, c.rect.width, c.rect.height)
+      nvgRect(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)
     of RoundedRect:
       let c = command.roundedRect
       nvgRoundedRectVarying(
-        renderer.nvgContext,
+        ctx,
         c.rect.x, c.rect.y, c.rect.width, c.rect.height,
         c.topLeftRadius, c.topRightRadius, c.bottomRightRadius, c.bottomLeftRadius,
       )
     of SetFillColor:
       let c = command.setFillColor
-      nvgFillColor(renderer.nvgContext, c.color.toNvgColor)
+      nvgFillColor(ctx, c.color.toNvgColor)
     of SetPathWinding:
       let c = command.setPathWinding
-      nvgPathWinding(renderer.nvgContext, c.winding.toNVGEnum)
+      nvgPathWinding(ctx, c.winding.toNVGEnum)
+    of Clip:
+      let c = command.clip
+      if c.intersect:
+        nvgIntersectScissor(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)
+      else:
+        nvgScissor(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)

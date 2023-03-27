@@ -7,8 +7,8 @@ type
 proc beginRow*(gui: Gui, id: WidgetId): RowWidget {.discardable.} =
   let row = gui.beginContainer(id, RowWidget)
   if row.justCreated:
+    row.noSize = true
     row.spacing = 5.0
-  row.size = vec2(row.container.width, row.container.height)
   row
 
 proc endRow*(gui: Gui) =

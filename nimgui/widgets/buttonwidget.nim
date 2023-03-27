@@ -1,7 +1,7 @@
 {.experimental: "overloadableEnums".}
 
-import ./frame
 import ../guimod
+import ./frame
 
 template buttonBehavior*(button, isHovered, activate, deactivate: untyped): untyped =
   button.clicked = false
@@ -30,6 +30,7 @@ proc addInvisibleButton*(gui: Gui, id: WidgetId): InvisibleButtonWidget {.discar
   let button = gui.addWidget(id, InvisibleButtonWidget)
   let isHovered = gui.isHovered(button)
   buttonBehavior(button, isHovered, gui.mousePressed(Left), gui.mouseReleased(Left))
+  button
 
 
 

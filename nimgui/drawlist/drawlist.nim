@@ -27,14 +27,16 @@ type
     BeginPath
     ClosePath
     Fill
+    ResetClip
     Rect
     RoundedRect
     SetFillColor
     SetPathWinding
+    Clip
 
   DrawCommand* = object
     case kind*: DrawCommandKind
-    of BeginPath .. Fill: discard
+    of BeginPath .. ResetClip: discard
     of Rect: rect*: tuple[
       rect: Rect2,
     ]
@@ -49,6 +51,10 @@ type
     of SetPathWinding: setPathWinding*: tuple[
       winding: PathWinding,
     ]
+    of Clip: clip*: tuple[
+      rect: Rect2,
+      intersect: bool,
+    ]
 
   DrawList* = ref object
     commands*: seq[DrawCommand]
@@ -59,6 +65,7 @@ func clearCommands*(drawList: DrawList) = drawList.commands.setLen(0)
 func beginPath*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: BeginPath)
 func closePath*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ClosePath)
 func fill*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: Fill)
+func resetClip*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ResetClip)
 
 func rect*(drawList: DrawList, rect: Rect2) =
   drawList.commands.add DrawCommand(kind: Rect, rect: (
@@ -83,4 +90,10 @@ func `fillColor=`*(drawList: DrawList, color: Color) =
 func `pathWinding=`*(drawList: DrawList, winding: PathWinding) =
   drawList.commands.add DrawCommand(kind: SetPathWinding, setPathWinding: (
     winding: winding,
+  ))
+
+func clip*(drawList: DrawList, rect: Rect2, intersect = true) =
+  drawList.commands.add DrawCommand(kind: Clip, clip: (
+    rect: rect,
+    intersect: intersect,
   ))

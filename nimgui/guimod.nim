@@ -14,6 +14,7 @@ type
     position*: Vec2 # The relative position of the widget inside its container.
     size*: Vec2
     justCreated*: bool
+    noSize*: bool
 
   WidgetContainer* = ref object of Widget
     drawList*: DrawList
@@ -105,16 +106,25 @@ template mouseEntered*(gui: Gui): bool = gui.osWindow.mouseEntered
 template mouseExited*(gui: Gui): bool = gui.osWindow.mouseExited
 
 func findHover*(container: WidgetContainer, position: Vec2): Widget =
+  # This could probably be cleaned up quite a bit.
   for i in countdown(container.childZOrder.len - 1, 0, 1):
     let child = container.childZOrder[i]
-    if child.absoluteBounds.contains(position):
-      if child of WidgetContainer:
+    if child of WidgetContainer:
+      if child.noSize:
         let hoverOfChild = cast[WidgetContainer](child).findHover(position)
         if hoverOfChild == nil:
-          return child
+          continue
         else:
           return hoverOfChild
       else:
+        if child.absoluteBounds.contains(position):
+          let hoverOfChild = cast[WidgetContainer](child).findHover(position)
+          if hoverOfChild == nil:
+            return child
+          else:
+            return hoverOfChild
+    else:
+      if child.absoluteBounds.contains(position):
         return child
 
 func clearForFrame*(container: WidgetContainer) =

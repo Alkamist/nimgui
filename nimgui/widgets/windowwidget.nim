@@ -15,7 +15,7 @@ proc beginWindow*(gui: Gui, id: WidgetId): WindowWidget {.discardable.} =
     window.headerHeight = 24
     window.size = vec2(300, 200)
 
-  let gfx = window.drawList
+  let gfx = gui.drawList
   let bounds = window.absoluteBounds
   let bodyBounds = rect2(
     bounds.position + vec2(0, window.headerHeight),
@@ -86,7 +86,6 @@ proc beginWindow*(gui: Gui, id: WidgetId): WindowWidget {.discardable.} =
   gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
 
 proc endWindow*(gui: Gui) =
-  let window = gui.currentContainer(WindowWidget)
-  let gfx = window.drawList
+  let gfx = gui.endDrawList
   gfx.resetClip()
   gui.endContainer()

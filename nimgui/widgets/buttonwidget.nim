@@ -49,7 +49,7 @@ proc addButton*(gui: Gui, id: WidgetId): ButtonWidget {.discardable.} =
 
   buttonBehavior(button, isHovered, gui.mousePressed(Left), gui.mouseReleased(Left))
 
-  let gfx = button.container.drawList
+  let gfx = gui.drawList
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)

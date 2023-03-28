@@ -17,7 +17,8 @@ type
     noSize*: bool
 
   WidgetContainer* = ref object of Widget
-    drawList*: DrawList
+    beginDrawList*: DrawList
+    endDrawList*: DrawList
     widgets*: Table[WidgetId, Widget]
     childZOrder*: seq[Widget]
     activeWidgets*: seq[Widget]
@@ -29,6 +30,8 @@ type
     containerStack*: seq[WidgetContainer]
     hover*: Widget
     storedBackgroundColor: Color
+
+template drawList*(container: WidgetContainer): DrawList = container.beginDrawList
 
 func absolutePosition*(widget: Widget): Vec2 =
   if widget.container == nil:
@@ -129,7 +132,8 @@ func findHover*(container: WidgetContainer, position: Vec2): Widget =
 
 func clearForFrame*(container: WidgetContainer) =
   container.activeWidgets.setLen(0)
-  container.drawList.clearCommands()
+  container.beginDrawList.clearCommands()
+  container.endDrawList.clearCommands()
   for child in container.childZOrder:
     if child of WidgetContainer:
       cast[WidgetContainer](child).clearForFrame()
@@ -159,14 +163,16 @@ proc newGui*(): Gui =
   result.osWindow = newOsWindow()
   result.renderer = newDrawListRenderer()
   result.root = WidgetContainer()
-  result.root.drawList = newDrawList()
+  result.root.beginDrawList = newDrawList()
+  result.root.endDrawList = newDrawList()
   result.root.justCreated = true
 
 proc renderContainer(gui: Gui, container: WidgetContainer) =
-  gui.renderer.render(container.drawList)
+  gui.renderer.render(container.beginDrawList)
   for child in container.childZOrder:
     if child of WidgetContainer:
       gui.renderContainer(cast[WidgetContainer](child))
+  gui.renderer.render(container.endDrawList)
 
 proc beginFrame*(gui: Gui) =
   gui.renderer.beginFrame(gui.sizePixels, gui.pixelDensity)
@@ -214,16 +220,22 @@ func addWidget*(gui: Gui, id: WidgetId, T: typedesc): T {.discardable.} =
 func currentContainer*(gui: Gui, T: typedesc): T =
   T(gui.containerStack[^1])
 
+func drawList*(gui: Gui): DrawList =
+  gui.containerStack[^1].beginDrawList
+
+func endDrawList*(gui: Gui): DrawList =
+  gui.containerStack[^1].endDrawList
+
 func beginContainer*(gui: Gui, name: string, T: typedesc): T {.discardable.} =
   let container = gui.addWidget(name, T)
-  container.drawList = newDrawList()
+  if container.justCreated:
+    container.beginDrawList = newDrawList()
+    container.endDrawList = newDrawList()
   gui.containerStack.add container
   container
 
 func endContainer*(gui: Gui) =
   gui.containerStack.setLen(gui.containerStack.len - 1)
-
-# Template and macro wizardry to enable streamlined implementation of widgets.
 
 # template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
 #   when T is WidgetContainer:

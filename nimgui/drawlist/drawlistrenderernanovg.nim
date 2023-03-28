@@ -72,6 +72,10 @@ proc render*(renderer: DrawListRenderer, drawList: DrawList) =
     of ClosePath: nvgClosePath(ctx)
     of Fill: nvgFill(ctx)
     of ResetClip: nvgResetScissor(ctx)
+    of ResetTransform: nvgResetTransform(ctx)
+    of Translate:
+      let c = command.translate
+      nvgTranslate(ctx, c.distance.x, c.distance.y)
     of Rect:
       let c = command.rect
       nvgRect(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)

@@ -28,6 +28,8 @@ type
     ClosePath
     Fill
     ResetClip
+    ResetTransform
+    Translate
     Rect
     RoundedRect
     SetFillColor
@@ -36,7 +38,10 @@ type
 
   DrawCommand* = object
     case kind*: DrawCommandKind
-    of BeginPath .. ResetClip: discard
+    of BeginPath .. ResetTransform: discard
+    of Translate: translate*: tuple[
+      distance: Vec2,
+    ]
     of Rect: rect*: tuple[
       rect: Rect2,
     ]
@@ -66,6 +71,12 @@ func beginPath*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: Be
 func closePath*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ClosePath)
 func fill*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: Fill)
 func resetClip*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ResetClip)
+func resetTransform*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ResetTransform)
+
+func translate*(drawList: DrawList, distance: Vec2) =
+  drawList.commands.add DrawCommand(kind: Translate, translate: (
+    distance: distance,
+  ))
 
 func rect*(drawList: DrawList, rect: Rect2) =
   drawList.commands.add DrawCommand(kind: Rect, rect: (

@@ -24,6 +24,10 @@ template width*(r: Rect2): float = r.size.x
 template `width=`*(r: var Rect2, value: float) = r.size.x = value
 template height*(r: Rect2): float = r.size.y
 template `height=`*(r: var Rect2, value: float) = r.size.y = value
+template left*(r: Rect2): float = r.position.x
+template right*(r: Rect2): float = r.x + r.width
+template top*(r: Rect2): float = r.y
+template bottom*(r: Rect2): float = r.y + r.height
 
 func round*(r: Rect2): Rect2 =
   rect2(r.position.round, r.size.round)

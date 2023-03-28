@@ -5,20 +5,16 @@ import nimgui
 let gui = newGui()
 gui.backgroundColor = rgb(13, 17, 23)
 
+let window1 = gui.root.addWidget(WindowWidget)
+let window2 = gui.root.addWidget(WindowWidget)
+
+# let button1 = window1.addWidget(ButtonWidget)
+# button1.useMouseButton(Left)
+
 gui.onFrame:
-  let window1 = gui.beginWindow("Window 1")
-  let row1 = gui.beginRow("Row 1")
-  row1.position = vec2(5, 50)
-  let button1 = gui.addButton("Button 1")
-  button1.size = vec2(42, 64)
-  let button2 = gui.addButton("Button 2")
-  button2.size = vec2(96, 32)
-  let button3 = gui.addButton("Button 3")
-  button3.size = vec2(263, 76)
-  let button4 = gui.addButton("Button 4")
-  button4.size = vec2(167, 14)
-  gui.endRow()
-  gui.endWindow()
+  discard
+  # if button1.isDown and gui.mouseMoved:
+  #   button1.position += gui.mouseDelta
 
 while gui.isOpen:
   gui.update()

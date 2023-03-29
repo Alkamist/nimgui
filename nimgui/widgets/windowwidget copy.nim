@@ -26,6 +26,12 @@ proc resizeBehavior(window: WindowWidget, gui: Gui) =
   let bottomLeft = gui.addButton("Bottom Left Resize Button")
   let bottomRight = gui.addButton("Bottom Right Resize Button")
 
+  if left.pressed:
+    window.resizeStart = gui.mousePosition
+  if left.isDown and gui.mouseMoved:
+    window.x += gui.mouseDelta.x
+    window.width -= gui.mouseDelta.x
+
   left.position = vec2(0, resizeHitSize)
   left.size = vec2(resizeHitSize, w.height - resizeHitSize2)
   right.position = vec2(w.width - resizeHitSize, resizeHitSize)
@@ -42,12 +48,6 @@ proc resizeBehavior(window: WindowWidget, gui: Gui) =
   bottomLeft.size = vec2(resizeHitSize, resizeHitSize)
   bottomRight.position = vec2(w.width - resizeHitSize, w.height - resizeHitSize)
   bottomRight.size = vec2(resizeHitSize, resizeHitSize)
-
-  if left.pressed:
-    window.resizeStart = gui.mousePosition
-  if left.isDown and gui.mouseMoved:
-    window.x += gui.mouseDelta.x
-    window.width -= gui.mouseDelta.x
 
 proc beginWindow*(gui: Gui, id: WidgetId): WindowWidget {.discardable.} =
   let window = gui.beginContainer(id, WindowWidget)

@@ -1,25 +1,24 @@
 {.experimental: "overloadableEnums".}
 
-import ./math; export math
 import ./oswindow; export oswindow
 import ./drawlist/drawlist; export drawlist
 import ./drawlist/drawlistrenderernanovg
 
 type
-  Widget* = ref object of RootObj
-    gui* {.cursor.}: Gui
-    parent* {.cursor.}: Widget
-    children*: seq[Widget]
-    position*: Vec2
-    size*: Vec2
-
   Gui* = ref object
     osWindow*: OsWindow
     renderer*: DrawListRenderer
-    drawList*: DrawList
-    root*: Widget
-    hover*: Widget
+    gfx*: DrawList
     storedBackgroundColor: Color
+
+# template x*(widget: Widget): auto = widget.position.x
+# template `x=`*(widget: Widget, value: float) = widget.position.x = value
+# template y*(widget: Widget): auto = widget.position.y
+# template `y=`*(widget: Widget, value: float) = widget.position.y = value
+# template width*(widget: Widget): auto = widget.size.x
+# template `width=`*(widget: Widget, value: float) = widget.size.x = value
+# template height*(widget: Widget): auto = widget.size.y
+# template `height=`*(widget: Widget, value: float) = widget.size.y = value
 
 template update*(gui: Gui) = gui.osWindow.update()
 template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
@@ -78,74 +77,6 @@ template lostFocus*(gui: Gui): bool = gui.osWindow.lostFocus
 template mouseEntered*(gui: Gui): bool = gui.osWindow.mouseEntered
 template mouseExited*(gui: Gui): bool = gui.osWindow.mouseExited
 
-method initialize*(widget: Widget) {.base.} = discard
-method update*(widget: Widget) {.base.} = discard
-method draw*(widget: Widget) {.base.} = discard
-
-# template position*(widget: Widget): auto = widget.bounds.position
-# template `position=`*(widget: Widget, value: Vec2): auto = widget.position.size = value
-template x*(widget: Widget): auto = widget.position.x
-template `x=`*(widget: Widget, value: float) = widget.position.x = value
-template y*(widget: Widget): auto = widget.position.y
-template `y=`*(widget: Widget, value: float) = widget.position.y = value
-# template size*(widget: Widget): auto = widget.bounds.size
-# template `size=`*(widget: Widget, value: Vec2): auto = widget.bounds.size = value
-template width*(widget: Widget): auto = widget.size.x
-template `width=`*(widget: Widget, value: float) = widget.size.x = value
-template height*(widget: Widget): auto = widget.size.y
-template `height=`*(widget: Widget, value: float) = widget.size.y = value
-
-template drawList*(widget: Widget): DrawList = widget.gui.drawList
-template isHovered*(widget: Widget): bool = widget.gui.hover == widget
-
-func isHoveredIncludingChildren*(widget: Widget): bool =
-  if widget.isHovered:
-    return true
-  for child in widget.children:
-    if child.isHovered:
-      return true
-
-func absolutePosition*(widget: Widget): Vec2 =
-  if widget.parent == nil:
-    widget.position
-  else:
-    widget.position + widget.parent.absolutePosition
-
-func mousePosition*(widget: Widget): Vec2 =
-  widget.gui.mousePosition - widget.absolutePosition
-
-func bringToTop*(widget: Widget) =
-  let parent = widget.parent
-
-  var found = false
-  for i in 0 ..< parent.children.len - 1:
-    if not found and parent.children[i] == widget:
-      found = true
-    if found:
-      parent.children[i] = parent.children[i + 1]
-
-  if found:
-    parent.children[^1] = widget
-
-func hover*(widget: Widget): Widget =
-  for i in countdown(widget.children.len - 1, 0, 1):
-    let child = widget.children[i]
-    let bounds = rect2(vec2(0, 0), child.size)
-    if bounds.contains(child.mousePosition):
-      let hoverOfChild = child.hover
-      if hoverOfChild == nil:
-        return child
-      else:
-        return hoverOfChild
-
-func addWidget*(widget: Widget, T: typedesc): T =
-  let child = T()
-  child.gui = widget.gui
-  child.parent = widget
-  child.initialize()
-  widget.children.add child
-  child
-
 func backgroundColor*(gui: Gui): Color =
   gui.storedBackgroundColor
 
@@ -157,23 +88,14 @@ proc newGui*(): Gui =
   result = Gui()
   result.osWindow = newOsWindow()
   result.renderer = newDrawListRenderer()
-  result.drawList = newDrawList()
-  result.root = Widget()
-  result.root.gui = result
+  result.gfx = newDrawList()
 
 proc beginFrame*(gui: Gui) =
   gui.renderer.beginFrame(gui.sizePixels, gui.pixelDensity)
-  gui.drawList.clearCommands()
-  gui.root.size = gui.size
-  gui.hover = gui.root.hover
+  gui.gfx.clearCommands()
 
 proc endFrame*(gui: Gui) =
-  for child in gui.root.children:
-    child.update()
-  for child in gui.root.children:
-    child.draw()
-  gui.drawList.resetTransform()
-  gui.renderer.render(gui.drawList)
+  gui.renderer.render(gui.gfx)
   gui.renderer.endFrame(gui.sizePixels)
 
 template onFrame*(gui: Gui, code: untyped): untyped =

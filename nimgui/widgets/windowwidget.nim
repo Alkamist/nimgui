@@ -2,156 +2,150 @@
 
 import ../guimod
 import ./frame
-import ./buttonwidget
 
 const resizeHitSize = 8.0
-const resizeHitSize2 = resizeHitSize * 2.0
 const cornerRadius = 5.0
 const headerHeight = 24.0
 
 type
-  WindowWidget* = ref object of Widget
-    moveButton*: ButtonWidget
-    leftResizeButton*: ButtonWidget
-    rightResizeButton*: ButtonWidget
-    topResizeButton*: ButtonWidget
-    bottomResizeButton*: ButtonWidget
-    topLeftResizeButton*: ButtonWidget
-    topRightResizeButton*: ButtonWidget
-    bottomLeftResizeButton*: ButtonWidget
-    bottomRightResizeButton*: ButtonWidget
-    positionWhenGrabbed: Vec2
-    sizeWhenGrabbed: Vec2
-    mousePositionWhenGrabbed: Vec2
+  WindowWidgetGrabMode* = enum
+    None
+    Move
+    Left
+    Right
+    Top
+    Bottom
+    TopLeft
+    TopRight
+    BottomLeft
+    BottomRight
 
-method initialize*(window: WindowWidget) =
-  window.size = vec2(300, 200)
+  WindowWidget* = ref object
+    title*: string
+    position*: Vec2
+    size*: Vec2
+    minSize*: Vec2
+    maxSize*: Vec2
+    grabMode*: WindowWidgetGrabMode
+    mousePositionWhenGrabbed*: Vec2
+    positionWhenGrabbed*: Vec2
+    sizeWhenGrabbed*: Vec2
 
-  window.moveButton = window.addWidget(ButtonWidget)
-  window.moveButton.useMouseButton(Left)
+template x*(widget: WindowWidget): auto = widget.position.x
+template `x=`*(widget: WindowWidget, value: float) = widget.position.x = value
+template y*(widget: WindowWidget): auto = widget.position.y
+template `y=`*(widget: WindowWidget, value: float) = widget.position.y = value
+template width*(widget: WindowWidget): auto = widget.size.x
+template `width=`*(widget: WindowWidget, value: float) = widget.size.x = value
+template height*(widget: WindowWidget): auto = widget.size.y
+template `height=`*(widget: WindowWidget, value: float) = widget.size.y = value
 
-  window.leftResizeButton = window.addWidget(ButtonWidget)
-  window.leftResizeButton.useMouseButton(Left)
-  window.rightResizeButton = window.addWidget(ButtonWidget)
-  window.rightResizeButton.useMouseButton(Left)
-  window.topResizeButton = window.addWidget(ButtonWidget)
-  window.topResizeButton.useMouseButton(Left)
-  window.bottomResizeButton = window.addWidget(ButtonWidget)
-  window.bottomResizeButton.useMouseButton(Left)
-  window.topLeftResizeButton = window.addWidget(ButtonWidget)
-  window.topLeftResizeButton.useMouseButton(Left)
-  window.topRightResizeButton = window.addWidget(ButtonWidget)
-  window.topRightResizeButton.useMouseButton(Left)
-  window.bottomLeftResizeButton = window.addWidget(ButtonWidget)
-  window.bottomLeftResizeButton.useMouseButton(Left)
-  window.bottomRightResizeButton = window.addWidget(ButtonWidget)
-  window.bottomRightResizeButton.useMouseButton(Left)
+template bounds*(window: WindowWidget): Rect2 =
+  rect2(window.position, window.size)
 
-method update*(window: WindowWidget) =
-  let gui = window.gui
+template bodyBounds*(window: WindowWidget): Rect2 =
+  rect2(
+    window.position + vec2(0, headerHeight),
+    window.size - vec2(0, headerHeight),
+  )
 
-  for child in window.children:
-    child.update()
-
-  if window.moveButton.pressed or
-     window.leftResizeButton.pressed or
-     window.rightResizeButton.pressed or
-     window.topResizeButton.pressed or
-     window.bottomResizeButton.pressed or
-     window.topLeftResizeButton.pressed or
-     window.topRightResizeButton.pressed or
-     window.bottomLeftResizeButton.pressed or
-     window.bottomRightResizeButton.pressed:
-    window.positionWhenGrabbed = window.position
-    window.sizeWhenGrabbed = window.size
-    window.mousePositionWhenGrabbed = gui.mousePosition
-
-  if window.moveButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.position = window.positionWhenGrabbed + grabDelta
-
-  if window.leftResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.x = window.positionWhenGrabbed.x + grabDelta.x
-    window.width = window.sizeWhenGrabbed.x - grabDelta.x
-
-  if window.rightResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.width = window.sizeWhenGrabbed.x + grabDelta.x
-
-  if window.topResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.y = window.positionWhenGrabbed.y + grabDelta.y
-    window.height = window.sizeWhenGrabbed.y - grabDelta.y
-
-  if window.bottomResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.height = window.sizeWhenGrabbed.y + grabDelta.y
-
-  if window.topLeftResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.x = window.positionWhenGrabbed.x + grabDelta.x
-    window.width = window.sizeWhenGrabbed.x - grabDelta.x
-    window.y = window.positionWhenGrabbed.y + grabDelta.y
-    window.height = window.sizeWhenGrabbed.y - grabDelta.y
-
-  if window.topRightResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.width = window.sizeWhenGrabbed.x + grabDelta.x
-    window.y = window.positionWhenGrabbed.y + grabDelta.y
-    window.height = window.sizeWhenGrabbed.y - grabDelta.y
-
-  if window.bottomLeftResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.x = window.positionWhenGrabbed.x + grabDelta.x
-    window.width = window.sizeWhenGrabbed.x - grabDelta.x
-    window.height = window.sizeWhenGrabbed.y + grabDelta.y
-
-  if window.bottomRightResizeButton.isDown and gui.mouseMoved:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
-    window.width = window.sizeWhenGrabbed.x + grabDelta.x
-    window.height = window.sizeWhenGrabbed.y + grabDelta.y
-
-  window.moveButton.size = vec2(window.width, headerHeight)
-  window.leftResizeButton.position = vec2(0, resizeHitSize)
-  window.leftResizeButton.size = vec2(resizeHitSize, window.height - resizeHitSize2)
-  window.rightResizeButton.position = vec2(window.width - resizeHitSize, resizeHitSize)
-  window.rightResizeButton.size = vec2(resizeHitSize, window.height - resizeHitSize2)
-  window.topResizeButton.position = vec2(resizeHitSize, 0)
-  window.topResizeButton.size = vec2(window.width - resizeHitSize2, resizeHitSize)
-  window.bottomResizeButton.position = vec2(resizeHitSize, window.height - resizeHitSize)
-  window.bottomResizeButton.size = vec2(window.width - resizeHitSize2, resizeHitSize)
-  window.topLeftResizeButton.position = vec2(0, 0)
-  window.topLeftResizeButton.size = vec2(resizeHitSize, resizeHitSize)
-  window.topRightResizeButton.position = vec2(window.width - resizeHitSize, 0)
-  window.topRightResizeButton.size = vec2(resizeHitSize, resizeHitSize)
-  window.bottomLeftResizeButton.position = vec2(0, window.height - resizeHitSize)
-  window.bottomLeftResizeButton.size = vec2(resizeHitSize, resizeHitSize)
-  window.bottomRightResizeButton.position = vec2(window.width - resizeHitSize, window.height - resizeHitSize)
-  window.bottomRightResizeButton.size = vec2(resizeHitSize, resizeHitSize)
-
-  if window.isHoveredIncludingChildren() and
-     (gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)):
-    window.bringToTop()
-
-method draw*(window: WindowWidget) =
-  let gfx = window.drawList
-  gfx.translate(window.position)
-
-  let bounds = rect2(vec2(0, 0), window.size)
-  # let bodyBounds = rect2(
-  #   bounds.position + vec2(0, headerHeight),
-  #   bounds.size - vec2(0, headerHeight),
-  # )
-  let headerBounds = rect2(
-    bounds.position,
+template headerBounds*(window: WindowWidget): Rect2 =
+  rect2(
+    window.position,
     vec2(window.width, headerHeight),
   )
+
+template grabBehavior(window: WindowWidget, gui: Gui): untyped =
+  if gui.mousePressed(Left):
+    let m = gui.mousePosition
+    let w = window.bounds
+
+    let inHeader = window.headerBounds.contains(gui.mousePosition)
+    let inTop = m.y >= w.top and m.y < w.top + resizeHitSize
+    let inBottom = m.y < w.bottom and m.y >= w.bottom - resizeHitSize
+    let inLeft = m.x >= w.left and m.x < w.left + resizeHitSize
+    let inRight = m.x < w.right and m.x >= w.right - resizeHitSize
+
+    if inTop:
+      if inLeft: window.grabMode = TopLeft
+      elif inRight: window.grabMode = TopRight
+      else: window.grabMode = Top
+    elif inBottom:
+      if inLeft: window.grabMode = BottomLeft
+      elif inRight: window.grabMode = BottomRight
+      else: window.grabMode = Bottom
+    elif inLeft:
+      window.grabMode = Left
+    elif inRight:
+      window.grabMode = Right
+    elif inHeader:
+      window.grabMode = Move
+
+    if window.grabMode != None:
+      window.mousePositionWhenGrabbed = gui.mousePosition
+      window.positionWhenGrabbed = window.position
+      window.sizeWhenGrabbed = window.size
+
+  if window.grabMode != None:
+    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
+
+    let lastPosition = window.position
+    let lastSize = window.size
+
+    case window.grabMode:
+    of None: discard
+    of Move:
+      window.position = window.positionWhenGrabbed + grabDelta
+    of Left:
+      window.x = window.positionWhenGrabbed.x + grabDelta.x
+      window.width = window.sizeWhenGrabbed.x - grabDelta.x
+    of Right:
+      window.width = window.sizeWhenGrabbed.x + grabDelta.x
+    of Top:
+      window.y = window.positionWhenGrabbed.y + grabDelta.y
+      window.height = window.sizeWhenGrabbed.y - grabDelta.y
+    of Bottom:
+      window.height = window.sizeWhenGrabbed.y + grabDelta.y
+    of TopLeft:
+      window.x = window.positionWhenGrabbed.x + grabDelta.x
+      window.width = window.sizeWhenGrabbed.x - grabDelta.x
+      window.y = window.positionWhenGrabbed.y + grabDelta.y
+      window.height = window.sizeWhenGrabbed.y - grabDelta.y
+    of TopRight:
+      window.width = window.sizeWhenGrabbed.x + grabDelta.x
+      window.y = window.positionWhenGrabbed.y + grabDelta.y
+      window.height = window.sizeWhenGrabbed.y - grabDelta.y
+    of BottomLeft:
+      window.x = window.positionWhenGrabbed.x + grabDelta.x
+      window.width = window.sizeWhenGrabbed.x - grabDelta.x
+      window.height = window.sizeWhenGrabbed.y + grabDelta.y
+    of BottomRight:
+      window.width = window.sizeWhenGrabbed.x + grabDelta.x
+      window.height = window.sizeWhenGrabbed.y + grabDelta.y
+
+    if window.width < window.minSize.x or
+       window.width > window.maxSize.x:
+      window.x = lastPosition.x
+      window.width = lastSize.x
+
+    if window.height < window.minSize.y or
+       window.height > window.maxSize.y:
+      window.y = lastPosition.y
+      window.height = lastSize.y
+
+    if gui.mouseReleased(Left):
+      window.grabMode = None
+
+proc update*(window: WindowWidget, gui: Gui) =
+  let gfx = gui.gfx
+  let bounds = window.bounds
+
+  window.grabBehavior(gui)
 
   gfx.drawFrameWithHeader(
     bounds = bounds,
     borderThickness = 1.0,
-    headerHeight = headerBounds.height,
+    headerHeight = headerHeight,
     cornerRadius = cornerRadius,
     bodyColor = rgb(13, 17, 23),
     headerColor = rgb(22, 27, 34),
@@ -159,16 +153,3 @@ method draw*(window: WindowWidget) =
   )
 
   # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
-  # gfx.resetClip()
-
-  window.moveButton.draw()
-  window.leftResizeButton.draw()
-  window.rightResizeButton.draw()
-  window.topResizeButton.draw()
-  window.bottomResizeButton.draw()
-  window.topLeftResizeButton.draw()
-  window.topRightResizeButton.draw()
-  window.bottomLeftResizeButton.draw()
-  window.bottomRightResizeButton.draw()
-
-  gfx.translate(-window.position)

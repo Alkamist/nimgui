@@ -2,7 +2,7 @@
 
 import std/unicode
 import winim/lean
-import ./oswindowbase; export oswindowbase
+import ../windowbase; export windowbase
 import ../openglwrappers/openglcontext
 
 type
@@ -21,7 +21,7 @@ proc `=destroy`*(window: var type OsWindow()[]) =
     window.isOpen = false
     DestroyWindow(cast[HWND](window.handle))
 
-defineBaseTemplates()
+defineWindowBaseTemplates(OsWindow)
 
 template hwnd(window: OsWindow): HWND =
   cast[HWND](window.handle)
@@ -59,8 +59,8 @@ template updateBounds(window: OsWindow) =
   GetClientRect(window.hwnd, rect.addr)
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.left.addr))
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.right.addr))
-  window.inputState.boundsPixels.position = vec2(rect.left.float, rect.top.float)
-  window.inputState.boundsPixels.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float)
+  window.inputState.bounds.position = vec2(rect.left.float, rect.top.float) / window.pixelDensity
+  window.inputState.bounds.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float) / window.pixelDensity
 
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
   window.openGlContext.select()
@@ -341,7 +341,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
       TrackMouseEvent(tme.addr)
       window.inputState.isHovered = true
 
-    window.inputState.mousePositionPixels = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float)
+    window.inputState.mousePosition = vec2(GET_X_LPARAM(lParam).float, GET_Y_LPARAM(lParam).float) / window.pixelDensity
     window.renderFrameWithoutPollingEvents()
 
   of WM_MOUSELEAVE:

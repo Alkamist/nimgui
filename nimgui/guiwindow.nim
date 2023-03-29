@@ -1,14 +1,17 @@
 {.experimental: "overloadableEnums".}
 
-import ../guimod
-import ./frame
+import std/options; export options
+import ./math; export math
+import ./windowbase; export windowbase
+import ./drawlist; export drawlist
+import ./frame; export frame
 
 const resizeHitSize = 8.0
 const cornerRadius = 5.0
 const headerHeight = 24.0
 
 type
-  WindowWidgetGrabMode* = enum
+  GuiWindowGrabState* = enum
     None
     Move
     Left
@@ -20,79 +23,84 @@ type
     BottomLeft
     BottomRight
 
-  WindowWidget* = ref object
-    title*: string
-    position*: Vec2
-    size*: Vec2
+  GuiWindow* = ref object
+    inputState*: InputState
+    previousInputState*: InputState
+    drawList*: DrawList
     minSize*: Vec2
-    maxSize*: Vec2
-    grabMode*: WindowWidgetGrabMode
+    maxSize*: Option[Vec2]
+    grabState*: GuiWindowGrabState
     mousePositionWhenGrabbed*: Vec2
     positionWhenGrabbed*: Vec2
     sizeWhenGrabbed*: Vec2
 
-template x*(widget: WindowWidget): auto = widget.position.x
-template `x=`*(widget: WindowWidget, value: float) = widget.position.x = value
-template y*(widget: WindowWidget): auto = widget.position.y
-template `y=`*(widget: WindowWidget, value: float) = widget.position.y = value
-template width*(widget: WindowWidget): auto = widget.size.x
-template `width=`*(widget: WindowWidget, value: float) = widget.size.x = value
-template height*(widget: WindowWidget): auto = widget.size.y
-template `height=`*(widget: WindowWidget, value: float) = widget.size.y = value
+defineWindowBaseTemplates(GuiWindow)
 
-template bounds*(window: WindowWidget): Rect2 =
-  rect2(window.position, window.size)
+template `bounds=`*(window: GuiWindow, value: auto) = window.inputState.bounds = value
+template `position=`*(window: GuiWindow, value: auto) = window.inputState.bounds.position = value
+template `x=`*(window: GuiWindow, value: auto) = window.inputState.bounds.position.x = value
+template `y=`*(window: GuiWindow, value: auto) = window.inputState.bounds.position.y = value
+template `size=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size = value
+template `width=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size.x = value
+template `height=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size.y = value
 
-template bodyBounds*(window: WindowWidget): Rect2 =
+template bodyBounds*(window: GuiWindow): Rect2 =
   rect2(
     window.position + vec2(0, headerHeight),
     window.size - vec2(0, headerHeight),
   )
 
-template headerBounds*(window: WindowWidget): Rect2 =
+template headerBounds*(window: GuiWindow): Rect2 =
   rect2(
     window.position,
     vec2(window.width, headerHeight),
   )
 
-template grabBehavior(window: WindowWidget, gui: Gui): untyped =
-  if gui.mousePressed(Left):
-    let m = gui.mousePosition
+proc newGuiWindow*(): GuiWindow =
+  result = GuiWindow()
+  result.initInputState()
+  result.size = vec2(300, 200)
+  result.minSize = vec2(200, headerHeight * 2.0)
+  result.drawList = newDrawList()
+
+template grabBehavior(window: GuiWindow): untyped =
+  if window.mousePressed(Left):
+    let m = window.mousePosition
     let w = window.bounds
 
-    let inHeader = window.headerBounds.contains(gui.mousePosition)
+    let inHeader = window.headerBounds.contains(window.mousePosition)
     let inTop = m.y >= w.top and m.y < w.top + resizeHitSize
     let inBottom = m.y < w.bottom and m.y >= w.bottom - resizeHitSize
     let inLeft = m.x >= w.left and m.x < w.left + resizeHitSize
     let inRight = m.x < w.right and m.x >= w.right - resizeHitSize
 
     if inTop:
-      if inLeft: window.grabMode = TopLeft
-      elif inRight: window.grabMode = TopRight
-      else: window.grabMode = Top
+      if inLeft: window.grabState = TopLeft
+      elif inRight: window.grabState = TopRight
+      else: window.grabState = Top
     elif inBottom:
-      if inLeft: window.grabMode = BottomLeft
-      elif inRight: window.grabMode = BottomRight
-      else: window.grabMode = Bottom
+      if inLeft: window.grabState = BottomLeft
+      elif inRight: window.grabState = BottomRight
+      else: window.grabState = Bottom
     elif inLeft:
-      window.grabMode = Left
+      window.grabState = Left
     elif inRight:
-      window.grabMode = Right
+      window.grabState = Right
     elif inHeader:
-      window.grabMode = Move
+      window.grabState = Move
 
-    if window.grabMode != None:
-      window.mousePositionWhenGrabbed = gui.mousePosition
+    if window.grabState != None:
+      window.mousePositionWhenGrabbed = window.mousePosition
       window.positionWhenGrabbed = window.position
       window.sizeWhenGrabbed = window.size
 
-  if window.grabMode != None:
-    let grabDelta = gui.mousePosition - window.mousePositionWhenGrabbed
+  if window.grabState != None:
+    let grabDelta = window.mousePosition - window.mousePositionWhenGrabbed
 
     let lastPosition = window.position
     let lastSize = window.size
 
-    case window.grabMode:
+    case window.grabState:
     of None: discard
     of Move:
       window.position = window.positionWhenGrabbed + grabDelta
@@ -124,23 +132,23 @@ template grabBehavior(window: WindowWidget, gui: Gui): untyped =
       window.height = window.sizeWhenGrabbed.y + grabDelta.y
 
     if window.width < window.minSize.x or
-       window.width > window.maxSize.x:
+       window.maxSize.isSome and window.width > window.maxSize.get.x:
       window.x = lastPosition.x
       window.width = lastSize.x
 
     if window.height < window.minSize.y or
-       window.height > window.maxSize.y:
+       window.maxSize.isSome and window.height > window.maxSize.get.y:
       window.y = lastPosition.y
       window.height = lastSize.y
 
-    if gui.mouseReleased(Left):
-      window.grabMode = None
+    if window.mouseReleased(Left):
+      window.grabState = None
 
-proc update*(window: WindowWidget, gui: Gui) =
-  let gfx = gui.gfx
+proc beginFrame*(window: GuiWindow) =
+  let gfx = window.drawList
   let bounds = window.bounds
 
-  window.grabBehavior(gui)
+  window.grabBehavior()
 
   gfx.drawFrameWithHeader(
     bounds = bounds,
@@ -153,3 +161,7 @@ proc update*(window: WindowWidget, gui: Gui) =
   )
 
   # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
+
+proc endFrame*(window: GuiWindow) =
+  window.updateInputState()
+  window.drawList.clearCommands()

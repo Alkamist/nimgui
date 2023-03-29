@@ -1,4 +1,4 @@
-import ../guimod
+import ./drawlist/drawlist; export drawlist
 
 func drawFrame*(drawList: DrawList,
                 bounds: Rect2,

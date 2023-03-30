@@ -1,9 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-# A window should have child windows and widgets separately.
-# Handle moving and resizing from the perspective of the parent
-# window manipulating the child windows.
-
 import std/options; export options
 import ./math; export math
 import ./windowbase; export windowbase
@@ -41,13 +37,12 @@ type
 
 defineWindowBaseTemplates(GuiWindow)
 
-template `bounds=`*(window: GuiWindow, value: auto) = window.inputState.bounds = value
-template `position=`*(window: GuiWindow, value: auto) = window.inputState.bounds.position = value
-template `x=`*(window: GuiWindow, value: auto) = window.inputState.bounds.position.x = value
-template `y=`*(window: GuiWindow, value: auto) = window.inputState.bounds.position.y = value
-template `size=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size = value
-template `width=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size.x = value
-template `height=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size.y = value
+template `position=`*(window: GuiWindow, value: auto) = window.inputState.position = value
+template `x=`*(window: GuiWindow, value: auto) = window.inputState.position.x = value
+template `y=`*(window: GuiWindow, value: auto) = window.inputState.position.y = value
+template `size=`*(window: GuiWindow, value: auto) = window.inputState.size = value
+template `width=`*(window: GuiWindow, value: auto) = window.inputState.size.x = value
+template `height=`*(window: GuiWindow, value: auto) = window.inputState.size.y = value
 
 proc newGuiWindow*(): GuiWindow =
   result = GuiWindow()
@@ -56,13 +51,10 @@ proc newGuiWindow*(): GuiWindow =
   result.minSize = vec2(200, headerHeight * 2.0)
 
 proc grabBehavior(child: GuiWindow, parentMousePosition: Vec2) =
-  if child.mousePressed(Left):
+  if child.mouseJustPressed(Left):
     let m = parentMousePosition
-    let w = child.bounds
-    let headerBounds = rect2(
-      child.position,
-      vec2(child.width, headerHeight),
-    )
+    let w = rect2(child.position, child.size)
+    let headerBounds = rect2(child.position, vec2(child.width, headerHeight))
 
     let inHeader = headerBounds.contains(m)
     let inTop = m.y >= w.top and m.y < w.top + resizeHitSize
@@ -137,7 +129,7 @@ proc grabBehavior(child: GuiWindow, parentMousePosition: Vec2) =
       child.y = lastPosition.y
       child.height = lastSize.y
 
-    if child.mouseReleased(Left):
+    if child.mouseJustReleased(Left):
       child.grabState = None
 
 proc update*(window: GuiWindow, gfx: DrawList) =
@@ -158,15 +150,16 @@ proc update*(window: GuiWindow, gfx: DrawList) =
     child.inputState.pixelDensity = window.inputState.pixelDensity
     child.inputState.keyPresses = window.inputState.keyPresses
     child.inputState.keyReleases = window.inputState.keyReleases
-    child.inputState.keyDown = window.inputState.keyDown
+    child.inputState.keyIsDown = window.inputState.keyIsDown
     child.inputState.text = window.inputState.text
-    child.inputState.mousePosition = window.inputState.mousePosition - child.inputState.bounds.position
+    child.inputState.mousePosition = window.inputState.mousePosition - child.inputState.position
 
-    if child.bounds.contains(window.mousePosition):
+    let childBounds = rect2(child.position, child.size)
+    if childBounds.contains(window.mousePosition):
       child.inputState.mouseWheel = window.inputState.mouseWheel
       child.inputState.mousePresses = window.inputState.mousePresses
       child.inputState.mouseReleases = window.inputState.mouseReleases
-      child.inputState.mouseDown = window.inputState.mouseDown
+      child.inputState.mouseIsDown = window.inputState.mouseIsDown
 
     child.grabBehavior(window.mousePosition)
     child.update(gfx)

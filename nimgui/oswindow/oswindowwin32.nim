@@ -59,8 +59,8 @@ template updateBounds(window: OsWindow) =
   GetClientRect(window.hwnd, rect.addr)
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.left.addr))
   ClientToScreen(window.hwnd, cast[ptr POINT](rect.right.addr))
-  window.inputState.bounds.position = vec2(rect.left.float, rect.top.float) / window.pixelDensity
-  window.inputState.bounds.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float) / window.pixelDensity
+  window.inputState.position = vec2(rect.left.float, rect.top.float) / window.pixelDensity
+  window.inputState.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float) / window.pixelDensity
 
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
   window.openGlContext.select()
@@ -288,11 +288,11 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   case msg:
 
-  of WM_SETFOCUS:
-    window.inputState.isFocused = true
+  # of WM_SETFOCUS:
+  #   window.inputState.isFocused = true
 
-  of WM_KILLFOCUS:
-    window.inputState.isFocused = false
+  # of WM_KILLFOCUS:
+  #   window.inputState.isFocused = false
 
   of WM_MOVE:
     window.updateBounds()
@@ -362,23 +362,23 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
     SetCapture(window.hwnd)
     let button = toMouseButton(msg, wParam)
     window.inputState.mousePresses.add button
-    window.inputState.mouseDown[button] = true
+    window.inputState.mouseIsDown[button] = true
 
   of WM_LBUTTONUP, WM_MBUTTONUP, WM_RBUTTONUP, WM_XBUTTONUP:
     ReleaseCapture()
     let button = toMouseButton(msg, wParam)
     window.inputState.mouseReleases.add button
-    window.inputState.mouseDown[button] = false
+    window.inputState.mouseIsDown[button] = false
 
   of WM_KEYDOWN, WM_SYSKEYDOWN:
     let key = toKeyboardKey(wParam, lParam)
     window.inputState.keyPresses.add key
-    window.inputState.keyDown[key] = true
+    window.inputState.keyIsDown[key] = true
 
   of WM_KEYUP, WM_SYSKEYUP:
     let key = toKeyboardKey(wParam, lParam)
     window.inputState.keyReleases.add key
-    window.inputState.keyDown[key] = false
+    window.inputState.keyIsDown[key] = false
 
   of WM_CHAR, WM_SYSCHAR:
     if wParam > 0 and wParam < 0x10000:

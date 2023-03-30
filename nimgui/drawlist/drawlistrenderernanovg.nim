@@ -53,6 +53,7 @@ proc newDrawListRenderer*(): DrawListRenderer =
 proc beginFrame*(renderer: DrawListRenderer, sizePixels: Vec2, pixelDensity: float) =
   nvgBeginFrame(renderer.nvgContext, sizePixels.x / pixelDensity, sizePixels.y / pixelDensity, pixelDensity)
   nvgResetScissor(renderer.nvgContext)
+  nvgResetTransform(renderer.nvgContext)
 
 proc endFrame*(renderer: DrawListRenderer, sizePixels: Vec2) =
   glEnable(GL_BLEND)

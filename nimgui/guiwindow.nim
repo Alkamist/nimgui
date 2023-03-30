@@ -1,5 +1,9 @@
 {.experimental: "overloadableEnums".}
 
+# A window should have child windows and widgets separately.
+# Handle moving and resizing from the perspective of the parent
+# window manipulating the child windows.
+
 import std/options; export options
 import ./math; export math
 import ./windowbase; export windowbase
@@ -24,15 +28,16 @@ type
     BottomRight
 
   GuiWindow* = ref object
+    childWindows*: seq[GuiWindow]
     inputState*: InputState
     previousInputState*: InputState
-    drawList*: DrawList
     minSize*: Vec2
     maxSize*: Option[Vec2]
     grabState*: GuiWindowGrabState
-    mousePositionWhenGrabbed*: Vec2
-    positionWhenGrabbed*: Vec2
-    sizeWhenGrabbed*: Vec2
+    dontDraw*: bool
+    parentMousePositionWhenGrabbed: Vec2
+    positionWhenGrabbed: Vec2
+    sizeWhenGrabbed: Vec2
 
 defineWindowBaseTemplates(GuiWindow)
 
@@ -44,124 +49,127 @@ template `size=`*(window: GuiWindow, value: auto) = window.inputState.bounds.siz
 template `width=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size.x = value
 template `height=`*(window: GuiWindow, value: auto) = window.inputState.bounds.size.y = value
 
-template bodyBounds*(window: GuiWindow): Rect2 =
-  rect2(
-    window.position + vec2(0, headerHeight),
-    window.size - vec2(0, headerHeight),
-  )
-
-template headerBounds*(window: GuiWindow): Rect2 =
-  rect2(
-    window.position,
-    vec2(window.width, headerHeight),
-  )
-
 proc newGuiWindow*(): GuiWindow =
   result = GuiWindow()
   result.initInputState()
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
-  result.drawList = newDrawList()
 
-template grabBehavior(window: GuiWindow): untyped =
-  if window.mousePressed(Left):
-    let m = window.mousePosition
-    let w = window.bounds
+proc grabBehavior(child: GuiWindow, parentMousePosition: Vec2) =
+  if child.mousePressed(Left):
+    let m = parentMousePosition
+    let w = child.bounds
+    let headerBounds = rect2(
+      child.position,
+      vec2(child.width, headerHeight),
+    )
 
-    let inHeader = window.headerBounds.contains(window.mousePosition)
+    let inHeader = headerBounds.contains(m)
     let inTop = m.y >= w.top and m.y < w.top + resizeHitSize
     let inBottom = m.y < w.bottom and m.y >= w.bottom - resizeHitSize
     let inLeft = m.x >= w.left and m.x < w.left + resizeHitSize
     let inRight = m.x < w.right and m.x >= w.right - resizeHitSize
 
     if inTop:
-      if inLeft: window.grabState = TopLeft
-      elif inRight: window.grabState = TopRight
-      else: window.grabState = Top
+      if inLeft: child.grabState = TopLeft
+      elif inRight: child.grabState = TopRight
+      else: child.grabState = Top
     elif inBottom:
-      if inLeft: window.grabState = BottomLeft
-      elif inRight: window.grabState = BottomRight
-      else: window.grabState = Bottom
+      if inLeft: child.grabState = BottomLeft
+      elif inRight: child.grabState = BottomRight
+      else: child.grabState = Bottom
     elif inLeft:
-      window.grabState = Left
+      child.grabState = Left
     elif inRight:
-      window.grabState = Right
+      child.grabState = Right
     elif inHeader:
-      window.grabState = Move
+      child.grabState = Move
 
-    if window.grabState != None:
-      window.mousePositionWhenGrabbed = window.mousePosition
-      window.positionWhenGrabbed = window.position
-      window.sizeWhenGrabbed = window.size
+    if child.grabState != None:
+      child.parentMousePositionWhenGrabbed = parentMousePosition
+      child.positionWhenGrabbed = child.position
+      child.sizeWhenGrabbed = child.size
 
-  if window.grabState != None:
-    let grabDelta = window.mousePosition - window.mousePositionWhenGrabbed
+  if child.grabState != None:
+    let grabDelta = parentMousePosition - child.parentMousePositionWhenGrabbed
 
-    let lastPosition = window.position
-    let lastSize = window.size
+    let lastPosition = child.position
+    let lastSize = child.size
 
-    case window.grabState:
+    case child.grabState:
     of None: discard
     of Move:
-      window.position = window.positionWhenGrabbed + grabDelta
+      child.position = child.positionWhenGrabbed + grabDelta
     of Left:
-      window.x = window.positionWhenGrabbed.x + grabDelta.x
-      window.width = window.sizeWhenGrabbed.x - grabDelta.x
+      child.x = child.positionWhenGrabbed.x + grabDelta.x
+      child.width = child.sizeWhenGrabbed.x - grabDelta.x
     of Right:
-      window.width = window.sizeWhenGrabbed.x + grabDelta.x
+      child.width = child.sizeWhenGrabbed.x + grabDelta.x
     of Top:
-      window.y = window.positionWhenGrabbed.y + grabDelta.y
-      window.height = window.sizeWhenGrabbed.y - grabDelta.y
+      child.y = child.positionWhenGrabbed.y + grabDelta.y
+      child.height = child.sizeWhenGrabbed.y - grabDelta.y
     of Bottom:
-      window.height = window.sizeWhenGrabbed.y + grabDelta.y
+      child.height = child.sizeWhenGrabbed.y + grabDelta.y
     of TopLeft:
-      window.x = window.positionWhenGrabbed.x + grabDelta.x
-      window.width = window.sizeWhenGrabbed.x - grabDelta.x
-      window.y = window.positionWhenGrabbed.y + grabDelta.y
-      window.height = window.sizeWhenGrabbed.y - grabDelta.y
+      child.x = child.positionWhenGrabbed.x + grabDelta.x
+      child.width = child.sizeWhenGrabbed.x - grabDelta.x
+      child.y = child.positionWhenGrabbed.y + grabDelta.y
+      child.height = child.sizeWhenGrabbed.y - grabDelta.y
     of TopRight:
-      window.width = window.sizeWhenGrabbed.x + grabDelta.x
-      window.y = window.positionWhenGrabbed.y + grabDelta.y
-      window.height = window.sizeWhenGrabbed.y - grabDelta.y
+      child.width = child.sizeWhenGrabbed.x + grabDelta.x
+      child.y = child.positionWhenGrabbed.y + grabDelta.y
+      child.height = child.sizeWhenGrabbed.y - grabDelta.y
     of BottomLeft:
-      window.x = window.positionWhenGrabbed.x + grabDelta.x
-      window.width = window.sizeWhenGrabbed.x - grabDelta.x
-      window.height = window.sizeWhenGrabbed.y + grabDelta.y
+      child.x = child.positionWhenGrabbed.x + grabDelta.x
+      child.width = child.sizeWhenGrabbed.x - grabDelta.x
+      child.height = child.sizeWhenGrabbed.y + grabDelta.y
     of BottomRight:
-      window.width = window.sizeWhenGrabbed.x + grabDelta.x
-      window.height = window.sizeWhenGrabbed.y + grabDelta.y
+      child.width = child.sizeWhenGrabbed.x + grabDelta.x
+      child.height = child.sizeWhenGrabbed.y + grabDelta.y
 
-    if window.width < window.minSize.x or
-       window.maxSize.isSome and window.width > window.maxSize.get.x:
-      window.x = lastPosition.x
-      window.width = lastSize.x
+    if child.width < child.minSize.x or
+       child.maxSize.isSome and child.width > child.maxSize.get.x:
+      child.x = lastPosition.x
+      child.width = lastSize.x
 
-    if window.height < window.minSize.y or
-       window.maxSize.isSome and window.height > window.maxSize.get.y:
-      window.y = lastPosition.y
-      window.height = lastSize.y
+    if child.height < child.minSize.y or
+       child.maxSize.isSome and child.height > child.maxSize.get.y:
+      child.y = lastPosition.y
+      child.height = lastSize.y
 
-    if window.mouseReleased(Left):
-      window.grabState = None
+    if child.mouseReleased(Left):
+      child.grabState = None
 
-proc beginFrame*(window: GuiWindow) =
-  let gfx = window.drawList
-  let bounds = window.bounds
+proc update*(window: GuiWindow, gfx: DrawList) =
+  gfx.translate(window.position)
 
-  window.grabBehavior()
+  if not window.dontDraw:
+    gfx.drawFrameWithHeader(
+      bounds = rect2(vec2(0, 0), window.size),
+      borderThickness = 1.0,
+      headerHeight = headerHeight,
+      cornerRadius = cornerRadius,
+      bodyColor = rgb(13, 17, 23),
+      headerColor = rgb(22, 27, 34),
+      borderColor = rgb(52, 59, 66),
+    )
 
-  gfx.drawFrameWithHeader(
-    bounds = bounds,
-    borderThickness = 1.0,
-    headerHeight = headerHeight,
-    cornerRadius = cornerRadius,
-    bodyColor = rgb(13, 17, 23),
-    headerColor = rgb(22, 27, 34),
-    borderColor = rgb(52, 59, 66),
-  )
+  for child in window.childWindows:
+    child.inputState.pixelDensity = window.inputState.pixelDensity
+    child.inputState.keyPresses = window.inputState.keyPresses
+    child.inputState.keyReleases = window.inputState.keyReleases
+    child.inputState.keyDown = window.inputState.keyDown
+    child.inputState.text = window.inputState.text
+    child.inputState.mousePosition = window.inputState.mousePosition - child.inputState.bounds.position
 
-  # gfx.clip(bodyBounds.expand(-0.5 * cornerRadius))
+    if child.bounds.contains(window.mousePosition):
+      child.inputState.mouseWheel = window.inputState.mouseWheel
+      child.inputState.mousePresses = window.inputState.mousePresses
+      child.inputState.mouseReleases = window.inputState.mouseReleases
+      child.inputState.mouseDown = window.inputState.mouseDown
 
-proc endFrame*(window: GuiWindow) =
+    child.grabBehavior(window.mousePosition)
+    child.update(gfx)
+
+  gfx.translate(-window.position)
   window.updateInputState()
-  window.drawList.clearCommands()

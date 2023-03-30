@@ -17,9 +17,15 @@ childWindow.position = vec2(50, 50)
 childWindow.size = vec2(500, 400)
 let childChildWindow = newGuiWindow()
 childChildWindow.position = vec2(50, 50)
+let childChildChildWindow = newGuiWindow()
+childChildChildWindow.position = vec2(50, 50)
+let childChild2Window = newGuiWindow()
+childChild2Window.position = vec2(100, 100)
 
 rootWindow.childWindows.add childWindow
 childWindow.childWindows.add childChildWindow
+childWindow.childWindows.add childChild2Window
+childChildWindow.childWindows.add childChildChildWindow
 
 let childWindow2 = newGuiWindow()
 childWindow2.position = vec2(600, 50)

@@ -37,6 +37,7 @@ proc toNvgColor(color: Color): NVGcolor =
 type
   DrawListRenderer* = ref object
     nvgContext: NVGcontext
+    clipRectStack: seq[Rect2]
 
 proc `=destroy`*(renderer: var type DrawListRenderer()[]) =
   nvgDeleteGL3(renderer.nvgContext)
@@ -51,6 +52,7 @@ proc newDrawListRenderer*(): DrawListRenderer =
   )
 
 proc beginFrame*(renderer: DrawListRenderer, sizePixels: Vec2, pixelDensity: float) =
+  renderer.clipRectStack.setLen(0)
   nvgBeginFrame(renderer.nvgContext, sizePixels.x / pixelDensity, sizePixels.y / pixelDensity, pixelDensity)
   nvgResetScissor(renderer.nvgContext)
   nvgResetTransform(renderer.nvgContext)
@@ -69,11 +71,23 @@ proc render*(renderer: DrawListRenderer, drawList: DrawList) =
   let ctx = renderer.nvgContext
   for command in drawList.commands:
     case command.kind:
-    of BeginPath: nvgBeginPath(ctx)
-    of ClosePath: nvgClosePath(ctx)
-    of Fill: nvgFill(ctx)
-    of ResetClip: nvgResetScissor(ctx)
-    of ResetTransform: nvgResetTransform(ctx)
+    of BeginPath:
+      nvgBeginPath(ctx)
+    of ClosePath:
+      nvgClosePath(ctx)
+    of Fill:
+      nvgFill(ctx)
+    of ResetClip:
+      nvgResetScissor(ctx)
+      renderer.clipRectStack.setLen(0)
+    of PopClipRect:
+      renderer.clipRectStack.setLen(renderer.clipRectStack.len - 1)
+      nvgResetScissor(ctx)
+      if renderer.clipRectStack.len > 0:
+        let rect = renderer.clipRectStack[^1]
+        nvgIntersectScissor(ctx, rect.x, rect.y, rect.width, rect.height)
+    of ResetTransform:
+      nvgResetTransform(ctx)
     of Translate:
       let c = command.translate
       nvgTranslate(ctx, c.distance.x, c.distance.y)
@@ -93,9 +107,7 @@ proc render*(renderer: DrawListRenderer, drawList: DrawList) =
     of SetPathWinding:
       let c = command.setPathWinding
       nvgPathWinding(ctx, c.winding.toNVGEnum)
-    of Clip:
-      let c = command.clip
-      if c.intersect:
-        nvgIntersectScissor(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)
-      else:
-        nvgScissor(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)
+    of PushClipRect:
+      let c = command.pushClipRect
+      renderer.clipRectStack.add c.rect
+      nvgIntersectScissor(ctx, c.rect.x, c.rect.y, c.rect.width, c.rect.height)

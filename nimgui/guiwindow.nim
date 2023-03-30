@@ -53,16 +53,28 @@ proc newGuiWindow*(): GuiWindow =
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
 
+proc grabZoneHovered(window: GuiWindow, parentMousePosition: Vec2): bool =
+  let m = parentMousePosition
+  let w = rect2(window.position, window.size)
+  let inTop = m.y >= w.top and m.y < w.top + headerHeight
+  let inBottom = m.y < w.bottom and m.y >= w.bottom - resizeHitSize
+  let inLeft = m.x >= w.left and m.x < w.left + resizeHitSize
+  let inRight = m.x < w.right and m.x >= w.right - resizeHitSize
+  inTop or inBottom or inLeft or inRight
+
 proc getHover(window: GuiWindow): GuiWindow =
   for i in countdown(window.childWindows.len - 1, 0, 1):
     let child = window.childWindows[i]
     let childBounds = rect2(child.position, child.size)
     if childBounds.contains(window.mousePosition):
-      let hoverOfChild = child.getHover()
-      if hoverOfChild != nil:
-        return hoverOfChild
-      else:
+      if child.grabZoneHovered(window.mousePosition):
         return child
+      else:
+        let hoverOfChild = child.getHover()
+        if hoverOfChild != nil:
+          return hoverOfChild
+        else:
+          return child
 
 proc grabBehavior(child: GuiWindow, parentMousePosition: Vec2) =
   if child.mouseJustPressed(Left):
@@ -160,6 +172,9 @@ proc update*(window: GuiWindow, gfx: DrawList) =
       borderColor = rgb(52, 59, 66),
     )
 
+  let bodyBounds = rect2(vec2(0, headerHeight), vec2(window.width, window.height - headerHeight))
+  gfx.pushClipRect(bodyBounds)
+
   if window.isRoot:
     window.root = window
     window.rootHover = window.getHover()
@@ -184,4 +199,5 @@ proc update*(window: GuiWindow, gfx: DrawList) =
     child.update(gfx)
 
   gfx.translate(-window.position)
+  gfx.popClipRect()
   window.updateInputState()

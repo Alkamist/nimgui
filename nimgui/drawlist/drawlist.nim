@@ -28,13 +28,14 @@ type
     ClosePath
     Fill
     ResetClip
+    PopClipRect
     ResetTransform
     Translate
     Rect
     RoundedRect
     SetFillColor
     SetPathWinding
-    Clip
+    PushClipRect
 
   DrawCommand* = object
     case kind*: DrawCommandKind
@@ -56,9 +57,8 @@ type
     of SetPathWinding: setPathWinding*: tuple[
       winding: PathWinding,
     ]
-    of Clip: clip*: tuple[
+    of PushClipRect: pushClipRect*: tuple[
       rect: Rect2,
-      intersect: bool,
     ]
 
   DrawList* = ref object
@@ -71,6 +71,7 @@ func beginPath*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: Be
 func closePath*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ClosePath)
 func fill*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: Fill)
 func resetClip*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ResetClip)
+func popClipRect*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: PopClipRect)
 func resetTransform*(drawList: DrawList) = drawList.commands.add DrawCommand(kind: ResetTransform)
 
 func translate*(drawList: DrawList, distance: Vec2) =
@@ -103,8 +104,7 @@ func `pathWinding=`*(drawList: DrawList, winding: PathWinding) =
     winding: winding,
   ))
 
-func clip*(drawList: DrawList, rect: Rect2, intersect = true) =
-  drawList.commands.add DrawCommand(kind: Clip, clip: (
+func pushClipRect*(drawList: DrawList, rect: Rect2) =
+  drawList.commands.add DrawCommand(kind: PushClipRect, pushClipRect: (
     rect: rect,
-    intersect: intersect,
   ))

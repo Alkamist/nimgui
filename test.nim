@@ -2,60 +2,23 @@
 
 import nimgui
 
-let mainWindow = newOsWindow()
-mainWindow.backgroundColor = rgb(13, 17, 23)
+let gui = newGui()
+gui.backgroundColor = rgb(13, 17, 23)
 
-let renderer = newDrawListRenderer()
-let drawList = newDrawList()
+gui.onFrame:
+  let gfx = gui.gfx
 
-let rootWindow = newGuiWindow()
-rootWindow.isRoot = true
-rootWindow.dontDraw = true
+  let view1 = gui.beginView("View1")
+  view1.position = vec2(50, 50)
+  view1.size = vec2(8000, 8000)
+  let view2 = gui.beginView("View2")
+  view2.position = vec2(100, 100)
+  view2.size = vec2(50, 50)
+  gfx.beginPath()
+  gfx.rect(rect2(vec2(0, 0), vec2(8000, 8000)))
+  gfx.fillColor = rgb(255, 255, 255)
+  gfx.fill()
+  gui.endView()
 
-let childWindow = newGuiWindow()
-childWindow.position = vec2(50, 50)
-childWindow.size = vec2(500, 400)
-let childChildWindow = newGuiWindow()
-childChildWindow.position = vec2(50, 50)
-let childChildChildWindow = newGuiWindow()
-childChildChildWindow.position = vec2(50, 50)
-let childChild2Window = newGuiWindow()
-childChild2Window.position = vec2(100, 100)
-
-rootWindow.childWindows.add childWindow
-childWindow.childWindows.add childChildWindow
-childWindow.childWindows.add childChild2Window
-childChildWindow.childWindows.add childChildChildWindow
-
-let childWindow2 = newGuiWindow()
-childWindow2.position = vec2(600, 50)
-childWindow2.size = vec2(500, 400)
-let childChildWindow2 = newGuiWindow()
-childChildWindow2.position = vec2(50, 50)
-
-rootWindow.childWindows.add childWindow2
-childWindow2.childWindows.add childChildWindow2
-
-mainWindow.onFrame = proc() =
-  rootWindow.inputState.isHovered = mainWindow.inputState.isHovered
-  rootWindow.inputState.pixelDensity = mainWindow.inputState.pixelDensity
-  rootWindow.inputState.position = vec2(0, 0)
-  rootWindow.inputState.size = mainWindow.inputState.size
-  rootWindow.inputState.mousePosition = mainWindow.inputState.mousePosition
-  rootWindow.inputState.mouseWheel = mainWindow.inputState.mouseWheel
-  rootWindow.inputState.mousePresses = mainWindow.inputState.mousePresses
-  rootWindow.inputState.mouseReleases = mainWindow.inputState.mouseReleases
-  rootWindow.inputState.mouseIsDown = mainWindow.inputState.mouseIsDown
-  rootWindow.inputState.keyPresses = mainWindow.inputState.keyPresses
-  rootWindow.inputState.keyReleases = mainWindow.inputState.keyReleases
-  rootWindow.inputState.keyIsDown = mainWindow.inputState.keyIsDown
-  rootWindow.inputState.text = mainWindow.inputState.text
-
-  renderer.beginFrame(mainWindow.sizePixels, mainWindow.pixelDensity)
-  drawList.clearCommands()
-  rootWindow.update(drawList)
-  renderer.render(drawList)
-  renderer.endFrame(mainWindow.sizePixels)
-
-while mainWindow.isOpen:
-  mainWindow.update()
+while gui.isOpen:
+  gui.update()

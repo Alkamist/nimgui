@@ -9,6 +9,7 @@ let renderer = newDrawListRenderer()
 let drawList = newDrawList()
 
 let rootWindow = newGuiWindow()
+rootWindow.isRoot = true
 rootWindow.dontDraw = true
 
 let childWindow = newGuiWindow()
@@ -29,29 +30,24 @@ childChildWindow2.position = vec2(50, 50)
 rootWindow.childWindows.add childWindow2
 childWindow2.childWindows.add childChildWindow2
 
-proc update(osWindow: OsWindow, rootWindow: GuiWindow) =
-  # guiWindow.isFocused
-  # guiWindow.isHovered
-  rootWindow.inputState.pixelDensity = osWindow.inputState.pixelDensity
-  rootWindow.inputState.position = vec2(0, 0)
-  rootWindow.inputState.size = osWindow.inputState.size
-  rootWindow.inputState.mousePosition = osWindow.inputState.mousePosition
-  rootWindow.inputState.mouseWheel = osWindow.inputState.mouseWheel
-  rootWindow.inputState.mousePresses = osWindow.inputState.mousePresses
-  rootWindow.inputState.mouseReleases = osWindow.inputState.mouseReleases
-  rootWindow.inputState.mouseIsDown = osWindow.inputState.mouseIsDown
-  rootWindow.inputState.keyPresses = osWindow.inputState.keyPresses
-  rootWindow.inputState.keyReleases = osWindow.inputState.keyReleases
-  rootWindow.inputState.keyIsDown = osWindow.inputState.keyIsDown
-  rootWindow.inputState.text = osWindow.inputState.text
-
 mainWindow.onFrame = proc() =
-  mainWindow.update(rootWindow)
+  rootWindow.inputState.isHovered = mainWindow.inputState.isHovered
+  rootWindow.inputState.pixelDensity = mainWindow.inputState.pixelDensity
+  rootWindow.inputState.position = vec2(0, 0)
+  rootWindow.inputState.size = mainWindow.inputState.size
+  rootWindow.inputState.mousePosition = mainWindow.inputState.mousePosition
+  rootWindow.inputState.mouseWheel = mainWindow.inputState.mouseWheel
+  rootWindow.inputState.mousePresses = mainWindow.inputState.mousePresses
+  rootWindow.inputState.mouseReleases = mainWindow.inputState.mouseReleases
+  rootWindow.inputState.mouseIsDown = mainWindow.inputState.mouseIsDown
+  rootWindow.inputState.keyPresses = mainWindow.inputState.keyPresses
+  rootWindow.inputState.keyReleases = mainWindow.inputState.keyReleases
+  rootWindow.inputState.keyIsDown = mainWindow.inputState.keyIsDown
+  rootWindow.inputState.text = mainWindow.inputState.text
+
   renderer.beginFrame(mainWindow.sizePixels, mainWindow.pixelDensity)
   drawList.clearCommands()
-
   rootWindow.update(drawList)
-
   renderer.render(drawList)
   renderer.endFrame(mainWindow.sizePixels)
 

@@ -24,6 +24,7 @@ type
     BottomRight
 
   GuiWindow* = ref object
+    isRoot*: bool
     childWindows*: seq[GuiWindow]
     inputState*: InputState
     previousInputState*: InputState
@@ -34,6 +35,8 @@ type
     parentMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
+    root {.cursor.}: GuiWindow
+    rootHover {.cursor.}: GuiWindow
 
 defineWindowBaseTemplates(GuiWindow)
 
@@ -49,6 +52,17 @@ proc newGuiWindow*(): GuiWindow =
   result.initInputState()
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
+
+proc getHover(window: GuiWindow): GuiWindow =
+  for i in countdown(window.childWindows.len - 1, 0, 1):
+    let child = window.childWindows[i]
+    let childBounds = rect2(child.position, child.size)
+    if childBounds.contains(window.mousePosition):
+      let hoverOfChild = child.getHover()
+      if hoverOfChild != nil:
+        return hoverOfChild
+      else:
+        return child
 
 proc grabBehavior(child: GuiWindow, parentMousePosition: Vec2) =
   if child.mouseJustPressed(Left):
@@ -146,20 +160,25 @@ proc update*(window: GuiWindow, gfx: DrawList) =
       borderColor = rgb(52, 59, 66),
     )
 
+  if window.isRoot:
+    window.root = window
+    window.rootHover = window.getHover()
+
   for child in window.childWindows:
+    child.root = window.root
+    child.rootHover = window.rootHover
+    child.inputState.isHovered = window.rootHover == child
     child.inputState.pixelDensity = window.inputState.pixelDensity
     child.inputState.keyPresses = window.inputState.keyPresses
     child.inputState.keyReleases = window.inputState.keyReleases
     child.inputState.keyIsDown = window.inputState.keyIsDown
     child.inputState.text = window.inputState.text
     child.inputState.mousePosition = window.inputState.mousePosition - child.inputState.position
-
-    let childBounds = rect2(child.position, child.size)
-    if childBounds.contains(window.mousePosition):
-      child.inputState.mouseWheel = window.inputState.mouseWheel
-      child.inputState.mousePresses = window.inputState.mousePresses
-      child.inputState.mouseReleases = window.inputState.mouseReleases
-      child.inputState.mouseIsDown = window.inputState.mouseIsDown
+    child.inputState.mouseReleases = window.inputState.mouseReleases
+    if child.inputState.isHovered:
+      child.inputState.mouseWheel = child.root.inputState.mouseWheel
+      child.inputState.mousePresses = child.root.inputState.mousePresses
+      child.inputState.mouseIsDown = child.root.inputState.mouseIsDown
 
     child.grabBehavior(window.mousePosition)
     child.update(gfx)

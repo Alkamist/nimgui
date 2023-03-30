@@ -82,6 +82,7 @@ template defineWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
     window.inputState.keyReleases.setLen(0)
     window.inputState.time = cpuTime()
 
+  template isHovered*(window: T): bool = window.inputState.isHovered
   template position*(window: T): Vec2 = window.inputState.position
   template positionPixels*(window: T): Vec2 = window.inputState.position * window.inputState.pixelDensity
   template size*(window: T): Vec2 = window.inputState.size

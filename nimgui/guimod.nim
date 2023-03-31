@@ -8,10 +8,16 @@ import ./drawlist/drawlistrenderernanovg
 type
   GuiId* = string
 
+  GuiWidget* = ref object of RootObj
+    justCreated*: bool
+    position*: Vec2
+    size*: Vec2
+
   GuiView* = ref object
     inputState*: InputState
     childViews*: Table[GuiId, GuiView]
     childViewsZOrder*: seq[GuiView]
+    childWidgets*: Table[GuiId, GuiWidget]
 
   Gui* = ref object
     osWindow*: OsWindow
@@ -21,6 +27,18 @@ type
     hoverView*: GuiView
     viewStack*: seq[GuiView]
     storedBackgroundColor: Color
+
+# -------------------- GuiWidget --------------------
+
+template bounds*(widget: GuiWidget): auto = rect2(widget.position, widget.size)
+template x*(widget: GuiWidget): auto = widget.position.x
+template `x=`*(widget: GuiWidget, value: auto) = widget.position.x = value
+template y*(widget: GuiWidget): auto = widget.position.y
+template `y=`*(widget: GuiWidget, value: auto) = widget.position.y = value
+template width*(widget: GuiWidget): auto = widget.size.x
+template `width=`*(widget: GuiWidget, value: auto) = widget.size.x = value
+template height*(widget: GuiWidget): auto = widget.size.y
+template `height=`*(widget: GuiWidget, value: auto) = widget.size.y = value
 
 # -------------------- GuiView --------------------
 
@@ -102,18 +120,18 @@ proc updateChildViewInput(gui: Gui, view: GuiView) =
     child.inputState.keyIsDown = view.inputState.keyIsDown
     child.inputState.text = view.inputState.text
     child.inputState.mousePosition = view.inputState.mousePosition - child.inputState.position
-    child.inputState.mouseReleases = view.inputState.mouseReleases
+    child.inputState.mouseReleases = gui.osWindow.inputState.mouseReleases
     if child.inputState.isHovered:
-      child.inputState.mouseWheel = gui.rootView.inputState.mouseWheel
-      child.inputState.mousePresses = gui.rootView.inputState.mousePresses
-      child.inputState.mouseIsDown = gui.rootView.inputState.mouseIsDown
+      child.inputState.mouseWheel = gui.osWindow.inputState.mouseWheel
+      child.inputState.mousePresses = gui.osWindow.inputState.mousePresses
+      child.inputState.mouseIsDown = gui.osWindow.inputState.mouseIsDown
 
     gui.updateChildViewInput(child)
 
 proc currentView*(gui: Gui): GuiView =
   gui.viewStack[^1]
 
-proc beginView*(gui: Gui, id: GuiId): GuiView =
+proc beginView*(gui: Gui, id: GuiId): GuiView {.discardable.} =
   let gfx = gui.gfx
 
   if not gui.currentView.childViews.hasKey(id):
@@ -136,6 +154,16 @@ proc endView*(gui: Gui) =
     raise newException(Exception, "endView called when the view stack only had the root left in it. Too many endView calls?")
   gui.viewStack.setLen(gui.viewStack.len - 1)
 
+proc addWidget*(gui: Gui, id: GuiId, T: typedesc): T =
+  let view = gui.currentView
+  if not view.childWidgets.hasKey(id):
+    result = T()
+    result.justCreated = true
+    view.childWidgets[id] = result
+  else:
+    result = T(view.childWidgets[id])
+    result.justCreated = false
+
 proc beginFrame*(gui: Gui) =
   gui.viewStack = @[gui.rootView]
   gui.updateHover()
@@ -145,6 +173,8 @@ proc beginFrame*(gui: Gui) =
   gui.gfx.clearCommands()
 
 proc endFrame*(gui: Gui) =
+  if gui.viewStack.len > 1:
+    raise newException(Exception, "endFrame called with more views than the root. Too few endView calls?")
   gui.renderer.render(gui.gfx)
   gui.renderer.endFrame(gui.rootView.sizePixels)
 

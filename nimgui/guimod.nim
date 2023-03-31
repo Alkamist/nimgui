@@ -1,5 +1,6 @@
 {.experimental: "overloadableEnums".}
 
+import std/macros; export macros
 import std/tables
 import ./oswindow; export oswindow
 import ./drawlist/drawlist; export drawlist
@@ -154,17 +155,17 @@ proc updateLayer(gui: Gui, layer: GuiLayer) =
   postDrawList.popClipRect()
   gui.renderer.render(postDrawList)
 
-proc beginLayer*(gui: Gui, id: GuiId): GuiLayer {.discardable.} =
+proc beginLayer*(gui: Gui, id: GuiId, T: typedesc): T {.discardable.} =
   let parentLayer = gui.currentLayer
 
   if not parentLayer.widgets.hasKey(id):
-    result = GuiLayer()
+    result = T()
     result.drawList = newDrawList()
     result.justCreated = true
     parentLayer.widgets[id] = result
     parentLayer.widgetZOrder.add result
   else:
-    result = GuiLayer(parentLayer.widgets[id])
+    result = T(parentLayer.widgets[id])
     result.justCreated = false
     result.drawList.clearCommands()
 
@@ -173,6 +174,9 @@ proc beginLayer*(gui: Gui, id: GuiId): GuiLayer {.discardable.} =
   result.mousePosition = parentLayer.mousePosition - result.position
 
   gui.layerStack.add result
+
+proc beginLayer*(gui: Gui, id: GuiId): GuiLayer {.discardable.} =
+  gui.beginLayer(id, GuiLayer)
 
 proc endLayer*(gui: Gui) =
   if gui.layerStack.len <= 1:
@@ -198,6 +202,7 @@ proc beginFrame*(gui: Gui) =
   gui.layerStack = @[gui.rootLayer]
   gui.updateHovers()
   gui.updateRootInput()
+  gui.rootLayer.drawList.clearCommands()
   gui.renderer.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
 
 proc endFrame*(gui: Gui) =
@@ -212,3 +217,43 @@ template onFrame*(gui: Gui, code: untyped): untyped =
     gui.beginFrame()
     code
     gui.endFrame()
+
+macro makeGuiId*(name: untyped): untyped =
+  case name.kind:
+  of nnkIdent:
+    let nameAsString = name.strVal
+    result = quote do:
+      `nameAsString`
+  of nnkBracketExpr:
+    let nameAsString = name[0].strVal
+    let iteration = name[1]
+    result = quote do:
+      `nameAsString` & "_iteration_" & $`iteration`
+  else:
+    error("GuiWidget identifiers must be in the form name, or name[i].")
+
+# template widgetMacroDefinition(name, T: untyped): untyped {.dirty.} =
+#   template widgetInjection(gui, widget, idString, code: untyped): untyped =
+#     let `widget` {.inject.} = gui.addWidget(idString, T)
+#     code
+#     when compiles(widget.update()):
+#       widget.update()
+
+#   macro `name`*(gui: Gui, widget, code: untyped): untyped =
+#     case widget.kind:
+#     of nnkIdent:
+#       let widgetAsString = widget.strVal
+#       let id = quote do:
+#         `widgetAsString`
+#       result = getAst(widgetInjection(gui, widget, id))
+#     of nnkBracketExpr:
+#       let widgetAsString = widget[0].strVal
+#       let iteration = widget[1]
+#       let id = quote do:
+#         `widgetAsString` & "_iteration_" & $`iteration`
+#       result = getAst(widgetInjection(gui, widget[0], id))
+#     else:
+#       error("Widget identifiers must be in the form name, or name[i].")
+
+# macro implementWidget*(name, T: untyped): untyped =
+#   getAst(widgetMacroDefinition(name, T))

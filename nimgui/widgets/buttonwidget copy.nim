@@ -12,7 +12,11 @@ type
 template justPressed*(button: ButtonWidget): bool = button.isDown and not button.wasDown
 template justReleased*(button: ButtonWidget): bool = button.wasDown and not button.isDown
 
-func update*(button: ButtonWidget, gui: Gui) =
+func addButton*(gui: Gui, id: GuiId): ButtonWidget =
+  let button = gui.addWidget(id, ButtonWidget)
+  if button.justCreated:
+    button.size = vec2(96, 32)
+
   button.justClicked = false
   button.wasDown = button.isDown
 
@@ -47,7 +51,4 @@ func update*(button: ButtonWidget, gui: Gui) =
     borderColor = borderColorHighlighted,
   )
 
-template button*(gui: Gui, name, code: untyped): untyped =
-  let `name` {.inject.} = gui.addWidget(makeGuiId(name), ButtonWidget)
-  code
-  name.update(gui)
+  button

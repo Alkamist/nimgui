@@ -1,4 +1,4 @@
-import ./drawlist/drawlist; export drawlist
+import ../drawlist/drawlist; export drawlist
 
 func drawFrame*(drawList: DrawList,
                 bounds: Rect2,

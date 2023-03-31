@@ -2,23 +2,23 @@
 
 import ./buttonwidget
 import ../guimod
-import ../frame
+import ./frame
 
-const resizeHitSize = 8.0
+# const resizeHitSize = 8.0
 const borderThickness = 1.0
 const headerHeight = 24.0
 const cornerRadius = 5.0
 
 type
   WindowWidget* = ref object of GuiWidget
-    mousePositionWhenGrabbed: Vec2
-    positionWhenGrabbed: Vec2
-    sizeWhenGrabbed: Vec2
+#     mousePositionWhenGrabbed: Vec2
+#     positionWhenGrabbed: Vec2
+#     sizeWhenGrabbed: Vec2
 
-template grab(): untyped =
-  window.mousePositionWhenGrabbed = view.mousePosition
-  window.positionWhenGrabbed = window.position
-  window.sizeWhenGrabbed = window.size
+# template grab(): untyped =
+#   window.mousePositionWhenGrabbed = view.mousePosition
+#   window.positionWhenGrabbed = window.position
+#   window.sizeWhenGrabbed = window.size
 
 func beginWindow*(gui: Gui, id: GuiId): WindowWidget =
   let gfx = gui.gfx

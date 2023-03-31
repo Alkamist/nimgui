@@ -9,6 +9,7 @@ type
   GuiId* = string
 
   GuiWidget* = ref object of RootObj
+    parent* {.cursor.}: GuiLayer
     isHovered*: bool
     justCreated*: bool
     passInput*: bool
@@ -16,6 +17,7 @@ type
     size*: Vec2
 
   GuiLayer* = ref object of GuiWidget
+    drawList*: DrawList
     # mouseIsCaptured*: bool
     mousePosition*: Vec2
     widgets*: Table[GuiId, GuiWidget]
@@ -24,7 +26,6 @@ type
   Gui* = ref object
     osWindow*: OsWindow
     renderer*: DrawListRenderer
-    gfx*: DrawList
     rootLayer*: GuiLayer
     layerStack*: seq[GuiLayer]
     hovers*: seq[GuiWidget]
@@ -41,6 +42,7 @@ template height*(widget: GuiWidget): float = widget.size.y
 template `height=`*(widget: GuiWidget, value: float) = widget.size.y = value
 
 template currentLayer*(gui: Gui): GuiLayer = gui.layerStack[^1]
+template drawList*(gui: Gui): DrawList = gui.currentLayer.drawList
 template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
 template update*(gui: Gui): untyped = gui.osWindow.update()
 template time*(gui: Gui): float = gui.osWindow.time
@@ -70,6 +72,19 @@ template scale*(gui: Gui): float = gui.osWindow.scale
 template pixelDensityChanged*(gui: Gui): bool = gui.osWindow.pixelDensityChanged
 template aspectRatio*(gui: Gui): float = gui.osWindow.aspectRatio
 
+func bringToTop*(layer: GuiLayer) =
+  let parent = layer.parent
+  var foundChild = false
+
+  for i in 0 ..< parent.widgetZOrder.len - 1:
+    if not foundChild and parent.widgetZOrder[i] == layer:
+      foundChild = true
+    if foundChild:
+      parent.widgetZOrder[i] = parent.widgetZOrder[i + 1]
+
+  if foundChild:
+    parent.widgetZOrder[^1] = layer
+
 func backgroundColor*(gui: Gui): Color =
   gui.storedBackgroundColor
 
@@ -81,8 +96,8 @@ proc newGui*(): Gui =
   result = Gui()
   result.osWindow = newOsWindow()
   result.renderer = newDrawListRenderer()
-  result.gfx = newDrawList()
   result.rootLayer = GuiLayer()
+  result.rootLayer.drawList = newDrawList()
   result.rootLayer.justCreated = true
 
 func childMouseHitTest(layer: GuiLayer): seq[GuiWidget] =
@@ -112,32 +127,43 @@ proc updateRootInput(gui: Gui) =
   gui.rootLayer.size = gui.osWindow.inputState.size
   gui.rootLayer.mousePosition = gui.osWindow.inputState.mousePosition - gui.rootLayer.position
 
+proc renderLayer(gui: Gui, layer: GuiLayer) =
+  let preDrawList = newDrawList()
+  preDrawList.translate(layer.position)
+  preDrawList.pushClipRect(rect2(vec2(0, 0), layer.size))
+  gui.renderer.render(preDrawList)
+
+  gui.renderer.render(layer.drawList)
+  for child in layer.widgetZOrder:
+    if child of GuiLayer:
+      gui.renderLayer(GuiLayer(child))
+
+  let postDrawList = newDrawList()
+  postDrawList.translate(-layer.position)
+  postDrawList.popClipRect()
+  gui.renderer.render(postDrawList)
+
 proc beginLayer*(gui: Gui, id: GuiId): GuiLayer {.discardable.} =
   let parentLayer = gui.currentLayer
 
   if not parentLayer.widgets.hasKey(id):
     result = GuiLayer()
+    result.drawList = newDrawList()
     result.justCreated = true
     parentLayer.widgets[id] = result
     parentLayer.widgetZOrder.add result
   else:
     result = GuiLayer(parentLayer.widgets[id])
     result.justCreated = false
+    result.drawList.clearCommands()
 
+  result.parent = parentLayer
   result.isHovered = gui.hovers.contains(result)
   result.mousePosition = parentLayer.mousePosition - result.position
 
   gui.layerStack.add result
 
-  let gfx = gui.gfx
-  gfx.translate(result.position)
-  gfx.pushClipRect(rect2(vec2(0, 0), result.size))
-
 proc endLayer*(gui: Gui) =
-  let gfx = gui.gfx
-  let layer = gui.currentLayer
-  gfx.translate(-layer.position)
-  gfx.popClipRect()
   if gui.layerStack.len <= 1:
     raise newException(Exception, "endLayer called when the layer stack only had the root left in it. Too many endLayer calls?")
   gui.layerStack.setLen(gui.layerStack.len - 1)
@@ -154,6 +180,7 @@ proc addWidget*(gui: Gui, id: GuiId, T: typedesc): T =
     result = T(parentLayer.widgets[id])
     result.justCreated = false
 
+  result.parent = parentLayer
   result.isHovered = gui.hovers.contains(result)
 
 proc beginFrame*(gui: Gui) =
@@ -161,12 +188,11 @@ proc beginFrame*(gui: Gui) =
   gui.updateHovers()
   gui.updateRootInput()
   gui.renderer.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
-  gui.gfx.clearCommands()
 
 proc endFrame*(gui: Gui) =
   if gui.layerStack.len > 1:
     raise newException(Exception, "endFrame called with more layers than the root. Too few endLayer calls?")
-  gui.renderer.render(gui.gfx)
+  gui.renderLayer(gui.rootLayer)
   gui.renderer.endFrame(gui.osWindow.sizePixels)
   gui.rootLayer.justCreated = false
 

@@ -1,7 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import ../guimod
-import ../frame
+import ./frame
 
 type
   ButtonWidget* = ref object of GuiWidget
@@ -28,7 +28,7 @@ func addButton*(gui: Gui, id: GuiId): ButtonWidget =
     if button.isHovered:
       button.justClicked = true
 
-  let gfx = gui.gfx
+  let gfx = gui.drawList
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)

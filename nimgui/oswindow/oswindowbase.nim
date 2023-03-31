@@ -1,6 +1,6 @@
 {.experimental: "overloadableEnums".}
 
-import ./math; export math
+import ../math; export math
 
 const densityPixelDpi* = 96.0
 
@@ -54,9 +54,9 @@ type
     keyPresses*: seq[KeyboardKey]
     keyReleases*: seq[KeyboardKey]
     keyIsDown*: array[KeyboardKey, bool]
-    text*: string
+    textInput*: string
 
-template defineWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
+template defineOsWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
   import std/times
 
   template initInputState*(window: T) =
@@ -75,7 +75,7 @@ template defineWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
     window.inputState.previousPixelDensity = window.inputState.pixelDensity
     window.inputState.previousMousePosition = window.inputState.mousePosition
     window.inputState.mouseWheel = vec2(0, 0)
-    window.inputState.text = ""
+    window.inputState.textInput = ""
     window.inputState.mousePresses.setLen(0)
     window.inputState.mouseReleases.setLen(0)
     window.inputState.keyPresses.setLen(0)
@@ -97,7 +97,7 @@ template defineWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
   template keyPresses*(window: T): seq[KeyboardKey] = window.inputState.keyPresses
   template keyReleases*(window: T): seq[KeyboardKey] = window.inputState.keyReleases
   template keyIsDown*(window: T, key: KeyboardKey): bool = window.inputState.keyIsDown[key]
-  template text*(window: T): string = window.inputState.text
+  template textInput*(window: T): string = window.inputState.textInput
 
   template justMoved*(window: T): bool = window.inputState.position != window.inputState.previousPosition
   template positionDelta*(window: T): Vec2 = window.inputState.position - window.inputState.previousPosition
@@ -117,7 +117,7 @@ template defineWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
 
   template mouseJustMoved*(window: T): bool = window.inputState.mousePosition != window.inputState.previousMousePosition
   template mouseDelta*(window: T): Vec2 = window.inputState.mousePosition - window.inputState.previousMousePosition
-  template mouseWheelMoved*(window: T): bool = window.inputState.mouseWheel.x != 0.0 or window.inputState.mouseWheel.y != 0.0
+  template mouseWheelJustMoved*(window: T): bool = window.inputState.mouseWheel.x != 0.0 or window.inputState.mouseWheel.y != 0.0
   template mouseJustPressed*(window: T, button: MouseButton): bool = button in window.inputState.mousePresses
   template mouseJustReleased*(window: T, button: MouseButton): bool = button in window.inputState.mouseReleases
   template anyMouseJustPressed*(window: T): bool = window.inputState.mousePresses.len > 0

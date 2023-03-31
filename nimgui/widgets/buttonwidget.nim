@@ -13,24 +13,19 @@ template justPressed*(button: ButtonWidget): bool = button.isDown and not button
 template justReleased*(button: ButtonWidget): bool = button.wasDown and not button.isDown
 
 func addButton*(gui: Gui, id: GuiId): ButtonWidget =
-  let view = gui.currentView
-
   let button = gui.addWidget(id, ButtonWidget)
   if button.justCreated:
     button.size = vec2(96, 32)
 
-  let bounds = button.bounds
-  let mouseIsInside = view.isHovered and bounds.contains(view.mousePosition)
-
   button.justClicked = false
   button.wasDown = button.isDown
 
-  if mouseIsInside and view.mouseJustPressed(Left):
+  if button.isHovered and gui.mouseJustPressed(Left):
     button.isDown = true
 
-  if button.isDown and view.mouseJustReleased(Left):
+  if button.isDown and gui.mouseJustReleased(Left):
     button.isDown = false
-    if mouseIsInside:
+    if button.isHovered:
       button.justClicked = true
 
   let gfx = gui.gfx
@@ -40,16 +35,16 @@ func addButton*(gui: Gui, id: GuiId): ButtonWidget =
 
   let bodyColorHighlighted =
     if button.isDown: bodyColor.darken(0.3)
-    elif mouseIsInside: bodyColor.lighten(0.05)
+    elif button.isHovered: bodyColor.lighten(0.05)
     else: bodyColor
 
   let borderColorHighlighted =
     if button.isDown: borderColor.darken(0.1)
-    elif mouseIsInside: borderColor.lighten(0.4)
+    elif button.isHovered: borderColor.lighten(0.4)
     else: borderColor
 
   gfx.drawFrame(
-    bounds = bounds,
+    bounds = button.bounds,
     borderThickness = 1.0,
     cornerRadius = 5.0,
     bodyColor = bodyColorHighlighted,

@@ -2,7 +2,7 @@
 
 import std/unicode
 import winim/lean
-import ../windowbase; export windowbase
+import ./oswindowbase; export oswindowbase
 import ../openglwrappers/openglcontext
 
 type
@@ -21,7 +21,7 @@ proc `=destroy`*(window: var type OsWindow()[]) =
     window.isOpen = false
     DestroyWindow(cast[HWND](window.handle))
 
-defineWindowBaseTemplates(OsWindow)
+defineOsWindowBaseTemplates(OsWindow)
 
 template hwnd(window: OsWindow): HWND =
   cast[HWND](window.handle)
@@ -382,7 +382,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   of WM_CHAR, WM_SYSCHAR:
     if wParam > 0 and wParam < 0x10000:
-      window.inputState.text &= cast[Rune](wParam).toUTF8
+      window.inputState.textInput &= cast[Rune](wParam).toUTF8
 
   # of WM_NCCALCSIZE:
   #   return 0

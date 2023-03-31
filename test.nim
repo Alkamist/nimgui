@@ -8,18 +8,20 @@ gui.backgroundColor = rgb(13, 17, 23)
 gui.onFrame:
   let gfx = gui.gfx
 
-  let view1 = gui.beginView("View1")
-  view1.position = vec2(50, 50)
-  view1.size = vec2(8000, 8000)
+  let layer1 = gui.beginLayer("Layer1")
+  layer1.passInput = false
+  layer1.position = vec2(50, 50)
+  layer1.size = vec2(8000, 8000)
 
   gfx.beginPath()
   gfx.rect(rect2(vec2(0, 0), vec2(8000, 8000)))
   gfx.fillColor = rgb(100, 0, 0)
   gfx.fill()
 
-  let view2 = gui.beginView("View2")
-  view2.position = vec2(50, 50)
-  view2.size = vec2(8000, 8000)
+  let layer2 = gui.beginLayer("Layer2")
+  layer2.passInput = false
+  layer2.position = vec2(50, 50)
+  layer2.size = vec2(8000, 8000)
 
   gfx.beginPath()
   gfx.rect(rect2(vec2(0, 0), vec2(8000, 8000)))
@@ -30,9 +32,8 @@ gui.onFrame:
   let button1 = gui.addButton("Button1")
   # gui.endWindow()
 
-
-  gui.endView()
-  gui.endView()
+  gui.endLayer()
+  gui.endLayer()
 
 while gui.isOpen:
   gui.update()

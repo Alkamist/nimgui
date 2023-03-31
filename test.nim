@@ -16,7 +16,7 @@ proc testWindow(id: GuiId, position: Vec2) =
   gfx1.fillColor = rgb(100, 0, 0)
   gfx1.fill()
 
-  if layer.isHovered and gui.mouseJustPressed(Left):
+  if layer.isHoveredIncludingChildren and gui.mouseJustPressed(Left):
     layer.bringToTop()
 
   discard gui.addButton("Button")

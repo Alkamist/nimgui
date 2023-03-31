@@ -72,6 +72,17 @@ template scale*(gui: Gui): float = gui.osWindow.scale
 template pixelDensityChanged*(gui: Gui): bool = gui.osWindow.pixelDensityChanged
 template aspectRatio*(gui: Gui): float = gui.osWindow.aspectRatio
 
+func isHoveredIncludingChildren*(layer: GuiLayer): bool =
+  if layer.isHovered:
+    return true
+  for child in layer.widgetZOrder:
+    if child of GuiLayer:
+      if GuiLayer(child).isHoveredIncludingChildren:
+        return true
+    else:
+      if child.isHovered:
+        return true
+
 func bringToTop*(layer: GuiLayer) =
   let parent = layer.parent
   var foundChild = false
@@ -127,7 +138,7 @@ proc updateRootInput(gui: Gui) =
   gui.rootLayer.size = gui.osWindow.inputState.size
   gui.rootLayer.mousePosition = gui.osWindow.inputState.mousePosition - gui.rootLayer.position
 
-proc renderLayer(gui: Gui, layer: GuiLayer) =
+proc updateLayer(gui: Gui, layer: GuiLayer) =
   let preDrawList = newDrawList()
   preDrawList.translate(layer.position)
   preDrawList.pushClipRect(rect2(vec2(0, 0), layer.size))
@@ -136,7 +147,7 @@ proc renderLayer(gui: Gui, layer: GuiLayer) =
   gui.renderer.render(layer.drawList)
   for child in layer.widgetZOrder:
     if child of GuiLayer:
-      gui.renderLayer(GuiLayer(child))
+      gui.updateLayer(GuiLayer(child))
 
   let postDrawList = newDrawList()
   postDrawList.translate(-layer.position)
@@ -192,7 +203,7 @@ proc beginFrame*(gui: Gui) =
 proc endFrame*(gui: Gui) =
   if gui.layerStack.len > 1:
     raise newException(Exception, "endFrame called with more layers than the root. Too few endLayer calls?")
-  gui.renderLayer(gui.rootLayer)
+  gui.updateLayer(gui.rootLayer)
   gui.renderer.endFrame(gui.osWindow.sizePixels)
   gui.rootLayer.justCreated = false
 

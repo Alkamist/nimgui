@@ -4,15 +4,21 @@ import ../guimod
 import ./frame
 
 type
-  ButtonWidget* = ref object of GuiWidget
+  GuiButton* = ref object of GuiWidget
     isDown*: bool
     wasDown*: bool
     justClicked*: bool
 
-template justPressed*(button: ButtonWidget): bool = button.isDown and not button.wasDown
-template justReleased*(button: ButtonWidget): bool = button.wasDown and not button.isDown
+template justPressed*(button: GuiButton): bool = button.isDown and not button.wasDown
+template justReleased*(button: GuiButton): bool = button.wasDown and not button.isDown
 
-func update*(button: ButtonWidget, gui: Gui) =
+func addButton*(layer: GuiLayer): GuiButton =
+  result = layer.addWidget(GuiButton)
+  result.size = vec2(96, 32)
+
+method update*(button: GuiButton) =
+  let gui = button.gui
+
   button.justClicked = false
   button.wasDown = button.isDown
 
@@ -24,7 +30,8 @@ func update*(button: ButtonWidget, gui: Gui) =
     if button.isHovered:
       button.justClicked = true
 
-  let gfx = gui.drawList
+method draw*(button: GuiButton) =
+  let gfx = button.gui.drawList
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)
@@ -46,8 +53,3 @@ func update*(button: ButtonWidget, gui: Gui) =
     bodyColor = bodyColorHighlighted,
     borderColor = borderColorHighlighted,
   )
-
-template button*(gui: Gui, name, code: untyped): untyped =
-  let `name` {.inject.} = gui.addWidget(makeGuiId(name), ButtonWidget)
-  code
-  name.update(gui)

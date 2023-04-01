@@ -85,12 +85,12 @@ func isHoveredIncludingChildren*(layer: GuiLayer): bool =
         return true
 
 func drawChildren*(layer: GuiLayer) =
-  # let gfx = layer.gui.drawList
-  # gfx.translate(layer.position)
+  let gfx = layer.gui.drawList
+  gfx.translate(layer.position)
   for child in layer.children:
     if not child.dontDraw:
       child.draw()
-  # gfx.translate(-layer.position)
+  gfx.translate(-layer.position)
 
 func bringToTop*(widget: GuiWidget) =
   let parent = widget.parent

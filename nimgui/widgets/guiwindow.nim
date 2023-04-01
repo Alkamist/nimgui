@@ -179,9 +179,8 @@ method update*(window: GuiWindow) =
 method draw*(window: GuiWindow) =
   let gfx = window.gui.drawList
 
-  gfx.translate(window.position)
   gfx.drawFrameWithHeader(
-    bounds = rect2(vec2(0, 0), window.size),
+    bounds = window.bounds,
     borderThickness = borderThickness,
     headerHeight = headerHeight,
     cornerRadius = cornerRadius,
@@ -191,4 +190,3 @@ method draw*(window: GuiWindow) =
   )
 
   window.drawChildren()
-  gfx.translate(-window.position)

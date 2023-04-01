@@ -8,48 +8,41 @@ const resizeHitSize = 8.0
 const resizeHitSize2 = resizeHitSize * 2.0
 const borderThickness = 1.0
 const headerHeight = 24.0
-const cornerRadius = 5.0
+const cornerRadius = 6.0
 
 type
   GuiWindow* = ref object of GuiLayer
+    body*: GuiLayer
     minSize*: Vec2
-    moveButton*: GuiButton
-    resizeLeftButton*: GuiButton
-    resizeRightButton*: GuiButton
-    resizeTopButton*: GuiButton
-    resizeBottomButton*: GuiButton
-    resizeTopLeftButton*: GuiButton
-    resizeTopRightButton*: GuiButton
-    resizeBottomLeftButton*: GuiButton
-    resizeBottomRightButton*: GuiButton
+    moveButton*: GuiInvisibleButton
+    resizeLeftButton*: GuiInvisibleButton
+    resizeRightButton*: GuiInvisibleButton
+    resizeTopButton*: GuiInvisibleButton
+    resizeBottomButton*: GuiInvisibleButton
+    resizeTopLeftButton*: GuiInvisibleButton
+    resizeTopRightButton*: GuiInvisibleButton
+    resizeBottomLeftButton*: GuiInvisibleButton
+    resizeBottomRightButton*: GuiInvisibleButton
     guiMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
 
 func addWindow*(layer: GuiLayer): GuiWindow =
   result = layer.addWidget(GuiWindow)
+  result.body = result.addWidget(GuiLayer)
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
-  result.moveButton = result.addButton()
-  result.moveButton.dontDraw = true
-  result.resizeLeftButton = result.addButton()
-  result.resizeLeftButton.dontDraw = true
-  result.resizeRightButton = result.addButton()
-  result.resizeRightButton.dontDraw = true
-  result.resizeTopButton = result.addButton()
-  result.resizeTopButton.dontDraw = true
-  result.resizeBottomButton = result.addButton()
-  result.resizeBottomButton.dontDraw = true
-  result.resizeTopLeftButton = result.addButton()
-  result.resizeTopLeftButton.dontDraw = true
-  result.resizeTopRightButton = result.addButton()
-  result.resizeTopRightButton.dontDraw = true
-  result.resizeBottomLeftButton = result.addButton()
-  result.resizeBottomLeftButton.dontDraw = true
-  result.resizeBottomRightButton = result.addButton()
-  result.resizeBottomRightButton.dontDraw = true
+  result.moveButton = result.addInvisibleButton()
+  result.resizeLeftButton = result.addInvisibleButton()
+  result.resizeRightButton = result.addInvisibleButton()
+  result.resizeTopButton = result.addInvisibleButton()
+  result.resizeBottomButton = result.addInvisibleButton()
+  result.resizeTopLeftButton = result.addInvisibleButton()
+  result.resizeTopRightButton = result.addInvisibleButton()
+  result.resizeBottomLeftButton = result.addInvisibleButton()
+  result.resizeBottomRightButton = result.addInvisibleButton()
 
-func updateButtonBounds(window: GuiWindow) =
+func updateMoveResizeButtonBounds(window: GuiWindow) =
   window.moveButton.position = vec2(0, 0)
   window.moveButton.size = vec2(window.width, headerHeight)
   window.resizeLeftButton.position = vec2(0, resizeHitSize)
@@ -106,18 +99,6 @@ func moveAndResize(window: GuiWindow) =
       let correction = window.height - window.minSize.y
       window.height -= correction
 
-  window.updateButtonBounds()
-
-  window.moveButton.update()
-  window.resizeLeftButton.update()
-  window.resizeRightButton.update()
-  window.resizeTopButton.update()
-  window.resizeBottomButton.update()
-  window.resizeTopLeftButton.update()
-  window.resizeTopRightButton.update()
-  window.resizeBottomLeftButton.update()
-  window.resizeBottomRightButton.update()
-
   if window.moveButton.justPressed or
      window.resizeLeftButton.justPressed or window.resizeRightButton.justPressed or
      window.resizeTopButton.justPressed or window.resizeBottomButton.justPressed or
@@ -170,13 +151,13 @@ func moveAndResize(window: GuiWindow) =
 method update*(window: GuiWindow) =
   let gui = window.gui
 
+  window.updateMoveResizeButtonBounds()
   window.moveAndResize()
 
   if window.isHoveredIncludingChildren and
      gui.mouseJustPressed(Left) or gui.mouseJustPressed(Middle) or gui.mouseJustPressed(Right):
     window.bringToTop()
 
-method draw*(window: GuiWindow) =
   let gfx = window.gui.drawList
 
   gfx.drawFrameWithHeader(
@@ -189,4 +170,7 @@ method draw*(window: GuiWindow) =
     borderColor = rgb(52, 59, 66),
   )
 
-  window.drawChildren()
+  window.body.position = vec2(0.5 * cornerRadius, 0.5 * cornerRadius + headerHeight)
+  window.body.size = vec2(window.width - cornerRadius, window.height - headerHeight - cornerRadius)
+
+  window.updateChildren()

@@ -4,6 +4,33 @@ import ../guimod
 import ./frame
 
 type
+  GuiInvisibleButton* = ref object of GuiWidget
+    isDown*: bool
+    wasDown*: bool
+    justClicked*: bool
+
+template justPressed*(button: GuiInvisibleButton): bool = button.isDown and not button.wasDown
+template justReleased*(button: GuiInvisibleButton): bool = button.wasDown and not button.isDown
+
+func addInvisibleButton*(layer: GuiLayer): GuiInvisibleButton =
+  result = layer.addWidget(GuiInvisibleButton)
+  result.size = vec2(96, 32)
+
+method update*(button: GuiInvisibleButton) =
+  let gui = button.gui
+
+  button.justClicked = false
+  button.wasDown = button.isDown
+
+  if button.isHovered and gui.mouseJustPressed(Left):
+    button.isDown = true
+
+  if button.isDown and gui.mouseJustReleased(Left):
+    button.isDown = false
+    if button.isHovered:
+      button.justClicked = true
+
+type
   GuiButton* = ref object of GuiWidget
     isDown*: bool
     wasDown*: bool
@@ -30,8 +57,7 @@ method update*(button: GuiButton) =
     if button.isHovered:
       button.justClicked = true
 
-method draw*(button: GuiButton) =
-  let gfx = button.gui.drawList
+  let gfx = gui.drawList
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)

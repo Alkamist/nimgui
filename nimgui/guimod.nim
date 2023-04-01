@@ -8,7 +8,6 @@ type
   GuiWidget* = ref object of RootObj
     gui* {.cursor.}: Gui
     parent* {.cursor.}: GuiLayer
-    dontDraw*: bool
     passInput*: bool
     isHovered*: bool
     position*: Vec2
@@ -26,7 +25,6 @@ type
     storedBackgroundColor: Color
 
 method update*(widget: GuiWidget) {.base.} = discard
-method draw*(widget: GuiWidget) {.base.} = discard
 
 template bounds*(widget: GuiWidget): Rect2 = rect2(widget.position, widget.size)
 template x*(widget: GuiWidget): float = widget.position.x
@@ -84,14 +82,6 @@ func isHoveredIncludingChildren*(layer: GuiLayer): bool =
       if child.isHovered:
         return true
 
-func drawChildren*(layer: GuiLayer) =
-  let gfx = layer.gui.drawList
-  gfx.translate(layer.position)
-  for child in layer.children:
-    if not child.dontDraw:
-      child.draw()
-  gfx.translate(-layer.position)
-
 func bringToTop*(widget: GuiWidget) =
   let parent = widget.parent
   var foundChild = false
@@ -118,6 +108,17 @@ proc newGui*(): Gui =
   result.renderer = newDrawListRenderer()
   result.drawList = newDrawList()
   result.gui = result
+
+func updateChildren*(layer: GuiLayer) =
+  let gfx = layer.gui.drawList
+  gfx.translate(layer.position)
+  gfx.pushClipRect(rect2(vec2(0, 0), layer.size))
+  for child in layer.children:
+    child.update()
+  gfx.translate(-layer.position)
+  gfx.popClipRect()
+
+method update*(layer: GuiLayer) = layer.updateChildren()
 
 func childMouseHitTest(layer: GuiLayer): seq[GuiWidget] =
   for child in layer.children:
@@ -146,7 +147,7 @@ func updateChildInput(layer: GuiLayer) =
     child.isHovered = child in gui.hovers
     if child of GuiLayer:
       let childAsLayer = GuiLayer(child)
-      childAsLayer.mousePosition = gui.mousePosition - child.position
+      childAsLayer.mousePosition = layer.mousePosition - child.position
       childAsLayer.updateChildInput()
 
 func updateInput(gui: Gui) =
@@ -163,7 +164,7 @@ proc beginFrame*(gui: Gui) =
   gui.renderer.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
 
 proc endFrame*(gui: Gui) =
-  gui.drawChildren()
+  gui.updateChildren()
   gui.renderer.render(gui.drawList)
   gui.renderer.endFrame(gui.osWindow.sizePixels)
 

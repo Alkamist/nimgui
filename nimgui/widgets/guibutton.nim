@@ -4,33 +4,6 @@ import ../guimod
 import ./frame
 
 type
-  GuiInvisibleButton* = ref object of GuiWidget
-    isDown*: bool
-    wasDown*: bool
-    justClicked*: bool
-
-template justPressed*(button: GuiInvisibleButton): bool = button.isDown and not button.wasDown
-template justReleased*(button: GuiInvisibleButton): bool = button.wasDown and not button.isDown
-
-func addInvisibleButton*(layer: GuiLayer): GuiInvisibleButton =
-  result = layer.addWidget(GuiInvisibleButton)
-  result.size = vec2(96, 32)
-
-method update*(button: GuiInvisibleButton) =
-  let gui = button.gui
-
-  button.justClicked = false
-  button.wasDown = button.isDown
-
-  if button.isHovered and gui.mouseJustPressed(Left):
-    button.isDown = true
-
-  if button.isDown and gui.mouseJustReleased(Left):
-    button.isDown = false
-    if button.isHovered:
-      button.justClicked = true
-
-type
   GuiButton* = ref object of GuiWidget
     isDown*: bool
     wasDown*: bool
@@ -39,25 +12,24 @@ type
 template justPressed*(button: GuiButton): bool = button.isDown and not button.wasDown
 template justReleased*(button: GuiButton): bool = button.wasDown and not button.isDown
 
-func addButton*(layer: GuiLayer): GuiButton =
-  result = layer.addWidget(GuiButton)
-  result.size = vec2(96, 32)
-
-method update*(button: GuiButton) =
+proc updateButton(widget: GuiWidget, mouseButton: MouseButton) =
+  let button = GuiButton(widget)
   let gui = button.gui
 
   button.justClicked = false
   button.wasDown = button.isDown
 
-  if button.isHovered and gui.mouseJustPressed(Left):
+  if button.isHovered and gui.mouseJustPressed(mouseButton):
     button.isDown = true
 
-  if button.isDown and gui.mouseJustReleased(Left):
+  if button.isDown and gui.mouseJustReleased(mouseButton):
     button.isDown = false
     if button.isHovered:
       button.justClicked = true
 
-  let gfx = gui.drawList
+proc drawButton(widget: GuiWidget) =
+  let button = GuiButton(widget)
+  let gfx = button.gui.drawList
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)
@@ -79,3 +51,16 @@ method update*(button: GuiButton) =
     bodyColor = bodyColorHighlighted,
     borderColor = borderColorHighlighted,
   )
+
+func addInvisibleButton*(layer: GuiLayer, mouseButton = MouseButton.Left): GuiButton =
+  result = layer.addWidget(GuiButton)
+  result.size = vec2(96, 32)
+  result.update = proc(widget: GuiWidget) =
+    widget.updateButton(mouseButton)
+
+func addButton*(layer: GuiLayer, mouseButton = MouseButton.Left): GuiButton =
+  result = layer.addWidget(GuiButton)
+  result.size = vec2(96, 32)
+  result.update = proc(widget: GuiWidget) =
+    widget.updateButton(mouseButton)
+  result.draw = drawButton

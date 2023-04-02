@@ -8,6 +8,9 @@ type
   GuiWidget* = ref object of RootObj
     gui* {.cursor.}: Gui
     parent* {.cursor.}: GuiLayer
+    update*: proc(widget: GuiWidget)
+    draw*: proc(widget: GuiWidget)
+    dontDraw*: bool
     passInput*: bool
     isHovered*: bool
     position*: Vec2
@@ -24,8 +27,6 @@ type
     hovers*: seq[GuiWidget]
     storedBackgroundColor: Color
 
-method update*(widget: GuiWidget) {.base.} = discard
-
 template bounds*(widget: GuiWidget): Rect2 = rect2(widget.position, widget.size)
 template x*(widget: GuiWidget): float = widget.position.x
 template `x=`*(widget: GuiWidget, value: float) = widget.position.x = value
@@ -37,7 +38,6 @@ template height*(widget: GuiWidget): float = widget.size.y
 template `height=`*(widget: GuiWidget, value: float) = widget.size.y = value
 
 template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
-template update*(gui: Gui): untyped = gui.osWindow.update()
 template time*(gui: Gui): float = gui.osWindow.time
 template pixelDensity*(gui: Gui): float = gui.osWindow.pixelDensity
 template mouseWheel*(gui: Gui): Vec2 = gui.osWindow.mouseWheel
@@ -69,6 +69,8 @@ func addWidget*(layer: GuiLayer, T: typedesc): T =
   result = T()
   result.gui = layer.gui
   result.parent = layer
+  result.update = proc(widget: GuiWidget) = discard
+  result.draw = proc(widget: GuiWidget) = discard
   layer.children.add(result)
 
 func isHoveredIncludingChildren*(layer: GuiLayer): bool =
@@ -109,16 +111,28 @@ proc newGui*(): Gui =
   result.drawList = newDrawList()
   result.gui = result
 
-func updateChildren*(layer: GuiLayer) =
+proc updateChildren*(layer: GuiLayer) =
+  for child in layer.children:
+    child.update(child)
+
+proc drawChildren*(layer: GuiLayer) =
   let gfx = layer.gui.drawList
   gfx.translate(layer.position)
   gfx.pushClipRect(rect2(vec2(0, 0), layer.size))
   for child in layer.children:
-    child.update()
+    if not child.dontDraw:
+      child.draw(child)
   gfx.translate(-layer.position)
   gfx.popClipRect()
 
-method update*(layer: GuiLayer) = layer.updateChildren()
+func addLayer*(parent: GuiLayer): GuiLayer =
+  result = parent.addWidget(GuiLayer)
+  result.update = proc(widget: GuiWidget) =
+    let layer = GuiLayer(widget)
+    layer.updateChildren()
+  result.draw = proc(widget: GuiWidget) =
+    let layer = GuiLayer(widget)
+    layer.drawChildren()
 
 func childMouseHitTest(layer: GuiLayer): seq[GuiWidget] =
   for child in layer.children:
@@ -165,6 +179,7 @@ proc beginFrame*(gui: Gui) =
 
 proc endFrame*(gui: Gui) =
   gui.updateChildren()
+  gui.drawChildren()
   gui.renderer.render(gui.drawList)
   gui.renderer.endFrame(gui.osWindow.sizePixels)
 

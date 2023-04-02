@@ -14,33 +14,18 @@ type
   GuiWindow* = ref object of GuiLayer
     body*: GuiLayer
     minSize*: Vec2
-    moveButton*: GuiInvisibleButton
-    resizeLeftButton*: GuiInvisibleButton
-    resizeRightButton*: GuiInvisibleButton
-    resizeTopButton*: GuiInvisibleButton
-    resizeBottomButton*: GuiInvisibleButton
-    resizeTopLeftButton*: GuiInvisibleButton
-    resizeTopRightButton*: GuiInvisibleButton
-    resizeBottomLeftButton*: GuiInvisibleButton
-    resizeBottomRightButton*: GuiInvisibleButton
+    moveButton*: GuiButton
+    resizeLeftButton*: GuiButton
+    resizeRightButton*: GuiButton
+    resizeTopButton*: GuiButton
+    resizeBottomButton*: GuiButton
+    resizeTopLeftButton*: GuiButton
+    resizeTopRightButton*: GuiButton
+    resizeBottomLeftButton*: GuiButton
+    resizeBottomRightButton*: GuiButton
     guiMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
-
-func addWindow*(layer: GuiLayer): GuiWindow =
-  result = layer.addWidget(GuiWindow)
-  result.body = result.addWidget(GuiLayer)
-  result.size = vec2(300, 200)
-  result.minSize = vec2(200, headerHeight * 2.0)
-  result.moveButton = result.addInvisibleButton()
-  result.resizeLeftButton = result.addInvisibleButton()
-  result.resizeRightButton = result.addInvisibleButton()
-  result.resizeTopButton = result.addInvisibleButton()
-  result.resizeBottomButton = result.addInvisibleButton()
-  result.resizeTopLeftButton = result.addInvisibleButton()
-  result.resizeTopRightButton = result.addInvisibleButton()
-  result.resizeBottomLeftButton = result.addInvisibleButton()
-  result.resizeBottomRightButton = result.addInvisibleButton()
 
 func updateMoveResizeButtonBounds(window: GuiWindow) =
   window.moveButton.position = vec2(0, 0)
@@ -148,16 +133,24 @@ func moveAndResize(window: GuiWindow) =
     resizeWindowBottom(grabDelta)
     resizeWindowRight(grabDelta)
 
-method update*(window: GuiWindow) =
+proc updateWindow(widget: GuiWidget) =
+  let window = GuiWindow(widget)
   let gui = window.gui
 
   window.updateMoveResizeButtonBounds()
   window.moveAndResize()
 
+  window.body.position = vec2(0.5 * cornerRadius, 0.5 * cornerRadius + headerHeight)
+  window.body.size = vec2(window.width - cornerRadius, window.height - headerHeight - cornerRadius)
+
   if window.isHoveredIncludingChildren and
-     gui.mouseJustPressed(Left) or gui.mouseJustPressed(Middle) or gui.mouseJustPressed(Right):
+     (gui.mouseJustPressed(Left) or gui.mouseJustPressed(Middle) or gui.mouseJustPressed(Right)):
     window.bringToTop()
 
+  window.updateChildren()
+
+proc drawWindow(widget: GuiWidget) =
+  let window = GuiWindow(widget)
   let gfx = window.gui.drawList
 
   gfx.drawFrameWithHeader(
@@ -170,7 +163,32 @@ method update*(window: GuiWindow) =
     borderColor = rgb(52, 59, 66),
   )
 
-  window.body.position = vec2(0.5 * cornerRadius, 0.5 * cornerRadius + headerHeight)
-  window.body.size = vec2(window.width - cornerRadius, window.height - headerHeight - cornerRadius)
+  window.drawChildren()
 
-  window.updateChildren()
+func addWindow*(layer: GuiLayer): GuiWindow =
+  result = layer.addWidget(GuiWindow)
+  result.update = updateWindow
+  result.draw = drawWindow
+  result.body = result.addLayer()
+  result.size = vec2(300, 200)
+  result.minSize = vec2(200, headerHeight * 2.0)
+
+  result.moveButton = result.addButton()
+  result.resizeLeftButton = result.addButton()
+  result.resizeRightButton = result.addButton()
+  result.resizeTopButton = result.addButton()
+  result.resizeBottomButton = result.addButton()
+  result.resizeTopLeftButton = result.addButton()
+  result.resizeTopRightButton = result.addButton()
+  result.resizeBottomLeftButton = result.addButton()
+  result.resizeBottomRightButton = result.addButton()
+
+  result.moveButton.dontDraw = true
+  result.resizeLeftButton.dontDraw = true
+  result.resizeRightButton.dontDraw = true
+  result.resizeTopButton.dontDraw = true
+  result.resizeBottomButton.dontDraw = true
+  result.resizeTopLeftButton.dontDraw = true
+  result.resizeTopRightButton.dontDraw = true
+  result.resizeBottomLeftButton.dontDraw = true
+  result.resizeBottomRightButton.dontDraw = true

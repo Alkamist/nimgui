@@ -29,7 +29,7 @@ proc updateButton(widget: GuiWidget, mouseButton: MouseButton) =
 
 proc drawButton(widget: GuiWidget) =
   let button = GuiButton(widget)
-  let gfx = button.gui.drawList
+  let gfx = button.gui.gfx
   let bodyColor = rgb(33, 38, 45)
   let borderColor = rgb(52, 59, 66)
   # let textColor = rgb(201, 209, 217)
@@ -45,7 +45,8 @@ proc drawButton(widget: GuiWidget) =
     else: borderColor
 
   gfx.drawFrame(
-    bounds = button.bounds,
+    position = vec2(0, 0),
+    size = button.size,
     borderThickness = 1.0,
     cornerRadius = 5.0,
     bodyColor = bodyColorHighlighted,

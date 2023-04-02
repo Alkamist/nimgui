@@ -1,23 +1,22 @@
-import ../drawlist/drawlist; export drawlist
+import ../gfxmod; export gfxmod
 
-func drawFrame*(drawList: DrawList,
-                bounds: Rect2,
+func drawFrame*(gfx: Gfx,
+                position, size: Vec2,
                 borderThickness: float,
                 cornerRadius: float,
                 bodyColor, borderColor: Color) =
-  let gfx = drawList
   let halfBorderThickness = borderThickness * 0.5
 
-  let leftOuter = bounds.x
+  let leftOuter = position.x
   let leftMiddle = leftOuter + halfBorderThickness
   let leftInner = leftMiddle + halfBorderThickness
-  let rightOuter = bounds.x + bounds.width
+  let rightOuter = position.x + size.x
   let rightMiddle = rightOuter - halfBorderThickness
   let rightInner = rightMiddle - halfBorderThickness
-  let topOuter = bounds.y
+  let topOuter = position.y
   let topMiddle = topOuter + halfBorderThickness
   let topInner = topMiddle + halfBorderThickness
-  let bottomOuter = bounds.y + bounds.height
+  let bottomOuter = position.y + size.y
   let bottomMiddle = bottomOuter - halfBorderThickness
   let bottomInner = bottomMiddle - halfBorderThickness
 
@@ -28,12 +27,8 @@ func drawFrame*(drawList: DrawList,
   # Body fill.
   gfx.beginPath()
   gfx.roundedRect(
-    rect2(
-      leftMiddle,
-      topMiddle,
-      rightMiddle - leftMiddle,
-      bottomMiddle - topMiddle,
-    ),
+    vec2(leftMiddle, topMiddle),
+    vec2(rightMiddle - leftMiddle, bottomMiddle - topMiddle),
     middleCornerRadius,
     middleCornerRadius,
     middleCornerRadius,
@@ -44,16 +39,12 @@ func drawFrame*(drawList: DrawList,
 
   # Border outer.
   gfx.beginPath()
-  gfx.roundedRect(bounds, cornerRadius)
+  gfx.roundedRect(position, size, cornerRadius)
 
   # Body inner hole.
   gfx.roundedRect(
-    rect2(
-      leftInner,
-      topInner,
-      rightInner - leftInner,
-      bottomInner - topInner,
-    ),
+    vec2(leftInner, topInner),
+    vec2(rightInner - leftInner, bottomInner - topInner),
     innerCornerRadius,
     innerCornerRadius,
     innerCornerRadius,
@@ -64,28 +55,27 @@ func drawFrame*(drawList: DrawList,
   gfx.fillColor = borderColor
   gfx.fill()
 
-func drawFrameWithHeader*(drawList: DrawList,
-                          bounds: Rect2,
+func drawFrameWithHeader*(gfx: Gfx,
+                          position, size: Vec2,
                           borderThickness, headerHeight: float,
                           cornerRadius: float,
                           bodyColor, headerColor, borderColor: Color) =
-  let gfx = drawList
   let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
   let halfBorderThickness = borderThickness * 0.5
 
-  let leftOuter = bounds.x
+  let leftOuter = position.x
   let leftMiddle = leftOuter + halfBorderThickness
   let leftInner = leftMiddle + halfBorderThickness
-  let rightOuter = bounds.x + bounds.width
+  let rightOuter = position.x + size.x
   let rightMiddle = rightOuter - halfBorderThickness
   let rightInner = rightMiddle - halfBorderThickness
-  let topOuter = bounds.y
+  let topOuter = position.y
   let topMiddle = topOuter + halfBorderThickness
   let topInner = topMiddle + halfBorderThickness
-  let headerOuter = bounds.y + headerHeight
+  let headerOuter = position.y + headerHeight
   let headerMiddle = headerOuter - halfBorderThickness
   let headerInner = headerMiddle - halfBorderThickness
-  let bottomOuter = bounds.y + bounds.height
+  let bottomOuter = position.y + size.y
   let bottomMiddle = bottomOuter - halfBorderThickness
   let bottomInner = bottomMiddle - halfBorderThickness
 
@@ -99,12 +89,8 @@ func drawFrameWithHeader*(drawList: DrawList,
   # Header fill.
   gfx.beginPath()
   gfx.roundedRect(
-    rect2(
-      leftMiddle,
-      topMiddle,
-      middleWidth,
-      headerMiddle - topMiddle,
-    ),
+    vec2(leftMiddle, topMiddle),
+    vec2(middleWidth, headerMiddle - topMiddle),
     middleCornerRadius,
     middleCornerRadius,
     0, 0,
@@ -115,12 +101,8 @@ func drawFrameWithHeader*(drawList: DrawList,
   # Body fill.
   gfx.beginPath()
   gfx.roundedRect(
-    rect2(
-      leftMiddle,
-      headerMiddle,
-      middleWidth,
-      bottomMiddle - headerMiddle,
-    ),
+    vec2(leftMiddle, headerMiddle),
+    vec2(middleWidth, bottomMiddle - headerMiddle),
     0, 0,
     middleCornerRadius,
     middleCornerRadius,
@@ -130,16 +112,12 @@ func drawFrameWithHeader*(drawList: DrawList,
 
   # Border outer.
   gfx.beginPath()
-  gfx.roundedRect(bounds, cornerRadius)
+  gfx.roundedRect(position, size, cornerRadius)
 
   # Header inner hole.
   gfx.roundedRect(
-    rect2(
-      leftInner,
-      topInner,
-      innerWidth,
-      headerInner - topInner,
-    ),
+    vec2(leftInner, topInner),
+    vec2(innerWidth, headerInner - topInner),
     innerCornerRadius,
     innerCornerRadius,
     0, 0,
@@ -148,12 +126,8 @@ func drawFrameWithHeader*(drawList: DrawList,
 
   # Body inner hole.
   gfx.roundedRect(
-    rect2(
-      leftInner,
-      headerOuter,
-      innerWidth,
-      bottomInner - headerOuter,
-    ),
+    vec2(leftInner, headerOuter),
+    vec2(innerWidth, bottomInner - headerOuter),
     0, 0,
     innerCornerRadius,
     innerCornerRadius,

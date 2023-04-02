@@ -92,21 +92,22 @@ func updateLines*(text: Text, wordWrap: bool, wrapWidth = 0.0) =
     text.lines.setLen(i)
 
 proc drawLines*(text: Text,
-                bounds: Rect2,
+                position, size: Vec2,
                 alignX: TextAlignX,
                 alignY: TextAlignY,
                 wordWrap: bool,
                 cullOutOfBounds: bool,
                 drawLine: proc(text: Text, line: TextLine, lineBounds: Rect2)) =
-  text.updateLines(wordWrap, bounds.width)
+  let bounds = rect2(position, size)
+  text.updateLines(wordWrap, size.x)
 
   let yAdjustment = case alignY:
     of Top: 0.0
-    of Center: 0.5 * (bounds.height - (text.lineHeight * text.lines.len.float))
-    of Bottom: bounds.height - (text.lineHeight * text.lines.len.float)
+    of Center: 0.5 * (size.y - (text.lineHeight * text.lines.len.float))
+    of Bottom: size.y - (text.lineHeight * text.lines.len.float)
     of Baseline: -text.ascender
 
-  var y = bounds.y + yAdjustment
+  var y = position.y + yAdjustment
 
   let lineBoundsHeight = text.ascender - text.descender
 
@@ -117,10 +118,10 @@ proc drawLines*(text: Text,
 
     let xAdjustment = case alignX:
       of Left: 0.0
-      of Center: 0.5 * (bounds.width - lineWidth)
-      of Right: bounds.width - lineWidth
+      of Center: 0.5 * (size.x - lineWidth)
+      of Right: size.x - lineWidth
 
-    let lineBounds = rect2(bounds.x + xAdjustment, y, lineWidth, lineBoundsHeight)
+    let lineBounds = rect2(position.x + xAdjustment, y, lineWidth, lineBoundsHeight)
 
     if cullOutOfBounds:
       if bounds.contains(lineBounds):

@@ -162,10 +162,11 @@ proc updateWindow(widget: GuiWidget) =
 
 proc drawWindow(widget: GuiWidget) =
   let window = GuiWindow(widget)
-  let gfx = window.gui.drawList
+  let gfx = window.gui.gfx
 
   gfx.drawFrameWithHeader(
-    bounds = window.bounds,
+    position = vec2(0, 0),
+    size = window.size,
     borderThickness = borderThickness,
     headerHeight = headerHeight,
     cornerRadius = cornerRadius,
@@ -185,6 +186,7 @@ func addWindow*(parent: GuiWidget): GuiWindow =
 
   result.body = result.addWidget()
   result.moveButton = result.addButton()
+  result.moveButton.dontDraw = true
   result.header = result.addWidget()
   result.header.passInput = true
   result.resizeButtons = result.addWidget()

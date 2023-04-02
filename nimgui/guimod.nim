@@ -1,8 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import ./oswindow; export oswindow
-import ./drawlist/drawlist; export drawlist
-import ./drawlist/drawlistrenderernanovg
+import ./gfxmod; export gfxmod
 
 type
   GuiWidget* = ref object of RootObj
@@ -20,10 +19,10 @@ type
 
   Gui* = ref object of GuiWidget
     osWindow*: OsWindow
-    renderer*: DrawListRenderer
-    drawList*: DrawList
+    gfx*: Gfx
     hovers*: seq[GuiWidget]
     storedBackgroundColor: Color
+    clipStack: seq[Rect2]
 
 template bounds*(widget: GuiWidget): Rect2 = rect2(widget.position, widget.size)
 template x*(widget: GuiWidget): float = widget.position.x
@@ -101,8 +100,7 @@ proc `backgroundColor=`*(gui: Gui, color: Color) =
 proc newGui*(): Gui =
   result = Gui()
   result.osWindow = newOsWindow()
-  result.renderer = newDrawListRenderer()
-  result.drawList = newDrawList()
+  result.gfx = newGfx()
   result.gui = result
 
 proc updateChildren*(parent: GuiWidget) =
@@ -112,14 +110,28 @@ proc updateChildren*(parent: GuiWidget) =
     child.update(child)
 
 proc drawChildren*(parent: GuiWidget) =
-  let gfx = parent.gui.drawList
-  gfx.translate(parent.position)
-  gfx.pushClipRect(rect2(vec2(0, 0), parent.size))
+  let gui = parent.gui
+  let gfx = gui.gfx
+  # gfx.translate(parent.position)
+  # gfx.pushClipRect(rect2(vec2(0, 0), parent.size))
   for child in parent.children:
     if not child.dontDraw:
+      # gui.clipStack.add(rect2(child.position, child.size))
+      # gfx.clip(child.position, child.size)
+
+      gfx.translate(child.position)
+      gfx.clip(vec2(0, 0), child.size, false)
       child.draw(child)
-  gfx.translate(-parent.position)
-  gfx.popClipRect()
+      gfx.translate(-child.position)
+
+      # gui.clipStack.setLen(gui.clipStack.len - 1)
+      # if gui.clipStack.len > 0:
+      #   let previousClip = gui.clipStack[^1]
+      #   gfx.resetClip()
+      #   gfx.clip(previousClip.position, previousClip.size)
+
+  # gfx.translate(-parent.position)
+  # gfx.popClipRect()
 
 func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
   for child in parent.children:
@@ -148,16 +160,15 @@ func updateInput(gui: Gui) =
   gui.mousePosition = gui.osWindow.inputState.mousePosition
 
 proc beginFrame*(gui: Gui) =
-  gui.drawList.clearCommands()
-  gui.renderer.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
+  gui.gfx.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
+  gui.gfx.resetClip()
   gui.updateHovers()
   gui.updateInput()
   gui.updateChildren()
 
 proc endFrame*(gui: Gui) =
   gui.drawChildren()
-  gui.renderer.render(gui.drawList)
-  gui.renderer.endFrame(gui.osWindow.sizePixels)
+  gui.gfx.endFrame(gui.osWindow.sizePixels)
 
 template onFrame*(gui: Gui, code: untyped): untyped =
   gui.osWindow.onFrame = proc() =

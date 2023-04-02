@@ -12,8 +12,8 @@ const cornerRadius = 0.0
 
 type
   GuiWindow* = ref object of GuiWidget
+    header*: GuiWidget
     body*: GuiWidget
-    minSize*: Vec2
     moveButton*: GuiButton
     resizeLeftButton*: GuiButton
     resizeRightButton*: GuiButton
@@ -23,11 +23,14 @@ type
     resizeTopRightButton*: GuiButton
     resizeBottomLeftButton*: GuiButton
     resizeBottomRightButton*: GuiButton
+    minSize*: Vec2
     guiMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
+    resizeButtons: GuiWidget
 
 func updateMoveResizeButtonBounds(window: GuiWindow) =
+  window.resizeButtons.size = window.size
   window.moveButton.position = vec2(0, 0)
   window.moveButton.size = vec2(window.width, headerHeight)
   window.resizeLeftButton.position = vec2(0, resizeHitSize)
@@ -140,6 +143,11 @@ proc updateWindow(widget: GuiWidget) =
   window.updateMoveResizeButtonBounds()
   window.moveAndResize()
 
+  window.header.position = vec2(borderThickness, borderThickness)
+  window.header.size = vec2(
+    window.width - 2.0 * borderThickness,
+    headerHeight - borderThickness,
+  )
   window.body.position = vec2(borderThickness, headerHeight)
   window.body.size = vec2(
     window.width - 2.0 * borderThickness,
@@ -172,26 +180,21 @@ func addWindow*(parent: GuiWidget): GuiWindow =
   result = parent.addWidget(GuiWindow)
   result.update = updateWindow
   result.draw = drawWindow
-  result.body = result.addWidget()
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
 
+  result.body = result.addWidget()
   result.moveButton = result.addButton()
-  result.resizeLeftButton = result.addButton()
-  result.resizeRightButton = result.addButton()
-  result.resizeTopButton = result.addButton()
-  result.resizeBottomButton = result.addButton()
-  result.resizeTopLeftButton = result.addButton()
-  result.resizeTopRightButton = result.addButton()
-  result.resizeBottomLeftButton = result.addButton()
-  result.resizeBottomRightButton = result.addButton()
-
-  result.moveButton.dontDraw = true
-  result.resizeLeftButton.dontDraw = true
-  result.resizeRightButton.dontDraw = true
-  result.resizeTopButton.dontDraw = true
-  result.resizeBottomButton.dontDraw = true
-  result.resizeTopLeftButton.dontDraw = true
-  result.resizeTopRightButton.dontDraw = true
-  result.resizeBottomLeftButton.dontDraw = true
-  result.resizeBottomRightButton.dontDraw = true
+  result.header = result.addWidget()
+  result.header.passInput = true
+  result.resizeButtons = result.addWidget()
+  result.resizeButtons.dontDraw = true
+  result.resizeButtons.passInput = true
+  result.resizeLeftButton = result.resizeButtons.addButton()
+  result.resizeRightButton = result.resizeButtons.addButton()
+  result.resizeTopButton = result.resizeButtons.addButton()
+  result.resizeBottomButton = result.resizeButtons.addButton()
+  result.resizeTopLeftButton = result.resizeButtons.addButton()
+  result.resizeTopRightButton = result.resizeButtons.addButton()
+  result.resizeBottomLeftButton = result.resizeButtons.addButton()
+  result.resizeBottomRightButton = result.resizeButtons.addButton()

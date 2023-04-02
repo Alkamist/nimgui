@@ -8,11 +8,11 @@ const resizeHitSize = 8.0
 const resizeHitSize2 = resizeHitSize * 2.0
 const borderThickness = 1.0
 const headerHeight = 24.0
-const cornerRadius = 6.0
+const cornerRadius = 0.0
 
 type
-  GuiWindow* = ref object of GuiLayer
-    body*: GuiLayer
+  GuiWindow* = ref object of GuiWidget
+    body*: GuiWidget
     minSize*: Vec2
     moveButton*: GuiButton
     resizeLeftButton*: GuiButton
@@ -140,8 +140,11 @@ proc updateWindow(widget: GuiWidget) =
   window.updateMoveResizeButtonBounds()
   window.moveAndResize()
 
-  window.body.position = vec2(0.5 * cornerRadius, 0.5 * cornerRadius + headerHeight)
-  window.body.size = vec2(window.width - cornerRadius, window.height - headerHeight - cornerRadius)
+  window.body.position = vec2(borderThickness, headerHeight)
+  window.body.size = vec2(
+    window.width - 2.0 * borderThickness,
+    window.height - headerHeight - borderThickness,
+  )
 
   if window.isHoveredIncludingChildren and
      (gui.mouseJustPressed(Left) or gui.mouseJustPressed(Middle) or gui.mouseJustPressed(Right)):
@@ -165,11 +168,11 @@ proc drawWindow(widget: GuiWidget) =
 
   window.drawChildren()
 
-func addWindow*(layer: GuiLayer): GuiWindow =
-  result = layer.addWidget(GuiWindow)
+func addWindow*(parent: GuiWidget): GuiWindow =
+  result = parent.addWidget(GuiWindow)
   result.update = updateWindow
   result.draw = drawWindow
-  result.body = result.addLayer()
+  result.body = result.addWidget()
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
 

@@ -9,7 +9,7 @@ let window1 = gui.addWindow()
 let window2 = gui.addWindow()
 let window3 = window2.body.addWindow()
 
-let button1 = window2.addButton()
+let button1 = gui.addButton()
 
 gui.onFrame:
   if button1.justPressed:

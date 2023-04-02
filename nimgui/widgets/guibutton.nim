@@ -52,14 +52,14 @@ proc drawButton(widget: GuiWidget) =
     borderColor = borderColorHighlighted,
   )
 
-func addInvisibleButton*(layer: GuiLayer, mouseButton = MouseButton.Left): GuiButton =
-  result = layer.addWidget(GuiButton)
+func addInvisibleButton*(parent: GuiWidget, mouseButton = MouseButton.Left): GuiButton =
+  result = parent.addWidget(GuiButton)
   result.size = vec2(96, 32)
   result.update = proc(widget: GuiWidget) =
     widget.updateButton(mouseButton)
 
-func addButton*(layer: GuiLayer, mouseButton = MouseButton.Left): GuiButton =
-  result = layer.addWidget(GuiButton)
+func addButton*(parent: GuiWidget, mouseButton = MouseButton.Left): GuiButton =
+  result = parent.addWidget(GuiButton)
   result.size = vec2(96, 32)
   result.update = proc(widget: GuiWidget) =
     widget.updateButton(mouseButton)

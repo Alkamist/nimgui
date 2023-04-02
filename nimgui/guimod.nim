@@ -7,7 +7,8 @@ import ./drawlist/drawlistrenderernanovg
 type
   GuiWidget* = ref object of RootObj
     gui* {.cursor.}: Gui
-    parent* {.cursor.}: GuiLayer
+    parent* {.cursor.}: GuiWidget
+    children*: seq[GuiWidget]
     update*: proc(widget: GuiWidget)
     draw*: proc(widget: GuiWidget)
     dontDraw*: bool
@@ -15,12 +16,9 @@ type
     isHovered*: bool
     position*: Vec2
     size*: Vec2
-
-  GuiLayer* = ref object of GuiWidget
     mousePosition*: Vec2
-    children*: seq[GuiWidget]
 
-  Gui* = ref object of GuiLayer
+  Gui* = ref object of GuiWidget
     osWindow*: OsWindow
     renderer*: DrawListRenderer
     drawList*: DrawList
@@ -65,24 +63,20 @@ template scale*(gui: Gui): float = gui.osWindow.scale
 template pixelDensityChanged*(gui: Gui): bool = gui.osWindow.pixelDensityChanged
 template aspectRatio*(gui: Gui): float = gui.osWindow.aspectRatio
 
-func addWidget*(layer: GuiLayer, T: typedesc): T =
+func addWidget*(parent: GuiWidget, T: typedesc = GuiWidget): T =
   result = T()
-  result.gui = layer.gui
-  result.parent = layer
-  result.update = proc(widget: GuiWidget) = discard
-  result.draw = proc(widget: GuiWidget) = discard
-  layer.children.add(result)
+  result.gui = parent.gui
+  result.parent = parent
+  result.update = proc(widget: GuiWidget) = widget.updateChildren()
+  result.draw = proc(widget: GuiWidget) = widget.drawChildren()
+  parent.children.add(result)
 
-func isHoveredIncludingChildren*(layer: GuiLayer): bool =
-  if layer.isHovered:
+func isHoveredIncludingChildren*(parent: GuiWidget): bool =
+  if parent.isHovered:
     return true
-  for child in layer.children:
-    if child of GuiLayer:
-      if GuiLayer(child).isHoveredIncludingChildren:
-        return true
-    else:
-      if child.isHovered:
-        return true
+  for child in parent.children:
+    if child.isHoveredIncludingChildren:
+      return true
 
 func bringToTop*(widget: GuiWidget) =
   let parent = widget.parent
@@ -111,38 +105,30 @@ proc newGui*(): Gui =
   result.drawList = newDrawList()
   result.gui = result
 
-proc updateChildren*(layer: GuiLayer) =
-  for child in layer.children:
+proc updateChildren*(parent: GuiWidget) =
+  for child in parent.children:
+    child.isHovered = child in child.gui.hovers
+    child.mousePosition = parent.mousePosition - child.position
     child.update(child)
 
-proc drawChildren*(layer: GuiLayer) =
-  let gfx = layer.gui.drawList
-  gfx.translate(layer.position)
-  gfx.pushClipRect(rect2(vec2(0, 0), layer.size))
-  for child in layer.children:
+proc drawChildren*(parent: GuiWidget) =
+  let gfx = parent.gui.drawList
+  gfx.translate(parent.position)
+  gfx.pushClipRect(rect2(vec2(0, 0), parent.size))
+  for child in parent.children:
     if not child.dontDraw:
       child.draw(child)
-  gfx.translate(-layer.position)
+  gfx.translate(-parent.position)
   gfx.popClipRect()
 
-func addLayer*(parent: GuiLayer): GuiLayer =
-  result = parent.addWidget(GuiLayer)
-  result.update = proc(widget: GuiWidget) =
-    let layer = GuiLayer(widget)
-    layer.updateChildren()
-  result.draw = proc(widget: GuiWidget) =
-    let layer = GuiLayer(widget)
-    layer.drawChildren()
-
-func childMouseHitTest(layer: GuiLayer): seq[GuiWidget] =
-  for child in layer.children:
+func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
+  for child in parent.children:
     let childBounds = child.bounds
-    if childBounds.contains(layer.mousePosition):
+    if childBounds.contains(parent.mousePosition):
       result.add(child)
-      if child of GuiLayer:
-        let hitTest = GuiLayer(child).childMouseHitTest()
-        for hit in hitTest:
-          result.add(hit)
+      let hitTest = child.childMouseHitTest()
+      for hit in hitTest:
+        result.add(hit)
 
 func updateHovers(gui: Gui) =
   gui.hovers.setLen(0)
@@ -155,30 +141,20 @@ func updateHovers(gui: Gui) =
   if gui.bounds.contains(gui.osWindow.mousePosition):
     gui.hovers.add(gui)
 
-func updateChildInput(layer: GuiLayer) =
-  let gui = layer.gui
-  for child in layer.children:
-    child.isHovered = child in gui.hovers
-    if child of GuiLayer:
-      let childAsLayer = GuiLayer(child)
-      childAsLayer.mousePosition = layer.mousePosition - child.position
-      childAsLayer.updateChildInput()
-
 func updateInput(gui: Gui) =
-  gui.isHovered = gui.hovers.contains(gui)
+  gui.isHovered = gui in gui.hovers
   gui.position = vec2(0, 0)
   gui.size = gui.osWindow.inputState.size
   gui.mousePosition = gui.osWindow.inputState.mousePosition
-  gui.updateChildInput()
 
 proc beginFrame*(gui: Gui) =
-  gui.updateHovers()
-  gui.updateInput()
   gui.drawList.clearCommands()
   gui.renderer.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
+  gui.updateHovers()
+  gui.updateInput()
+  gui.updateChildren()
 
 proc endFrame*(gui: Gui) =
-  gui.updateChildren()
   gui.drawChildren()
   gui.renderer.render(gui.drawList)
   gui.renderer.endFrame(gui.osWindow.sizePixels)

@@ -126,11 +126,11 @@ proc drawChildren*(parent: GuiWidget) =
   let gfx = parent.gui.gfx
   for child in parent.children:
     if not child.dontDraw:
+      gfx.saveState()
       gfx.translate(child.position)
-      gfx.clip(vec2(0, 0), child.size, false)
+      gfx.clip(vec2(0, 0), child.size)
       child.draw(child)
-      gfx.translate(-child.position)
-      gfx.clip(vec2(0, 0), parent.size, false)
+      gfx.restoreState()
 
 func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
   for child in parent.children:

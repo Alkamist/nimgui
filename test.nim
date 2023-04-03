@@ -6,11 +6,11 @@ let gui = newGui()
 gui.backgroundColor = rgb(13, 17, 23)
 
 let window1 = gui.addWindow()
-let window2 = gui.addWindow()
+let window2 = window1.body.addWindow()
 
 let headerButton = window2.header.addButton()
 
-window2.drawHook:
+window2.body.drawHook:
   let gfx = self.gui.gfx
   gfx.beginPath()
   gfx.rect(self.mousePosition, vec2(50, 50))

@@ -27,6 +27,8 @@ proc updateButton(widget: GuiWidget, mouseButton: MouseButton) =
     if button.isHovered:
       button.justClicked = true
 
+  button.updateChildren()
+
 proc drawButton(widget: GuiWidget) =
   let button = GuiButton(widget)
   let gfx = button.gui.gfx
@@ -52,6 +54,8 @@ proc drawButton(widget: GuiWidget) =
     bodyColor = bodyColorHighlighted,
     borderColor = borderColorHighlighted,
   )
+
+  button.drawChildren()
 
 func addInvisibleButton*(parent: GuiWidget, mouseButton = MouseButton.Left): GuiButton =
   result = parent.addWidget(GuiButton)

@@ -33,6 +33,7 @@ template `width=`*(widget: GuiWidget, value: float) = widget.size.x = value
 template height*(widget: GuiWidget): float = widget.size.y
 template `height=`*(widget: GuiWidget, value: float) = widget.size.y = value
 
+template process*(gui: Gui): untyped = gui.osWindow.update()
 template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
 template time*(gui: Gui): float = gui.osWindow.time
 template pixelDensity*(gui: Gui): float = gui.osWindow.pixelDensity
@@ -64,6 +65,7 @@ template aspectRatio*(gui: Gui): float = gui.osWindow.aspectRatio
 template updateHook*(widgetToHook: GuiWidget, code: untyped): untyped =
   let previous = widgetToHook.update
   widgetToHook.update = proc(widgetBase: GuiWidget) =
+    {.hint[ConvFromXtoItselfNotNeeded]: off.}
     let self {.inject.} = typeof(widgetToHook)(widgetBase)
     previous(widgetBase)
     code
@@ -71,6 +73,7 @@ template updateHook*(widgetToHook: GuiWidget, code: untyped): untyped =
 template drawHook*(widgetToHook: GuiWidget, code: untyped): untyped =
   let previous = widgetToHook.draw
   widgetToHook.draw = proc(widgetBase: GuiWidget) =
+    {.hint[ConvFromXtoItselfNotNeeded]: off.}
     let self {.inject.} = typeof(widgetToHook)(widgetBase)
     previous(widgetBase)
     code
@@ -110,17 +113,16 @@ proc `backgroundColor=`*(gui: Gui, color: Color) =
   gui.osWindow.backgroundColor = color
   gui.storedBackgroundColor = color
 
-proc newGui*(): Gui =
-  result = Gui()
-  result.osWindow = newOsWindow()
-  result.gfx = newGfx()
-  result.gui = result
-
 proc updateChildren*(parent: GuiWidget) =
+  let gfx = parent.gui.gfx
   for child in parent.children:
+    gfx.saveState()
+    gfx.translate(child.position)
+    gfx.clip(vec2(0, 0), child.size)
     child.isHovered = child in child.gui.hovers
     child.mousePosition = parent.mousePosition - child.position
     child.update(child)
+    gfx.restoreState()
 
 proc drawChildren*(parent: GuiWidget) =
   let gfx = parent.gui.gfx
@@ -158,19 +160,24 @@ func updateInput(gui: Gui) =
   gui.size = gui.osWindow.inputState.size
   gui.mousePosition = gui.osWindow.inputState.mousePosition
 
-proc beginFrame*(gui: Gui) =
-  gui.gfx.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
-  gui.gfx.resetClip()
-  gui.updateHovers()
-  gui.updateInput()
-  gui.updateChildren()
+proc newGui*(): Gui =
+  result = Gui()
 
-proc endFrame*(gui: Gui) =
-  gui.drawChildren()
-  gui.gfx.endFrame(gui.osWindow.sizePixels)
+  result.osWindow = newOsWindow()
+  result.gfx = newGfx()
+  result.gui = result
+  result.update = proc(widget: GuiWidget) = widget.updateChildren()
+  result.draw = proc(widget: GuiWidget) = widget.drawChildren()
 
-template onFrame*(gui: Gui, code: untyped): untyped =
-  gui.osWindow.onFrame = proc() =
-    gui.beginFrame()
-    code
-    gui.endFrame()
+  let gui = result
+  result.osWindow.onFrame = proc() =
+    let gfx = gui.gfx
+    gfx.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
+    gfx.resetClip()
+
+    gui.updateHovers()
+    gui.updateInput()
+    gui.update(gui)
+    gui.draw(gui)
+
+    gfx.endFrame(gui.osWindow.sizePixels)

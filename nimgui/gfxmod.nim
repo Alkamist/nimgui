@@ -1,13 +1,23 @@
 {.experimental: "overloadableEnums".}
 
+import std/unicode; export unicode
 import opengl
-import std/unicode
-import ./text; export text
 import ./nanovg
 import ./math; export math
 
+# template `{}`(oa: openArray, slice: Slice[int]): untyped = oa.toOpenArray(slice.a, slice.b)
+# template `{}`(oa: openArray, slice: HSlice[int, BackwardsIndex]): untyped = oa.toOpenArray(slice.a, oa.len - int slice.b)
+
 proc gladLoadGL(): int {.cdecl, importc.}
 var gladIsInitialized {.threadvar.}: bool
+
+const NVG_ALIGN_LEFT = (1 shl 0).cint
+const NVG_ALIGN_CENTER = (1 shl 1).cint
+const NVG_ALIGN_RIGHT = (1 shl 2).cint
+const NVG_ALIGN_TOP = (1 shl 3).cint
+const NVG_ALIGN_MIDDLE = (1 shl 4).cint
+const NVG_ALIGN_BOTTOM = (1 shl 5).cint
+const NVG_ALIGN_BASELINE = (1 shl 6).cint
 
 type
   Paint* = NVGpaint
@@ -32,7 +42,24 @@ type
     Bevel
     Miter
 
+  TextAlignX* = enum
+    Left
+    Center
+    Right
+
+  TextAlignY* = enum
+    Top
+    Center
+    Bottom
+    Baseline
+
+  Glyph* = object
+    index*: uint64
+    x*: float
+    minX*, maxX*: float
+
   Gfx* = ref object
+    pixelDensity*: float
     nvgContext*: NVGcontext
 
 proc `=destroy`*(gfx: var type Gfx()[]) =
@@ -53,8 +80,8 @@ template pixelAlign*(gfx: Gfx, value: float): float =
 
 template pixelAlign*(gfx: Gfx, position: Vec2): Vec2 =
   vec2(
-    position.x.pixelAlign(gfx),
-    position.y.pixelAlign(gfx),
+    gfx.pixelAlign(position.x),
+    gfx.pixelAlign(position.y),
   )
 
 {.push inline.}
@@ -87,6 +114,7 @@ proc toNvgColor(color: Color): NVGcolor =
   nvgRGBAf(color.r, color.g, color.b, color.a)
 
 proc beginFrame*(gfx: Gfx, sizePixels: Vec2, pixelDensity: float) =
+  gfx.pixelDensity = pixelDensity
   nvgBeginFrame(gfx.nvgContext, sizePixels.x / pixelDensity, sizePixels.y / pixelDensity, pixelDensity)
   nvgResetScissor(gfx.nvgContext)
 
@@ -203,6 +231,29 @@ proc addFont*(gfx: Gfx, name, data: string) =
   if font == -1:
     echo "Failed to load font: " & name
 
+proc drawText*(gfx: Gfx, position: Vec2, text: openArray[char]): float32 {.discardable.} =
+  nvgText(
+    gfx.nvgContext,
+    position.x, position.y,
+    cast[cstring](text[0].unsafeAddr),
+    cast[cstring](cast[uint64](text[text.len - 1].unsafeAddr) + 1),
+  )
+
+proc textMetrics*(gfx: Gfx): tuple[ascender, descender, lineHeight: float32] =
+  nvgTextMetrics(gfx.nvgContext, result.ascender.addr, result.descender.addr, result.lineHeight.addr)
+
+proc setTextAlign*(gfx: Gfx, x: TextAlignX, y: TextAlignY) =
+  let nvgXValue = case x:
+    of Left: NVG_ALIGN_LEFT
+    of Center: NVG_ALIGN_CENTER
+    of Right: NVG_ALIGN_RIGHT
+  let nvgYValue = case y:
+    of Top: NVG_ALIGN_TOP
+    of Center: NVG_ALIGN_MIDDLE
+    of Bottom: NVG_ALIGN_BOTTOM
+    of Baseline: NVG_ALIGN_BASELINE
+  nvgTextAlign(gfx.nvgContext, nvgXValue or nvgYValue)
+
 proc `font=`*(gfx: Gfx, name: string) =
   nvgFontFace(gfx.nvgContext, name.cstring)
 
@@ -226,70 +277,23 @@ proc translate*(gfx: Gfx, amount: Vec2) =
 
 {.pop.}
 
-proc newText*(gfx: Gfx, data: string): Text =
-  if data.len == 0:
-    return nil
+template width*(glyph: Glyph): auto = glyph.maxX - glyph.minX
 
-  let runes = data.toRunes
-  result = Text(
-    data: data,
-    glyphs: newSeq[Glyph](runes.len),
-    lines: @[(startIndex: 0, endIndex: runes.len - 1)]
-  )
-
-  var ascender, descender, lineHeight: cfloat
-  nvgTextMetrics(gfx.nvgContext, ascender.addr, descender.addr, lineHeight.addr)
-  result.ascender = ascender
-  result.descender = descender
-  result.lineHeight = lineHeight
-
-  var positions = newSeq[NVGglyphPosition](runes.len)
-  discard nvgTextGlyphPositions(gfx.nvgContext, 0, 0, data, nil, positions[0].addr, runes.len.cint)
-
-  let lastGlyphStart = cast[cstring](data[data.len - runes[^1].size].unsafeAddr)
-  let lastGlyphEnd = cast[cstring](cast[uint](data[0].unsafeAddr) + data.len.uint)
-  var lastGlyphBounds: array[4, cfloat]
-  discard nvgTextBounds(gfx.nvgContext, 0, 0, lastGlyphStart, lastGlyphEnd, lastGlyphBounds[0].addr)
-  result.glyphs[^1].width = lastGlyphBounds[2] - lastGlyphBounds[0]
-
-  var byteIndex = 0
-  for i in 0 ..< runes.len:
-    let rune = runes[i]
-    result.glyphs[i].rune = rune
-    result.glyphs[i].byteIndex = byteIndex
-    if i + 1 < runes.len:
-      result.glyphs[i].width = positions[i + 1].x - positions[i].x
-    byteIndex += rune.size
-
-proc drawText*(gfx: Gfx,
-               text: Text,
-               position, size: Vec2,
-               alignX = TextAlignX.Left,
-               alignY = TextAlignY.Top,
-               wordWrap = false,
-               clip = true) =
-  if text == nil:
+proc getGlyphs*(gfx: Gfx, position: Vec2, text: openArray[char]): seq[Glyph] =
+  if text.len == 0:
     return
 
-  proc drawLine(text: Text, line: TextLine, lineBounds: Rect2) =
-    let startGlyph = text.glyphs[line.startIndex]
-    let endGlyph = text.glyphs[line.endIndex]
-    let lineStartAddr = cast[uint](text.data[startGlyph.byteIndex].unsafeAddr)
-    let lineByteLen = (endGlyph.byteIndex + endGlyph.rune.size) - startGlyph.byteIndex
-    let lineEndAddr = lineStartAddr + lineByteLen.uint
-    # gfx.saveState()
-    # gfx.beginPath()
-    # gfx.roundedRect lineBounds, 2
-    # gfx.fillColor = rgb(0, 120, 0)
-    # gfx.fill()
-    # gfx.restoreState()
-    discard nvgText(gfx.nvgContext, lineBounds.x, lineBounds.y + text.ascender, cast[cstring](lineStartAddr), cast[cstring](lineEndAddr))
+  var nvgPositions = newSeq[NVGglyphPosition](text.len)
+  discard nvgTextGlyphPositions(gfx.nvgContext, position.x, position.y, cast[cstring](text[0].unsafeAddr), nil, nvgPositions[0].addr, text.len.cint)
+  for i in countdown(nvgPositions.len - 1, 0, 1):
+    let glyph = nvgPositions[i]
+    if glyph.str != nil:
+      nvgPositions.setLen(i + 1)
+      break
 
-  if clip:
-    gfx.saveState()
-    gfx.clip(position, size)
-
-  text.drawLines(position, size, alignX, alignY, wordWrap, clip, drawLine)
-
-  if clip:
-    gfx.restoreState()
+  result.setLen(nvgPositions.len)
+  for i, nvgPosition in nvgPositions:
+    result[i].index = cast[uint64](nvgPosition.str) - cast[uint64](text[0].unsafeAddr)
+    result[i].x = nvgPosition.x
+    result[i].minX = nvgPosition.minx
+    result[i].maxX = nvgPosition.maxx

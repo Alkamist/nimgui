@@ -22,7 +22,6 @@ type
     gfx*: Gfx
     hovers*: seq[GuiWidget]
     storedBackgroundColor: Color
-    clipStack: seq[Rect2]
 
 template bounds*(widget: GuiWidget): Rect2 = rect2(widget.position, widget.size)
 template x*(widget: GuiWidget): float = widget.position.x
@@ -61,6 +60,20 @@ template anyKeyJustReleased*(gui: Gui): bool = gui.osWindow.anyKeyJustReleased
 template scale*(gui: Gui): float = gui.osWindow.scale
 template pixelDensityChanged*(gui: Gui): bool = gui.osWindow.pixelDensityChanged
 template aspectRatio*(gui: Gui): float = gui.osWindow.aspectRatio
+
+template updateHook*(widgetToHook: GuiWidget, code: untyped): untyped =
+  let previous = widgetToHook.update
+  widgetToHook.update = proc(widgetBase: GuiWidget) =
+    let self {.inject.} = typeof(widgetToHook)(widgetBase)
+    previous(widgetBase)
+    code
+
+template drawHook*(widgetToHook: GuiWidget, code: untyped): untyped =
+  let previous = widgetToHook.draw
+  widgetToHook.draw = proc(widgetBase: GuiWidget) =
+    let self {.inject.} = typeof(widgetToHook)(widgetBase)
+    previous(widgetBase)
+    code
 
 func addWidget*(parent: GuiWidget, T: typedesc = GuiWidget): T =
   result = T()
@@ -110,28 +123,14 @@ proc updateChildren*(parent: GuiWidget) =
     child.update(child)
 
 proc drawChildren*(parent: GuiWidget) =
-  let gui = parent.gui
-  let gfx = gui.gfx
-  # gfx.translate(parent.position)
-  # gfx.pushClipRect(rect2(vec2(0, 0), parent.size))
+  let gfx = parent.gui.gfx
   for child in parent.children:
     if not child.dontDraw:
-      # gui.clipStack.add(rect2(child.position, child.size))
-      # gfx.clip(child.position, child.size)
-
       gfx.translate(child.position)
       gfx.clip(vec2(0, 0), child.size, false)
       child.draw(child)
       gfx.translate(-child.position)
-
-      # gui.clipStack.setLen(gui.clipStack.len - 1)
-      # if gui.clipStack.len > 0:
-      #   let previousClip = gui.clipStack[^1]
-      #   gfx.resetClip()
-      #   gfx.clip(previousClip.position, previousClip.size)
-
-  # gfx.translate(-parent.position)
-  # gfx.popClipRect()
+      gfx.clip(vec2(0, 0), parent.size, false)
 
 func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
   for child in parent.children:

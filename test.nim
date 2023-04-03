@@ -10,12 +10,10 @@ let window2 = gui.addWindow()
 
 let headerButton = window2.header.addButton()
 
-let prevDraw = window2.body.draw
-window2.body.draw = proc(widget: GuiWidget) =
-  prevDraw(widget)
-  let gfx = widget.gui.gfx
+window2.drawHook:
+  let gfx = self.gui.gfx
   gfx.beginPath()
-  gfx.rect(widget.mousePosition, vec2(50, 50))
+  gfx.rect(self.mousePosition, vec2(50, 50))
   gfx.fillColor = rgb(0, 255, 0)
   gfx.fill()
 

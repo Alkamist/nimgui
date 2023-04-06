@@ -8,24 +8,24 @@ proc currentSourceDir(): string {.compileTime.} =
 const nanovgDir = currentSourceDir() & "/nanovg"
 
 type
-  NVGcontext* {.byCopy.} = ptr object
+  NVGcontext* {.bycopy.} = ptr object
 
-  NVGcolor* {.byCopy.} = object
+  NVGcolor* {.bycopy.} = object
     r*, g*, b*, a*: cfloat
 
-  NVGglyphPosition* {.byCopy.} = object
+  NVGglyphPosition* {.bycopy.} = object
     str*: cstring
     x*: cfloat
     minx*, maxx*: cfloat
 
-  NVGtextRow* {.byCopy.} = object
+  NVGtextRow* {.bycopy.} = object
     start*: cstring
     `end`*: cstring
     next*: cstring
     width*: cfloat
     minx*, maxx*: cfloat
 
-  NVGpaint* {.byCopy.} = object
+  NVGpaint* {.bycopy.} = object
     xform*: array[6, cfloat]
     extent*: array[2, cfloat]
     radius*: cfloat

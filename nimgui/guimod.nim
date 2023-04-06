@@ -160,11 +160,15 @@ func updateInput(gui: Gui) =
   gui.mousePosition = gui.osWindow.inputState.mousePosition
 
 proc close*(gui: Gui) =
+  when defined(emscripten):
+    GcUnref(gui)
   gui.osWindow.close()
   `=destroy`(gui.gfx)
 
 proc newGui*(parentOsWindowHandle: pointer = nil): Gui =
   result = Gui()
+  when defined(emscripten):
+    GcRef(result)
 
   result.osWindow = newOsWindow(parentOsWindowHandle)
   result.gfx = newGfx()

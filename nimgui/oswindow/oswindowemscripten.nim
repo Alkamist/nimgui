@@ -6,6 +6,9 @@ import ./oswindowbase; export oswindowbase
 
 const canvas = "canvas.emscripten"
 
+{.passL: "-s EXPORTED_RUNTIME_METHODS=ccall".}
+{.passL: "-s EXPORTED_FUNCTIONS=_main,_mousePressProc,_mouseReleaseProc,_mouseMoveProc".}
+
 {.emit: """
 #include <emscripten/em_js.h>
 EM_JS(int, getWindowWidth, (), {
@@ -28,9 +31,11 @@ type
     isChild*: bool
     webGlContext*: EMSCRIPTEN_WEBGL_CONTEXT_HANDLE
 
+var mainWindow: OsWindow
+
 defineOsWindowBaseTemplates(OsWindow)
 
-func toMouseButton(scanCode: cushort): MouseButton =
+func toMouseButton(scanCode: int): MouseButton =
   case scanCode:
   of 0: MouseButton.Left
   of 1: MouseButton.Middle
@@ -73,22 +78,34 @@ proc onResize(eventType: cint, uiEvent: ptr EmscriptenUiEvent, userData: pointer
   window.inputState.size.x = uiEvent.windowInnerWidth.float
   window.inputState.size.y = uiEvent.windowInnerHeight.float
 
-proc onMouseJustMoved(eventType: cint; mouseEvent: ptr EmscriptenMouseEvent; userData: pointer): EM_BOOL {.cdecl.} =
-  let window = cast[OsWindow](userData)
-  window.inputState.mousePosition.x = mouseEvent.clientX.float
-  window.inputState.mousePosition.y = mouseEvent.clientY.float
+proc mousePressProc(button: int) {.exportc.} =
+  let button = button.toMouseButton()
+  mainWindow.inputState.mousePresses.add button
+  mainWindow.inputState.mouseIsDown[button] = true
 
-proc onMouseJustPressed(eventType: cint; mouseEvent: ptr EmscriptenMouseEvent; userData: pointer): EM_BOOL {.cdecl.} =
-  let window = cast[OsWindow](userData)
-  let button = mouseEvent.button.toMouseButton()
-  window.inputState.mousePresses.add button
-  window.inputState.mouseIsDown[button] = true
+proc mouseReleaseProc(button: int) {.exportc.} =
+  let button = button.toMouseButton()
+  mainWindow.inputState.mouseReleases.add button
+  mainWindow.inputState.mouseIsDown[button] = false
 
-proc onMouseJustReleased(eventType: cint; mouseEvent: ptr EmscriptenMouseEvent; userData: pointer): EM_BOOL {.cdecl.} =
-  let window = cast[OsWindow](userData)
-  let button = mouseEvent.button.toMouseButton()
-  window.inputState.mouseReleases.add button
-  window.inputState.mouseIsDown[button] = false
+proc mouseMoveProc(clientX, clientY: cint) {.exportc.} =
+  mainWindow.inputState.mousePosition.x = clientX.float
+  mainWindow.inputState.mousePosition.y = clientY.float
+
+emscripten_run_script("""
+function onMousePress(e) {
+  Module.ccall('mousePressProc', null, ['number'], [e.button]);
+}
+function onMouseRelease(e) {
+  Module.ccall('mouseReleaseProc', null, ['number'], [e.button]);
+}
+function onMouseMove(e) {
+  Module.ccall('mouseMoveProc', null, ['number', 'number'], [e.clientX, e.clientY]);
+}
+window.addEventListener("mousedown", onMousePress);
+window.addEventListener("mouseup", onMouseRelease);
+window.addEventListener("mousemove", onMouseMove);
+""")
 
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
   window.makeContextCurrent()
@@ -98,15 +115,14 @@ template close*(window: OsWindow) = discard
 template process*(window: OsWindow) = discard
 
 proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
-  result = OsWindow()
-  result.initInputState()
-  result.createWebGlContext()
-  result.makeContextCurrent()
+  mainWindow = OsWindow()
+  mainWindow.initInputState()
+  mainWindow.createWebGlContext()
+  mainWindow.makeContextCurrent()
 
-  result.updateBounds()
+  mainWindow.updateBounds()
 
-  discard emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, cast[pointer](result), false.EM_BOOL, onResize)
-  discard emscripten_set_mousemove_callback(canvas, cast[pointer](result), false.EM_BOOL, onMouseJustMoved)
-  discard emscripten_set_mousedown_callback(canvas, cast[pointer](result), false.EM_BOOL, onMouseJustPressed)
-  discard emscripten_set_mouseup_callback(canvas, cast[pointer](result), false.EM_BOOL, onMouseJustReleased)
-  discard emscripten_request_animation_frame(mainLoop, cast[pointer](result))
+  discard emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, cast[pointer](mainWindow), false.EM_BOOL, onResize)
+  discard emscripten_request_animation_frame(mainLoop, cast[pointer](mainWindow))
+
+  return mainWindow

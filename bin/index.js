@@ -1209,6 +1209,7 @@ function dbg(text) {
 
 function getWindowWidth() { return window.innerWidth; }
 function getWindowHeight() { return window.innerHeight; }
+function setMouseCursorImage(cursorName) { document.body.style.cursor = UTF8ToString(cursorName); }
 
 
 
@@ -2362,6 +2363,7 @@ function getWindowHeight() { return window.innerHeight; }
   function _glViewport(x0, x1, x2, x3) { GLctx['viewport'](x0, x1, x2, x3) }
 
 
+
   function handleException(e) {
       // Certain exception types we do not treat as errors since they are used for
       // internal control flow.
@@ -2539,7 +2541,8 @@ var wasmImports = {
   "glUniform4fv": _glUniform4fv,
   "glUseProgram": _glUseProgram,
   "glVertexAttribPointer": _glVertexAttribPointer,
-  "glViewport": _glViewport
+  "glViewport": _glViewport,
+  "setMouseCursorImage": setMouseCursorImage
 };
 var asm = createWasm();
 /** @type {function(...*):?} */
@@ -2593,8 +2596,8 @@ var _emscripten_stack_get_current = function() {
 
 /** @type {function(...*):?} */
 var dynCall_jiji = Module["dynCall_jiji"] = createExportWrapper("dynCall_jiji");
-var ___start_em_js = Module['___start_em_js'] = 540848;
-var ___stop_em_js = Module['___stop_em_js'] = 540921;
+var ___start_em_js = Module['___start_em_js'] = 540944;
+var ___stop_em_js = Module['___stop_em_js'] = 541104;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===

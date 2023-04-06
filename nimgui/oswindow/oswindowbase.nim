@@ -5,6 +5,16 @@ import ../math; export math
 const densityPixelDpi* = 96.0
 
 type
+  CursorImage* = enum
+    Arrow
+    IBeam
+    Crosshair
+    PointingHand
+    ResizeLeftRight
+    ResizeTopBottom
+    ResizeTopLeftBottomRight
+    ResizeTopRightBottomLeft
+
   MouseButton* = enum
     Unknown,
     Left, Middle, Right,
@@ -37,6 +47,7 @@ type
 
   InputState* = object
     isHovered*: bool
+    wasHovered*: bool
     position*: Vec2
     previousPosition*: Vec2
     size*: Vec2
@@ -69,6 +80,7 @@ template defineOsWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
     )
 
   template updateInputState*(window: T) =
+    window.inputState.wasHovered = window.inputState.isHovered
     window.inputState.previousPosition = window.inputState.position
     window.inputState.previousSize = window.inputState.size
     window.inputState.previousTime = window.inputState.time
@@ -129,5 +141,5 @@ template defineOsWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
 
   # template gainedFocus*(window: T): bool = window.inputState.isFocused and not window.previousInputState.isFocused
   # template lostFocus*(window: T): bool = window.previousInputState.isFocused and not window.inputState.isFocused
-  # template mouseEntered*(window: T): bool = window.inputState.isHovered and not window.previousInputState.isHovered
-  # template mouseExited*(window: T): bool = window.previousInputState.isHovered and not window.inputState.isHovered
+  template mouseEntered*(window: T): bool = window.inputState.isHovered and not window.inputState.wasHovered
+  template mouseExited*(window: T): bool = window.inputState.wasHovered and not window.inputState.isHovered

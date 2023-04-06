@@ -61,6 +61,20 @@ template updateBounds(window: OsWindow) =
   window.inputState.position = vec2(rect.left.float, rect.top.float) / window.pixelDensity
   window.inputState.size = vec2((rect.right - rect.left).float, (rect.bottom - rect.top).float) / window.pixelDensity
 
+func toWin32MouseCursor(cursor: CursorImage): LPTSTR =
+  case cursor:
+  of Arrow: IDC_ARROW
+  of IBeam: IDC_IBEAM
+  of Crosshair: IDC_CROSS
+  of PointingHand: IDC_HAND
+  of ResizeLeftRight: IDC_SIZEWE
+  of ResizeTopBottom: IDC_SIZENS
+  of ResizeTopLeftBottomRight: IDC_SIZENWSE
+  of ResizeTopRightBottomLeft: IDC_SIZENESW
+
+proc `mouseCursorImage=`*(window: OsWindow, value: CursorImage) =
+  SetCursor(LoadCursor(0, value.toWin32MouseCursor))
+
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
   window.openGlContext.select()
   glClearColor(color.r, color.g, color.b, color.a)
@@ -200,8 +214,14 @@ template renderFrameWithoutPollingEvents(window: OsWindow): untyped =
   window.openGlContext.select()
   glClear(GL_COLOR_BUFFER_BIT)
 
+  if window.mouseEntered:
+    window.mouseCursorImage = Arrow
+
   if window.onFrame != nil:
     window.onFrame()
+
+  # if window.mouseExited:
+  #   window.mouseCursorImage = Arrow
 
   window.openGlContext.swapBuffers()
   window.updateInputState()
@@ -235,7 +255,7 @@ proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
       cbWndExtra: 0,
       hInstance: GetModuleHandle(nil),
       hIcon: 0,
-      hCursor: LoadCursor(0, IDC_ARROW),
+      hCursor: 0,
       hbrBackground: CreateSolidBrush(RGB(0, 0, 0)),
       lpszMenuName: nil,
       lpszClassName: windowClassName,
@@ -269,6 +289,7 @@ proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
   discard SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
 
   result.updateBounds()
+  result.mouseCursorImage = Arrow
   # result.size = result.size
 
   result.openGlContext = newOpenGlContext(result.handle)

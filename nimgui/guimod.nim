@@ -13,6 +13,7 @@ type
     dontDraw*: bool
     passInput*: bool
     isHovered*: bool
+    wasHovered*: bool
     position*: Vec2
     size*: Vec2
     mousePosition*: Vec2
@@ -32,7 +33,10 @@ template width*(widget: GuiWidget): float = widget.size.x
 template `width=`*(widget: GuiWidget, value: float) = widget.size.x = value
 template height*(widget: GuiWidget): float = widget.size.y
 template `height=`*(widget: GuiWidget, value: float) = widget.size.y = value
+template mouseEntered*(widget: GuiWidget): bool = widget.isHovered and not widget.wasHovered
+template mouseExited*(widget: GuiWidget): bool = widget.wasHovered and not widget.isHovered
 
+template `mouseCursorImage=`*(gui: Gui, value: CursorImage) = gui.osWindow.mouseCursorImage = value
 template process*(gui: Gui): untyped = gui.osWindow.process()
 template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
 template time*(gui: Gui): float = gui.osWindow.time
@@ -93,6 +97,20 @@ func isHoveredIncludingChildren*(parent: GuiWidget): bool =
     if child.isHoveredIncludingChildren:
       return true
 
+# func mouseEnteredIncludingChildren*(parent: GuiWidget): bool =
+#   if parent.mouseEntered:
+#     return true
+#   for child in parent.children:
+#     if child.mouseEnteredIncludingChildren and not parent.wasHovered:
+#       return true
+
+# func mouseExitedIncludingChildren*(parent: GuiWidget): bool =
+#   if parent.mouseExited:
+#     return true
+#   for child in parent.children:
+#     if child.mouseExitedIncludingChildren and not parent.isHovered:
+#       return true
+
 func bringToTop*(widget: GuiWidget) =
   let parent = widget.parent
   var foundChild = false
@@ -117,8 +135,9 @@ proc updateChildren*(parent: GuiWidget) =
   let gfx = parent.gui.gfx
   for child in parent.children:
     gfx.saveState()
-    gfx.translate(child.position)
+    gfx.translate(gfx.pixelAlign(child.position))
     gfx.clip(vec2(0, 0), child.size)
+    child.wasHovered = child.isHovered
     child.isHovered = child in child.gui.hovers
     child.mousePosition = parent.mousePosition - child.position
     child.update(child)
@@ -129,7 +148,7 @@ proc drawChildren*(parent: GuiWidget) =
   for child in parent.children:
     if not child.dontDraw:
       gfx.saveState()
-      gfx.translate(child.position)
+      gfx.translate(gfx.pixelAlign(child.position))
       gfx.clip(vec2(0, 0), child.size)
       child.draw(child)
       gfx.restoreState()
@@ -184,6 +203,7 @@ proc newGui*(parentOsWindowHandle: pointer = nil): Gui =
 
     gui.updateInput()
     gui.updateHovers()
+    gui.wasHovered = gui.isHovered
     gui.isHovered = gui in gui.hovers
 
     gui.update(gui)

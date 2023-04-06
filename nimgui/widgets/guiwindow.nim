@@ -4,11 +4,12 @@ import ../guimod
 import ./guibutton
 import ./frame
 
-const resizeHitSize = 8.0
+const resizeHitSize = 10.0
 const resizeHitSize2 = resizeHitSize * 2.0
 const borderThickness = 1.0
-const headerHeight = 24.0
-const cornerRadius = 0.0
+const headerHeight = 32.0
+const cornerRadius = 4.0
+const roundingInset = (1.0 - sin(45.0.degToRad)) * cornerRadius
 
 type
   GuiWindow* = ref object of GuiWidget
@@ -148,11 +149,25 @@ proc updateWindow(widget: GuiWidget) =
     window.width - 2.0 * borderThickness,
     headerHeight - borderThickness,
   )
-  window.body.position = vec2(borderThickness, headerHeight)
+  window.body.position = vec2(borderThickness + roundingInset, headerHeight + roundingInset)
   window.body.size = vec2(
-    window.width - 2.0 * borderThickness,
-    window.height - headerHeight - borderThickness,
+    window.width - 2.0 * (borderThickness + roundingInset),
+    window.height - headerHeight - borderThickness - 2.0 * roundingInset,
   )
+
+  if window.resizeLeftButton.mouseEntered or window.resizeRightButton.mouseEntered:
+    gui.mouseCursorImage = ResizeLeftRight
+  elif window.resizeTopButton.mouseEntered or window.resizeBottomButton.mouseEntered:
+    gui.mouseCursorImage = ResizeTopBottom
+  elif window.resizeTopLeftButton.mouseEntered or window.resizeBottomRightButton.mouseEntered:
+    gui.mouseCursorImage = ResizeTopLeftBottomRight
+  elif window.resizeTopRightButton.mouseEntered or window.resizeBottomLeftButton.mouseEntered:
+    gui.mouseCursorImage = ResizeTopRightBottomLeft
+  elif window.resizeLeftButton.mouseExited or window.resizeRightButton.mouseExited or
+       window.resizeTopButton.mouseExited or window.resizeBottomButton.mouseExited or
+       window.resizeTopLeftButton.mouseExited or window.resizeBottomRightButton.mouseExited or
+       window.resizeTopRightButton.mouseExited or window.resizeBottomLeftButton.mouseExited:
+    gui.mouseCursorImage = Arrow
 
   if window.isHoveredIncludingChildren and
      (gui.mouseJustPressed(Left) or gui.mouseJustPressed(Middle) or gui.mouseJustPressed(Right)):

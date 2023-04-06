@@ -17,10 +17,14 @@ EM_JS(int, getWindowWidth, (), {
 EM_JS(int, getWindowHeight, (), {
   return window.innerHeight;
 });
+EM_JS(void, setMouseCursorImage, (const char* cursorName), {
+  document.body.style.cursor = UTF8ToString(cursorName);
+});
 """.}
 
 proc getWindowWidth(): cint {.importc, nodecl.}
 proc getWindowHeight(): cint {.importc, nodecl.}
+proc setMouseCursorImage(cursorName: cstring) {.importc, nodecl.}
 
 type
   OsWindow* = ref object
@@ -43,6 +47,17 @@ func toMouseButton(scanCode: int): MouseButton =
   of 3: MouseButton.Extra1
   of 4: MouseButton.Extra2
   else: MouseButton.Unknown
+
+func toJsCursorName(cursor: CursorImage): cstring =
+  case cursor:
+  of Arrow: cstring"default"
+  of IBeam: cstring"text"
+  of Crosshair: cstring"crosshair"
+  of PointingHand: cstring"pointer"
+  of ResizeLeftRight: cstring"ew-resize"
+  of ResizeTopBottom: cstring"ns-resize"
+  of ResizeTopLeftBottomRight: cstring"nwse-resize"
+  of ResizeTopRightBottomLeft: cstring"nesw-resize"
 
 proc createWebGlContext(window: OsWindow) =
   var attributes: EmscriptenWebGLContextAttributes
@@ -110,6 +125,9 @@ window.addEventListener("mousemove", onMouseMove);
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
   window.makeContextCurrent()
   glClearColor(color.r, color.g, color.b, color.a)
+
+proc `mouseCursorImage=`*(window: OsWindow, value: CursorImage) =
+  setMouseCursorImage(value.toJsCursorName)
 
 template close*(window: OsWindow) = discard
 template process*(window: OsWindow) = discard

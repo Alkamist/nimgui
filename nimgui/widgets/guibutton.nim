@@ -50,7 +50,7 @@ proc drawButton(widget: GuiWidget) =
     position = vec2(0, 0),
     size = button.size,
     borderThickness = 1.0,
-    cornerRadius = 5.0,
+    cornerRadius = 2.0,
     bodyColor = bodyColorHighlighted,
     borderColor = borderColorHighlighted,
   )

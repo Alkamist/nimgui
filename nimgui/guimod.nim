@@ -33,7 +33,7 @@ template `width=`*(widget: GuiWidget, value: float) = widget.size.x = value
 template height*(widget: GuiWidget): float = widget.size.y
 template `height=`*(widget: GuiWidget, value: float) = widget.size.y = value
 
-template process*(gui: Gui): untyped = gui.osWindow.update()
+template process*(gui: Gui): untyped = gui.osWindow.process()
 template isOpen*(gui: Gui): bool = gui.osWindow.isOpen
 template time*(gui: Gui): float = gui.osWindow.time
 template pixelDensity*(gui: Gui): float = gui.osWindow.pixelDensity
@@ -155,15 +155,18 @@ func updateHovers(gui: Gui) =
     gui.hovers.add(gui)
 
 func updateInput(gui: Gui) =
-  gui.isHovered = gui in gui.hovers
   gui.position = vec2(0, 0)
   gui.size = gui.osWindow.inputState.size
   gui.mousePosition = gui.osWindow.inputState.mousePosition
 
-proc newGui*(): Gui =
+proc close*(gui: Gui) =
+  gui.osWindow.close()
+  `=destroy`(gui.gfx)
+
+proc newGui*(parentOsWindowHandle: pointer = nil): Gui =
   result = Gui()
 
-  result.osWindow = newOsWindow()
+  result.osWindow = newOsWindow(parentOsWindowHandle)
   result.gfx = newGfx()
   result.gui = result
   result.update = proc(widget: GuiWidget) = widget.updateChildren()
@@ -175,8 +178,10 @@ proc newGui*(): Gui =
     gfx.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
     gfx.resetClip()
 
-    gui.updateHovers()
     gui.updateInput()
+    gui.updateHovers()
+    gui.isHovered = gui in gui.hovers
+
     gui.update(gui)
     gui.draw(gui)
 

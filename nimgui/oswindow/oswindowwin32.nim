@@ -8,7 +8,6 @@ import ../openglwrappers/openglcontext
 type
   OsWindow* = ref object
     inputState*: InputState
-    previousInputState*: InputState
     onFrame*: proc()
     handle*: pointer
     isOpen*: bool
@@ -207,7 +206,7 @@ template renderFrameWithoutPollingEvents(window: OsWindow): untyped =
   window.openGlContext.swapBuffers()
   window.updateInputState()
 
-proc update*(window: OsWindow) =
+proc process*(window: OsWindow) =
   if not window.isChild:
     var msg: MSG
     while PeekMessage(msg, window.hwnd, 0, 0, PM_REMOVE) != 0:

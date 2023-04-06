@@ -168,3 +168,24 @@ when defined(windows):
 
   proc getProcAddress*(ctx: OpenGlContext): pointer =
     getProcAddressWgl
+
+# when defined(emscripten):
+#   import ../emscripten
+
+#   type
+#     OpenGlContext* = ref object
+#       webGlContext
+
+#   # proc `=destroy`*(ctx: var type OpenGlContext()[]) =
+#   # proc newOpenGlContext*(handle: pointer): OpenGlContext =
+
+#   proc newOpenGlContext*(): OpenGlContext =
+#     var attributes: EmscriptenWebGLContextAttributes
+#     emscripten_webgl_init_context_attributes(attributes.addr)
+#     attributes.stencil = true.EM_BOOL
+#     attributes.depth = true.EM_BOOL
+#     window.webGlContext = emscripten_webgl_create_context("#canvas", attributes.addr)
+
+  # proc select*(ctx: OpenGlContext) =
+  # proc unselect*(ctx: OpenGlContext) =
+  # proc swapBuffers*(ctx: OpenGlContext) =

@@ -7,29 +7,11 @@ proc currentSourceDir(): string {.compileTime.} =
 
 const nanovgDir = currentSourceDir() & "/nanovg"
 
-{.passC: &" -I{nanovgDir} -DNANOVG_GL3_IMPLEMENTATION".}
-{.compile: &"{nanovgDir}/nanovg.c".}
-{.compile: &"{nanovgDir}/glad.c".}
-
-{.emit: &"""
-#include "glad/glad.h"
-#include "nanovg.h"
-#include "nanovg_gl.h"
-#include "nanovg_gl_utils.h"
-""".}
-
 type
-  NVGcontextObj* {.byCopy.} = object
-  NVGcontext* = ptr NVGcontextObj
+  NVGcontext* {.byCopy.} = ptr object
 
   NVGcolor* {.byCopy.} = object
     r*, g*, b*, a*: cfloat
-
-  NVGcompositeOperationState* {.byCopy.} = object
-    srcRGB*: cint
-    dstRGB*: cint
-    srcAlpha*: cint
-    dstAlpha*: cint
 
   NVGglyphPosition* {.byCopy.} = object
     str*: cstring
@@ -100,8 +82,10 @@ const NVG_IMAGE_FLIPY* = 1 shl 3
 const NVG_IMAGE_PREMULTIPLIED* = 1 shl 4
 const NVG_IMAGE_NEAREST* = 1 shl 5
 
-{.push cdecl, importc.}
+{.push importc, cdecl.}
 
+proc nvgCreateGLES2*(flags: cint): NVGcontext
+proc nvgDeleteGLES2*(ctx: NVGcontext)
 proc nvgCreateGL3*(flags: cint): NVGcontext
 proc nvgDeleteGL3*(ctx: NVGcontext)
 proc nvgBeginFrame*(ctx: NVGcontext, windowWidth, windowHeight, devicePixelRatio: cfloat)
@@ -206,3 +190,33 @@ proc nvgTextMetrics*(ctx: NVGcontext, ascender, descender, lineh: ptr cfloat)
 proc nvgTextBreakLines*(ctx: NVGcontext, `string`, `end`: cstring, breakRowWidth: cfloat, rows: ptr NVGtextRow, maxRows: cint): cint
 
 {.pop.}
+
+{.passC: &" -I{nanovgDir}".}
+
+when defined(emscripten):
+  {.passC: "-DNANOVG_GLES2_IMPLEMENTATION".}
+else:
+  {.passC: "-DNANOVG_GL3_IMPLEMENTATION".}
+  {.compile: &"{nanovgDir}/glad.c".}
+  proc gladLoadGL*(): int {.importc, cdecl.}
+  var gladIsInitialized* {.threadvar.}: bool
+
+{.compile: &"{nanovgDir}/nanovg.c".}
+{.compile: &"{nanovgDir}/nanovg_gl.c".}
+{.compile: &"{nanovgDir}/nanovg_gl_utils.c".}
+
+proc nvgDelete*(ctx: NVGcontext) =
+  when defined(emscripten):
+    nvgDeleteGLES2(ctx)
+  else:
+    nvgDeleteGL3(ctx)
+
+proc nvgCreate*(flags: cint): NVGcontext =
+  when defined(emscripten):
+    nvgCreateGLES2(flags)
+  else:
+    if not gladIsInitialized:
+      if gladLoadGL() <= 0:
+        quit "Failed to initialise glad."
+      gladIsInitialized = true
+    nvgCreateGL3(flags)

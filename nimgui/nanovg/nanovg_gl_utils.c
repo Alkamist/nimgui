@@ -18,6 +18,8 @@
 #ifndef NANOVG_GL_UTILS_H
 #define NANOVG_GL_UTILS_H
 
+#include "nanovg.h"
+
 struct NVGLUframebuffer {
 	NVGcontext* ctx;
 	GLuint fbo;

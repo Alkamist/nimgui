@@ -19,6 +19,13 @@
 #ifndef NANOVG_H
 #define NANOVG_H
 
+#ifdef __EMSCRIPTEN__
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#else
+#include "glad/glad.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

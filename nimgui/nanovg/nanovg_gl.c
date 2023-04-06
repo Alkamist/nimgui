@@ -18,6 +18,8 @@
 #ifndef NANOVG_GL_H
 #define NANOVG_GL_H
 
+#include "nanovg.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -111,7 +113,6 @@ enum NVGimageFlagsGL {
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "nanovg.h"
 
 enum GLNVGuniformLoc {
 	GLNVG_LOC_VIEWSIZE,

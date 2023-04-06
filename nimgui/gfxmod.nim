@@ -5,12 +5,6 @@ import opengl
 import ./nanovg
 import ./math; export math
 
-# template `{}`(oa: openArray, slice: Slice[int]): untyped = oa.toOpenArray(slice.a, slice.b)
-# template `{}`(oa: openArray, slice: HSlice[int, BackwardsIndex]): untyped = oa.toOpenArray(slice.a, oa.len - int slice.b)
-
-proc gladLoadGL(): int {.cdecl, importc.}
-var gladIsInitialized {.threadvar.}: bool
-
 const NVG_ALIGN_LEFT = (1 shl 0).cint
 const NVG_ALIGN_CENTER = (1 shl 1).cint
 const NVG_ALIGN_RIGHT = (1 shl 2).cint
@@ -63,15 +57,11 @@ type
     nvgContext*: NVGcontext
 
 proc `=destroy`*(gfx: var type Gfx()[]) =
-  nvgDeleteGL3(gfx.nvgContext)
+  nvgDelete(gfx.nvgContext)
 
 proc newGfx*(): Gfx =
-  if not gladIsInitialized:
-    if gladLoadGL() <= 0:
-      quit "Failed to initialise glad."
-    gladIsInitialized = true
   result = Gfx(
-    nvgContext: nvgCreateGL3(NVG_ANTIALIAS or NVG_STENCIL_STROKES),
+    nvgContext: nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES),
   )
 
 template pixelAlign*(gfx: Gfx, value: float): float =

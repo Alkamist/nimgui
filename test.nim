@@ -5,7 +5,8 @@ import nimgui
 const consolaData = staticRead("consola.ttf")
 
 let gui = newGui()
-gui.backgroundColor = rgb(13, 17, 23)
+gui.backgroundColor = rgb(36, 37, 43)
+# gui.backgroundColor = rgb(255, 255, 255)
 gui.gfx.addFont("consola", consolaData)
 
 let window1 = gui.addWindow()
@@ -21,6 +22,10 @@ window3.size = vec2(500, 500)
 let window4 = window3.body.addWindow()
 window4.position = vec2(50, 50)
 window4.size = vec2(400, 300)
+
+let testButton = window4.body.addButton()
+testButton.position = vec2(10, 10)
+testButton.size = vec2(96, 24)
 
 let txt = window2.body.addText()
 txt.data = "abcdefghijklmnopqrstuvwxyz01234567890!@#$%^&*()-=_+"

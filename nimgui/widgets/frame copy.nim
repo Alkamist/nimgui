@@ -89,8 +89,7 @@ func drawFrameWithHeader*(gfx: Gfx,
                           position, size: Vec2,
                           borderThickness, headerHeight: float,
                           cornerRadius: float,
-                          bodyColor, bodyBorderColor: Color,
-                          headerColor, headerBorderColor: Color) =
+                          bodyColor, headerColor, borderColor: Color) =
   let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
   let halfBorderThickness = borderThickness * 0.5
 
@@ -141,27 +140,11 @@ func drawFrameWithHeader*(gfx: Gfx,
   gfx.fillColor = bodyColor
   gfx.fill()
 
-  # Body border.
-  let bodyBorderBounds = rect2(
-    vec2(position.x, headerHeight),
-    vec2(size.x, size.y - headerHeight),
-  ).expand(-borderThickness * 0.5)
+  # Border outer.
   gfx.beginPath()
-  gfx.moveTo(bodyBorderBounds.position)
-  gfx.lineTo(bodyBorderBounds.position + vec2(0, bodyBorderBounds.height))
-  gfx.lineTo(bodyBorderBounds.position + bodyBorderBounds.size)
-  gfx.lineTo(bodyBorderBounds.position + vec2(bodyBorderBounds.width, 0))
-  gfx.strokeColor = bodyBorderColor
-  gfx.stroke()
+  gfx.roundedRect(position, size, cornerRadius)
 
-  # Header border.
-  gfx.beginPath()
-  gfx.roundedRect(
-    position,
-    vec2(size.x, headerHeight),
-    cornerRadius, cornerRadius,
-    0, 0,
-  )
+  # Header inner hole.
   gfx.roundedRect(
     vec2(leftInner, topInner),
     vec2(innerWidth, headerInner - topInner),
@@ -170,5 +153,16 @@ func drawFrameWithHeader*(gfx: Gfx,
     0, 0,
   )
   gfx.pathWinding = Hole
-  gfx.fillColor = headerBorderColor
+
+  # Body inner hole.
+  gfx.roundedRect(
+    vec2(leftInner, headerOuter),
+    vec2(innerWidth, bottomInner - headerOuter),
+    0, 0,
+    innerCornerRadius,
+    innerCornerRadius,
+  )
+  gfx.pathWinding = Hole
+
+  gfx.fillColor = borderColor
   gfx.fill()

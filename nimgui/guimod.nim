@@ -11,6 +11,7 @@ type
     update*: proc(widget: GuiWidget)
     draw*: proc(widget: GuiWidget)
     dontDraw*: bool
+    dontClip*: bool
     passInput*: bool
     isHovered*: bool
     wasHovered*: bool
@@ -134,11 +135,12 @@ proc `backgroundColor=`*(gui: Gui, color: Color) =
 proc updateChildren*(parent: GuiWidget) =
   let gfx = parent.gui.gfx
   for child in parent.children:
+    child.wasHovered = child.isHovered
     gfx.saveState()
     gfx.translate(gfx.pixelAlign(child.position))
-    gfx.clip(vec2(0, 0), child.size)
-    child.wasHovered = child.isHovered
-    child.isHovered = child in child.gui.hovers
+    if not child.dontClip:
+      gfx.clip(vec2(0, 0), child.size)
+      child.isHovered = child in child.gui.hovers
     child.mousePosition = parent.mousePosition - child.position
     child.update(child)
     gfx.restoreState()
@@ -149,7 +151,8 @@ proc drawChildren*(parent: GuiWidget) =
     if not child.dontDraw:
       gfx.saveState()
       gfx.translate(gfx.pixelAlign(child.position))
-      gfx.clip(vec2(0, 0), child.size)
+      if not child.dontClip:
+        gfx.clip(vec2(0, 0), child.size)
       child.draw(child)
       gfx.restoreState()
 

@@ -2,6 +2,7 @@
 
 import ../guimod
 import ./guibutton
+import ./frame
 
 const resizeHitSize = 5.0
 const resizeHitSize2 = resizeHitSize * 2.0
@@ -178,40 +179,59 @@ proc drawWindow(widget: GuiWidget) =
   let window = GuiWindow(widget)
   let gfx = window.gui.gfx
 
-  # Drop shadow:
+  # const sin45 = sin(45.0.degToRad)
+  const feather = 20.0
+  let featherOffset = vec2(feather, feather)
+  # let featherOffsetHalf = featherOffset * 0.5
+  let featherOffset2 = featherOffset * 2.0
+
+  # let shadowOffset = vec2(0, 0)
+  let shadowPosition = -featherOffset
+  let shadowSize = window.size + featherOffset2
+
   let shadowPaint = gfx.boxGradient(
-    vec2(0, 2), window.size,
-    cornerRadius * 2.0,
-    10.0,
-    rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
+    vec2(0, 0),
+    window.size,
+    cornerRadius,
+    feather,
+    rgb(38, 40, 44),
+    rgba(0, 0, 0, 0),
   )
   gfx.beginPath()
-  gfx.rect(vec2(-10, -10), window.size + vec2(20, 30))
+  gfx.rect(shadowPosition, shadowSize)
   gfx.roundedRect(vec2(0, 0), window.size, cornerRadius)
   gfx.pathWinding = Hole
   gfx.fillPaint = shadowPaint
   gfx.fill()
 
-  # Window:
+  let headerBorderBounds = rect2(
+    vec2(0, 0),
+    vec2(window.width, headerHeight),
+  ).expand(-borderThickness * 0.5)
   gfx.beginPath()
-  gfx.roundedRect(vec2(0, 0), window.size, cornerRadius)
-  gfx.fillColor = rgb(36, 37, 43)
-  gfx.fill()
-
-  # Header:
-  let headerPaint = gfx.linearGradient(
-    vec2(0, 0), vec2(0, headerHeight * 0.5),
-    rgba(255, 255, 255, 8), rgba(0, 0, 0, 16),
-  )
-  gfx.beginPath()
-  gfx.roundedRect(vec2(1, 1), vec2(window.width - 2.0, headerHeight), cornerRadius - 1.0)
-  gfx.fillPaint = headerPaint
-  gfx.fill()
-  gfx.beginPath()
-  gfx.moveTo(vec2(0.5, 0.5 + headerHeight))
-  gfx.lineTo(vec2(-0.5 + window.width, 0.5 + headerHeight))
-  gfx.strokeColor = rgba(0, 0, 0, 32)
+  gfx.moveTo(headerBorderBounds.position + vec2(0, headerBorderBounds.height))
+  gfx.lineTo(headerBorderBounds.position)
+  gfx.lineTo(headerBorderBounds.position + vec2(headerBorderBounds.width, 0))
+  gfx.lineTo(headerBorderBounds.position + headerBorderBounds.size)
+  gfx.strokeColor = rgb(49, 51, 56).lighten(0.1)
   gfx.stroke()
+
+
+
+  # gfx.drawFrameWithHeader(
+  #   position = vec2(0, 0),
+  #   size = window.size,
+  #   borderThickness = borderThickness,
+  #   headerHeight = headerHeight,
+  #   cornerRadius = cornerRadius,
+  #   # bodyColor = rgb(13, 17, 23),
+  #   # headerColor = rgb(22, 27, 34),
+  #   # borderColor = rgb(52, 59, 66),
+  #   bodyColor = rgb(49, 51, 56),
+  #   bodyBorderColor = rgb(49, 51, 56).lighten(0.1),
+  #   headerColor = rgb(30, 31, 34),
+  #   headerBorderColor = rgb(49, 51, 56).lighten(0.1),
+  # )
 
   window.drawChildren()
 

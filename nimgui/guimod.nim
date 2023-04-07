@@ -140,7 +140,7 @@ proc updateChildren*(parent: GuiWidget) =
     gfx.translate(gfx.pixelAlign(child.position))
     if not child.dontClip:
       gfx.clip(vec2(0, 0), child.size)
-      child.isHovered = child in child.gui.hovers
+    child.isHovered = child in child.gui.hovers
     child.mousePosition = parent.mousePosition - child.position
     child.update(child)
     gfx.restoreState()
@@ -159,7 +159,7 @@ proc drawChildren*(parent: GuiWidget) =
 func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
   for child in parent.children:
     let childBounds = child.bounds
-    if childBounds.contains(parent.mousePosition):
+    if childBounds.contains(parent.mousePosition) or child.dontClip:
       result.add(child)
       let hitTest = child.childMouseHitTest()
       for hit in hitTest:

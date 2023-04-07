@@ -4,8 +4,7 @@ import ../guimod
 import ./guibutton
 import ./frame
 
-const resizeHitSize = 5.0
-const resizeHitSize2 = resizeHitSize * 2.0
+const resizeHitSize = 8.0
 const borderThickness = 1.0
 const headerHeight = 22.0
 const cornerRadius = 4.0
@@ -31,24 +30,24 @@ type
     resizeButtons: GuiWidget
 
 func updateMoveResizeButtonBounds(window: GuiWindow) =
-  window.resizeButtons.size = window.size
+  # window.resizeButtons.size = window.size
   window.moveButton.position = vec2(0, 0)
   window.moveButton.size = vec2(window.width, headerHeight)
-  window.resizeLeftButton.position = vec2(0, resizeHitSize)
-  window.resizeLeftButton.size = vec2(resizeHitSize, window.height - resizeHitSize2)
-  window.resizeRightButton.position = vec2(window.width - resizeHitSize, resizeHitSize)
-  window.resizeRightButton.size = vec2(resizeHitSize, window.height - resizeHitSize2)
-  window.resizeTopButton.position = vec2(resizeHitSize, 0)
-  window.resizeTopButton.size = vec2(window.width - resizeHitSize2, resizeHitSize)
-  window.resizeBottomButton.position = vec2(resizeHitSize, window.height - resizeHitSize)
-  window.resizeBottomButton.size = vec2(window.width - resizeHitSize2, resizeHitSize)
-  window.resizeTopLeftButton.position = vec2(0, 0)
+  window.resizeLeftButton.position = vec2(-resizeHitSize, resizeHitSize)
+  window.resizeLeftButton.size = vec2(resizeHitSize, window.height - resizeHitSize)
+  window.resizeRightButton.position = vec2(window.width, resizeHitSize)
+  window.resizeRightButton.size = vec2(resizeHitSize, window.height - resizeHitSize)
+  window.resizeTopButton.position = vec2(0, 0)
+  window.resizeTopButton.size = vec2(window.width, resizeHitSize)
+  window.resizeBottomButton.position = vec2(0, window.height)
+  window.resizeBottomButton.size = vec2(window.width, resizeHitSize)
+  window.resizeTopLeftButton.position = vec2(-resizeHitSize, 0)
   window.resizeTopLeftButton.size = vec2(resizeHitSize, resizeHitSize)
-  window.resizeTopRightButton.position = vec2(window.width - resizeHitSize, 0)
+  window.resizeTopRightButton.position = vec2(window.width, 0)
   window.resizeTopRightButton.size = vec2(resizeHitSize, resizeHitSize)
-  window.resizeBottomLeftButton.position = vec2(0, window.height - resizeHitSize)
+  window.resizeBottomLeftButton.position = vec2(-resizeHitSize, window.height)
   window.resizeBottomLeftButton.size = vec2(resizeHitSize, resizeHitSize)
-  window.resizeBottomRightButton.position = vec2(window.width - resizeHitSize, window.height - resizeHitSize)
+  window.resizeBottomRightButton.position = vec2(window.width, window.height)
   window.resizeBottomRightButton.size = vec2(resizeHitSize, resizeHitSize)
 
 func moveAndResize(window: GuiWindow) =
@@ -197,6 +196,7 @@ proc drawWindow(widget: GuiWidget) =
 func addWindow*(parent: GuiWidget): GuiWindow =
   result = parent.addWidget(GuiWindow)
   result.dontClip = true
+  result.passInput = true
   result.update = updateWindow
   result.draw = drawWindow
   result.size = vec2(300, 200)

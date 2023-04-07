@@ -21,9 +21,11 @@ proc updateButton(widget: GuiWidget, mouseButton: MouseButton) =
 
   if button.isHovered and gui.mouseJustPressed(mouseButton):
     button.isDown = true
+    gui.mouseCapture = button
 
   if button.isDown and gui.mouseJustReleased(mouseButton):
     button.isDown = false
+    gui.mouseCapture = nil
     if button.isHovered:
       button.justClicked = true
 

@@ -23,6 +23,7 @@ type
     osWindow*: OsWindow
     gfx*: Gfx
     hovers*: seq[GuiWidget]
+    mouseCapture*: GuiWidget
     storedBackgroundColor: Color
 
 template bounds*(widget: GuiWidget): Rect2 = rect2(widget.position, widget.size)
@@ -157,9 +158,13 @@ proc drawChildren*(parent: GuiWidget) =
       gfx.restoreState()
 
 func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
+  let mouseCapture = parent.gui.mouseCapture
   for child in parent.children:
     let childBounds = child.bounds
-    if childBounds.contains(parent.mousePosition) or child.dontClip:
+    let mouseInside = childBounds.contains(parent.mousePosition) or child.dontClip
+    let noCapture = mouseCapture == nil
+    let captureAndIsChild = mouseCapture != nil and mouseCapture == child
+    if (noCapture and mouseInside) or (captureAndIsChild and mouseInside):
       result.add(child)
       let hitTest = child.childMouseHitTest()
       for hit in hitTest:
@@ -197,6 +202,7 @@ proc newGui*(parentOsWindowHandle: pointer = nil): Gui =
   result.gui = result
   result.update = proc(widget: GuiWidget) = widget.updateChildren()
   result.draw = proc(widget: GuiWidget) = widget.drawChildren()
+  result.dontClip = true
 
   let gui = result
   result.osWindow.onFrame = proc() =

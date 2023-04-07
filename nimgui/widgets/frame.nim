@@ -1,174 +1,138 @@
 import ../gfxmod; export gfxmod
 
-const sin45 = sin(45.0.degToRad)
-
 func drawFrameShadow*(gfx: Gfx,
-                      position, size: Vec2,
-                      cornerRadius: float,
-                      feather: float,
-                      intensity: float) =
-  let featherOffset = vec2(feather, feather)
-  let featherOffsetHalf = featherOffset * 0.5
-  let featherOffset2 = featherOffset * 2.0
-
-  let shadowOffset = vec2(0, 0)
-  let shadowPosition = shadowOffset - featherOffset
-  let shadowSize = size + featherOffset2
-
+                      x, y, width, height: float,
+                      cornerRadius: float) =
+  const feather = 10.0
+  const feather2 = feather * 2.0
   let shadowPaint = gfx.boxGradient(
-    shadowOffset - featherOffsetHalf,
-    size + featherOffset,
-    cornerRadius + sin45 * feather,
+    x, y + 2,
+    width, height,
+    cornerRadius * 2.0,
     feather,
-    rgba(0, 0, 0, (255.0 * intensity).uint8),
-    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
   )
   gfx.beginPath()
-  gfx.rect(shadowPosition, shadowSize)
-  gfx.roundedRect(position, size, cornerRadius)
+  gfx.rect(-feather, -feather, width + feather2, height + feather2)
+  gfx.roundedRect(x, y, width, height, cornerRadius)
   gfx.pathWinding = Hole
   gfx.fillPaint = shadowPaint
   gfx.fill()
 
 func drawFrame*(gfx: Gfx,
-                position, size: Vec2,
+                x, y, width, height: float,
                 borderThickness: float,
                 cornerRadius: float,
                 bodyColor, borderColor: Color) =
-  let halfBorderThickness = borderThickness * 0.5
+  let borderThickness = borderThickness.max(1.0)
+  let borderThicknessHalf = borderThickness * 0.5
+  let borderThickness2 = borderThickness * 2.0
 
-  let leftOuter = position.x
-  let leftMiddle = leftOuter + halfBorderThickness
-  let leftInner = leftMiddle + halfBorderThickness
-  let rightOuter = position.x + size.x
-  let rightMiddle = rightOuter - halfBorderThickness
-  let rightInner = rightMiddle - halfBorderThickness
-  let topOuter = position.y
-  let topMiddle = topOuter + halfBorderThickness
-  let topInner = topMiddle + halfBorderThickness
-  let bottomOuter = position.y + size.y
-  let bottomMiddle = bottomOuter - halfBorderThickness
-  let bottomInner = bottomMiddle - halfBorderThickness
+  let middleCornerRadius = cornerRadius - borderThicknessHalf
+  let innerCornerRadius = middleCornerRadius - borderThicknessHalf
 
-  let outerCornerRadius = cornerRadius
-  let middleCornerRadius = outerCornerRadius - halfBorderThickness
-  let innerCornerRadius = middleCornerRadius - halfBorderThickness
+  gfx.saveState()
 
-  # Body fill.
+  # Body fill:
   gfx.beginPath()
   gfx.roundedRect(
-    vec2(leftMiddle, topMiddle),
-    vec2(rightMiddle - leftMiddle, bottomMiddle - topMiddle),
-    middleCornerRadius,
-    middleCornerRadius,
-    middleCornerRadius,
-    middleCornerRadius,
+    x + borderThickness, y + borderThickness,
+    width - borderThickness2, height - borderThickness2,
+    innerCornerRadius, innerCornerRadius,
+    innerCornerRadius, innerCornerRadius,
   )
   gfx.fillColor = bodyColor
   gfx.fill()
 
-  # Border outer.
+  # Body border:
   gfx.beginPath()
-  gfx.roundedRect(position, size, cornerRadius)
-
-  # Body inner hole.
   gfx.roundedRect(
-    vec2(leftInner, topInner),
-    vec2(rightInner - leftInner, bottomInner - topInner),
-    innerCornerRadius,
-    innerCornerRadius,
-    innerCornerRadius,
-    innerCornerRadius,
+    x + borderThicknessHalf, y + borderThicknessHalf,
+    width - borderThickness, height - borderThickness,
+    middleCornerRadius, middleCornerRadius,
+    middleCornerRadius, middleCornerRadius,
   )
-  gfx.pathWinding = Hole
+  gfx.strokeWidth = borderThickness
+  gfx.strokeColor = borderColor
+  gfx.stroke()
 
-  gfx.fillColor = borderColor
-  gfx.fill()
+  gfx.restoreState()
 
 func drawFrameWithHeader*(gfx: Gfx,
-                          position, size: Vec2,
+                          x, y, width, height: float,
                           borderThickness, headerHeight: float,
                           cornerRadius: float,
                           bodyColor, bodyBorderColor: Color,
                           headerColor, headerBorderColor: Color) =
   let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
-  let halfBorderThickness = borderThickness * 0.5
+  let borderThicknessHalf = borderThickness * 0.5
+  let borderThickness2 = borderThickness * 2.0
 
-  let leftOuter = position.x
-  let leftMiddle = leftOuter + halfBorderThickness
-  let leftInner = leftMiddle + halfBorderThickness
-  let rightOuter = position.x + size.x
-  let rightMiddle = rightOuter - halfBorderThickness
-  let rightInner = rightMiddle - halfBorderThickness
-  let topOuter = position.y
-  let topMiddle = topOuter + halfBorderThickness
-  let topInner = topMiddle + halfBorderThickness
-  let headerOuter = position.y + headerHeight
-  let headerMiddle = headerOuter - halfBorderThickness
-  let headerInner = headerMiddle - halfBorderThickness
-  let bottomOuter = position.y + size.y
-  let bottomMiddle = bottomOuter - halfBorderThickness
-  let bottomInner = bottomMiddle - halfBorderThickness
+  let middleCornerRadius = cornerRadius - borderThicknessHalf
+  let innerCornerRadius = middleCornerRadius - borderThicknessHalf
 
-  let innerWidth = rightInner - leftInner
-  let middleWidth = rightMiddle - leftMiddle
+  gfx.saveState()
 
-  let outerCornerRadius = cornerRadius
-  let middleCornerRadius = outerCornerRadius - halfBorderThickness
-  let innerCornerRadius = middleCornerRadius - halfBorderThickness
-
-  # Header fill.
+  # Header fill:
   gfx.beginPath()
   gfx.roundedRect(
-    vec2(leftMiddle, topMiddle),
-    vec2(middleWidth, headerMiddle - topMiddle),
-    middleCornerRadius,
-    middleCornerRadius,
+    x + borderThickness, y + borderThickness,
+    width - borderThickness2, headerHeight - borderThickness,
+    innerCornerRadius, innerCornerRadius,
     0, 0,
   )
   gfx.fillColor = headerColor
   gfx.fill()
 
-  # Body fill.
+  # Body fill:
   gfx.beginPath()
   gfx.roundedRect(
-    vec2(leftMiddle, headerMiddle),
-    vec2(middleWidth, bottomMiddle - headerMiddle),
+    x + borderThickness, y + headerHeight,
+    width - borderThickness2, height - headerHeight - borderThickness,
     0, 0,
-    middleCornerRadius,
-    middleCornerRadius,
+    innerCornerRadius, innerCornerRadius,
   )
   gfx.fillColor = bodyColor
   gfx.fill()
 
-  # Body border.
-  let bodyBorderBounds = rect2(
-    vec2(position.x, headerHeight),
-    vec2(size.x, size.y - headerHeight),
-  ).expand(-borderThickness * 0.5)
+  # Body border:
   gfx.beginPath()
-  gfx.moveTo(bodyBorderBounds.position)
-  gfx.lineTo(bodyBorderBounds.position + vec2(0, bodyBorderBounds.height))
-  gfx.lineTo(bodyBorderBounds.position + bodyBorderBounds.size)
-  gfx.lineTo(bodyBorderBounds.position + vec2(bodyBorderBounds.width, 0))
+  gfx.moveTo(x + width - borderThicknessHalf, y + headerHeight)
+  gfx.lineTo(x + width - borderThicknessHalf, y + height - cornerRadius)
+  gfx.arcTo(
+    x + width - borderThicknessHalf, y + height - borderThicknessHalf,
+    x + width - cornerRadius, y + height - borderThicknessHalf,
+    middleCornerRadius,
+  )
+  gfx.lineTo(x + cornerRadius, y + height - borderThicknessHalf)
+  gfx.arcTo(
+    x + borderThicknessHalf, y + height - borderThicknessHalf,
+    x + borderThicknessHalf, y + height - cornerRadius,
+    middleCornerRadius,
+  )
+  gfx.lineTo(x + borderThicknessHalf, y + headerHeight)
+  gfx.strokeWidth = borderThickness
   gfx.strokeColor = bodyBorderColor
   gfx.stroke()
 
-  # Header border.
+  # Header border:
   gfx.beginPath()
-  gfx.roundedRect(
-    position,
-    vec2(size.x, headerHeight),
-    cornerRadius, cornerRadius,
-    0, 0,
+  gfx.moveTo(x + borderThicknessHalf, y + headerHeight)
+  gfx.lineTo(x + borderThicknessHalf, y + cornerRadius)
+  gfx.arcTo(
+    x + borderThicknessHalf, y + borderThicknessHalf,
+    x + cornerRadius, y + borderThicknessHalf,
+    middleCornerRadius,
   )
-  gfx.roundedRect(
-    vec2(leftInner, topInner),
-    vec2(innerWidth, headerInner - topInner),
-    innerCornerRadius,
-    innerCornerRadius,
-    0, 0,
+  gfx.lineTo(x + width - cornerRadius, y + borderThicknessHalf)
+  gfx.arcTo(
+    x + width - borderThicknessHalf, y + borderThicknessHalf,
+    x + width - borderThicknessHalf, y + cornerRadius,
+    middleCornerRadius,
   )
-  gfx.pathWinding = Hole
-  gfx.fillColor = headerBorderColor
-  gfx.fill()
+  gfx.lineTo(x + width - borderThicknessHalf, y + headerHeight)
+  gfx.strokeWidth = borderThickness
+  gfx.strokeColor = headerBorderColor
+  gfx.stroke()
+
+  gfx.restoreState()

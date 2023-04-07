@@ -2,7 +2,6 @@
 
 import ../guimod
 import ./guibutton
-import ./frame
 
 const resizeHitSize = 5.0
 const resizeHitSize2 = resizeHitSize * 2.0
@@ -149,10 +148,10 @@ proc updateWindow(widget: GuiWidget) =
     window.width - 2.0 * borderThickness,
     headerHeight - borderThickness,
   )
-  window.body.position = vec2(borderThickness + roundingInset, headerHeight + borderThickness)
+  window.body.position = vec2(borderThickness + roundingInset, headerHeight + borderThickness + roundingInset)
   window.body.size = vec2(
     window.width - 2.0 * (borderThickness + roundingInset),
-    window.height - headerHeight - roundingInset - 2.0 * borderThickness,
+    window.height - headerHeight - 2.0 * (borderThickness + roundingInset),
   )
 
   if window.resizeLeftButton.mouseEntered or window.resizeRightButton.mouseEntered:
@@ -179,18 +178,40 @@ proc drawWindow(widget: GuiWidget) =
   let window = GuiWindow(widget)
   let gfx = window.gui.gfx
 
-  gfx.drawFrameShadow(0, 0, window.width, window.height, cornerRadius)
-  gfx.drawFrameWithHeader(
-    0, 0,
-    window.width, window.height,
-    borderThickness = borderThickness,
-    headerHeight = headerHeight,
-    cornerRadius = cornerRadius,
-    bodyColor = rgb(49, 51, 56),
-    bodyBorderColor = rgb(49, 51, 56).lighten(0.1),
-    headerColor = rgb(30, 31, 34),
-    headerBorderColor = rgb(30, 31, 34),
+  # Drop shadow:
+  let shadowPaint = gfx.boxGradient(
+    vec2(0, 2), window.size,
+    cornerRadius * 2.0,
+    10.0,
+    rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
   )
+  gfx.beginPath()
+  gfx.rect(vec2(-10, -10), window.size + vec2(20, 30))
+  gfx.roundedRect(vec2(0, 0), window.size, cornerRadius)
+  gfx.pathWinding = Hole
+  gfx.fillPaint = shadowPaint
+  gfx.fill()
+
+  # Window:
+  gfx.beginPath()
+  gfx.roundedRect(vec2(0, 0), window.size, cornerRadius)
+  gfx.fillColor = rgb(36, 37, 43)
+  gfx.fill()
+
+  # Header:
+  let headerPaint = gfx.linearGradient(
+    vec2(0, 0), vec2(0, headerHeight * 0.5),
+    rgba(255, 255, 255, 8), rgba(0, 0, 0, 16),
+  )
+  gfx.beginPath()
+  gfx.roundedRect(vec2(1, 1), vec2(window.width - 2.0, headerHeight), cornerRadius - 1.0)
+  gfx.fillPaint = headerPaint
+  gfx.fill()
+  gfx.beginPath()
+  gfx.moveTo(vec2(0.5, 0.5 + headerHeight))
+  gfx.lineTo(vec2(-0.5 + window.width, 0.5 + headerHeight))
+  gfx.strokeColor = rgba(0, 0, 0, 32)
+  gfx.stroke()
 
   window.drawChildren()
 
@@ -209,7 +230,6 @@ func addWindow*(parent: GuiWidget): GuiWindow =
   result.header.passInput = true
   result.resizeButtons = result.addWidget()
   result.resizeButtons.dontDraw = true
-  result.resizeButtons.dontClip = true
   result.resizeButtons.passInput = true
   result.resizeLeftButton = result.resizeButtons.addButton()
   result.resizeRightButton = result.resizeButtons.addButton()

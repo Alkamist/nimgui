@@ -1,6 +1,7 @@
 {.experimental: "overloadableEnums".}
 
 import ../guimod
+import ./frame
 
 type
   GuiButton* = ref object of GuiWidget
@@ -31,38 +32,44 @@ proc updateButton(widget: GuiWidget, mouseButton: MouseButton) =
 proc drawButton(widget: GuiWidget) =
   let button = GuiButton(widget)
   let gfx = button.gui.gfx
-  let bodyColor = rgb(33, 38, 45)
-  let borderColor = rgb(52, 59, 66)
-  # let textColor = rgb(201, 209, 217)
 
-  let bodyColorHighlighted =
-    if button.isDown: rgb(36, 37, 43).darken(0.3)
-    elif button.isHovered: rgb(36, 37, 43).lighten(0.05)
-    else: rgb(36, 37, 43)
+  # gfx.drawFrame(
+  #   0, 0,
+  #   button.width, button.height,
+  #   1.0, 3.0,
+  #   rgb(30, 31, 34),
+  #   rgb(30, 31, 34).lighten(0.2),
+  # )
 
-  # let borderColorHighlighted =
-  #   if button.isDown: borderColor.darken(0.1)
-  #   elif button.isHovered: borderColor.lighten(0.4)
-  #   else: borderColor
-
-  const cornerRadius = 4.0
-  let buttonPaint = gfx.linearGradient(
-    vec2(0, 0), vec2(0, button.height),
-    rgba(255, 255, 255, 16), rgba(0, 0, 0, 16),
+  gfx.beginPath()
+  gfx.roundedRect(
+    0, 0,
+    button.width, button.height,
+    3.0,
   )
-  gfx.beginPath()
-  gfx.roundedRect(vec2(1, 1), button.size - 2, cornerRadius - 1.0)
-  gfx.fillColor = bodyColorHighlighted
+  gfx.fillColor = rgb(30, 31, 34)
   gfx.fill()
-  gfx.fillPaint = buttonPaint
-  gfx.fill()
-
-  gfx.beginPath()
-  gfx.roundedRect(vec2(0.5, 0.5), button.size - 1, cornerRadius - 0.5)
-  gfx.strokeColor = rgba(0, 0, 0, 48)
-  gfx.stroke()
 
   button.drawChildren()
+
+  if button.isDown:
+    gfx.beginPath()
+    gfx.roundedRect(
+      0, 0,
+      button.width, button.height,
+      3.0,
+    )
+    gfx.fillColor = rgba(0, 0, 0, 8)
+    gfx.fill()
+  elif button.isHovered:
+    gfx.beginPath()
+    gfx.roundedRect(
+      0, 0,
+      button.width, button.height,
+      3.0,
+    )
+    gfx.fillColor = rgba(255, 255, 255, 8)
+    gfx.fill()
 
 func addInvisibleButton*(parent: GuiWidget, mouseButton = MouseButton.Left): GuiButton =
   result = parent.addWidget(GuiButton)

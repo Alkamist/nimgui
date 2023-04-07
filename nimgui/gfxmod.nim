@@ -124,8 +124,14 @@ proc beginPath*(gfx: Gfx) =
 proc moveTo*(gfx: Gfx, p: Vec2) =
   nvgMoveTo(gfx.nvgContext, p.x, p.y)
 
+proc moveTo*(gfx: Gfx, x, y: float) =
+  nvgMoveTo(gfx.nvgContext, x, y)
+
 proc lineTo*(gfx: Gfx, p: Vec2) =
   nvgLineTo(gfx.nvgContext, p.x, p.y)
+
+proc lineTo*(gfx: Gfx, x, y: float) =
+  nvgLineTo(gfx.nvgContext, x, y)
 
 proc bezierTo*(gfx: Gfx, c0, c1, p: Vec2) =
   nvgBezierTo(gfx.nvgContext, c0.x, c0.y, c1.x, c1.y, p.x, p.y)
@@ -136,6 +142,9 @@ proc quadTo*(gfx: Gfx, c, p: Vec2) =
 proc arcTo*(gfx: Gfx, p0, p1: Vec2, radius: float) =
   nvgArcTo(gfx.nvgContext, p0.x, p0.y, p1.x, p1.y, radius)
 
+proc arcTo*(gfx: Gfx, x0, y0, x1, y1, radius: float) =
+  nvgArcTo(gfx.nvgContext, x0, y0, x1, y1, radius)
+
 proc closePath*(gfx: Gfx) =
   nvgClosePath(gfx.nvgContext)
 
@@ -145,15 +154,37 @@ proc `pathWinding=`*(gfx: Gfx, winding: PathWinding) =
 proc arc*(gfx: Gfx, p: Vec2, r, a0, a1: float, winding: Winding) =
   nvgArc(gfx.nvgContext, p.x, p.y, r, a0, a1, winding.toNVGEnum)
 
+proc rect*(gfx: Gfx, rect: Rect2) =
+  nvgRect(gfx.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y)
+
 proc rect*(gfx: Gfx, position, size: Vec2) =
   nvgRect(gfx.nvgContext, position.x, position.y, size.x, size.y)
+
+proc rect*(gfx: Gfx, x, y, width, height: float) =
+  nvgRect(gfx.nvgContext, x, y, width, height)
+
+proc roundedRect*(gfx: Gfx, rect: Rect2, radius: float) =
+  nvgRoundedRect(gfx.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y, radius)
 
 proc roundedRect*(gfx: Gfx, position, size: Vec2, radius: float) =
   nvgRoundedRect(gfx.nvgContext, position.x, position.y, size.x, size.y, radius)
 
+proc roundedRect*(gfx: Gfx, x, y, width, height: float, radius: float) =
+  nvgRoundedRect(gfx.nvgContext, x, y, width, height, radius)
+
+proc roundedRect*(gfx: Gfx, rect: Rect2, radTopLeft, radTopRight, radBottomRight, radBottomLeft: float) =
+  nvgRoundedRectVarying(gfx.nvgContext,
+                        rect.position.x, rect.position.y, rect.size.x, rect.size.y,
+                        radTopLeft, radTopRight, radBottomRight, radBottomLeft)
+
 proc roundedRect*(gfx: Gfx, position, size: Vec2, radTopLeft, radTopRight, radBottomRight, radBottomLeft: float) =
   nvgRoundedRectVarying(gfx.nvgContext,
                         position.x, position.y, size.x, size.y,
+                        radTopLeft, radTopRight, radBottomRight, radBottomLeft)
+
+proc roundedRect*(gfx: Gfx, x, y, width, height, radTopLeft, radTopRight, radBottomRight, radBottomLeft: float) =
+  nvgRoundedRectVarying(gfx.nvgContext,
+                        x, y, width, height,
                         radTopLeft, radTopRight, radBottomRight, radBottomLeft)
 
 proc ellipse*(gfx: Gfx, c, r: Vec2) =
@@ -256,8 +287,14 @@ proc `letterSpacing=`*(gfx: Gfx, spacing: float) =
 proc linearGradient*(gfx: Gfx, startPosition, endPosition: Vec2, startColor, endColor: Color): Paint =
   nvgLinearGradient(gfx.nvgContext, startPosition.x, startPosition.y, endPosition.x, endPosition.y, startColor.toNvgColor, endColor.toNvgColor)
 
+proc boxGradient*(gfx: Gfx, rect: Rect2, cornerRadius, feather: float, innerColor, outerColor: Color): Paint =
+  nvgBoxGradient(gfx.nvgContext, rect.position.x, rect.position.y, rect.size.x, rect.size.y, cornerRadius, feather, innerColor.toNvgColor, outerColor.toNvgColor)
+
 proc boxGradient*(gfx: Gfx, position, size: Vec2, cornerRadius, feather: float, innerColor, outerColor: Color): Paint =
   nvgBoxGradient(gfx.nvgContext, position.x, position.y, size.x, size.y, cornerRadius, feather, innerColor.toNvgColor, outerColor.toNvgColor)
+
+proc boxGradient*(gfx: Gfx, x, y, width, height, cornerRadius, feather: float, innerColor, outerColor: Color): Paint =
+  nvgBoxGradient(gfx.nvgContext, x, y, width, height, cornerRadius, feather, innerColor.toNvgColor, outerColor.toNvgColor)
 
 proc radialGradient*(gfx: Gfx, center: Vec2, innerRadius, outerRadius: float, innerColor, outerColor: Color): Paint =
   nvgRadialGradient(gfx.nvgContext, center.x, center.y, innerRadius, outerRadius, innerColor.toNvgColor, outerColor.toNvgColor)

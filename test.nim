@@ -5,7 +5,7 @@ import nimgui
 const consolaData = staticRead("consola.ttf")
 
 let gui = newGui()
-gui.backgroundColor = rgb(36, 37, 43)
+gui.backgroundColor = rgb(49, 51, 56)
 # gui.backgroundColor = rgb(255, 255, 255)
 gui.gfx.addFont("consola", consolaData)
 

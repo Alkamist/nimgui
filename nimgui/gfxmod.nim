@@ -302,6 +302,9 @@ proc radialGradient*(gfx: Gfx, center: Vec2, innerRadius, outerRadius: float, in
 proc translate*(gfx: Gfx, amount: Vec2) =
   nvgTranslate(gfx.nvgContext, amount.x, amount.y)
 
+proc scale*(gfx: Gfx, amount: Vec2) =
+  nvgScale(gfx.nvgContext, amount.x, amount.y)
+
 {.pop.}
 
 template width*(glyph: Glyph): auto = glyph.maxX - glyph.minX

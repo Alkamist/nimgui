@@ -68,10 +68,7 @@ type
     textInput*: string
 
 template defineOsWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
-  import std/times
-
-  template initInputState*(window: T) =
-    let time = cpuTime()
+  proc initInputState*(window: T, time: float) =
     window.inputState = InputState(
       time: time,
       previousTime: time,
@@ -79,7 +76,7 @@ template defineOsWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
       previousPixelDensity: 1.0,
     )
 
-  template updateInputState*(window: T) =
+  proc updateInputState*(window: T, time: float) =
     window.inputState.wasHovered = window.inputState.isHovered
     window.inputState.previousPosition = window.inputState.position
     window.inputState.previousSize = window.inputState.size
@@ -92,7 +89,7 @@ template defineOsWindowBaseTemplates*(T: typedesc): untyped {.dirty.} =
     window.inputState.mouseReleases.setLen(0)
     window.inputState.keyPresses.setLen(0)
     window.inputState.keyReleases.setLen(0)
-    window.inputState.time = cpuTime()
+    window.inputState.time = time
 
   template isHovered*(window: T): bool = window.inputState.isHovered
   template position*(window: T): Vec2 = window.inputState.position

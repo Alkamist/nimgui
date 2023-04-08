@@ -210,6 +210,8 @@ proc newGui*(parentOsWindowHandle: pointer = nil): Gui =
     gfx.beginFrame(gui.osWindow.sizePixels, gui.osWindow.pixelDensity)
     gfx.resetClip()
 
+    gfx.saveState()
+
     gui.updateInput()
     gui.updateHovers()
     gui.wasHovered = gui.isHovered

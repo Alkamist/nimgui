@@ -2,6 +2,7 @@
 
 import ../guimod
 import ./frame
+import ./guitext
 
 type
   GuiButton* = ref object of GuiWidget
@@ -79,3 +80,13 @@ func addButton*(parent: GuiWidget, mouseButton = MouseButton.Left): GuiButton =
   result.update = proc(widget: GuiWidget) =
     widget.updateButton(mouseButton)
   result.draw = drawButton
+
+func addLabel*(button: GuiButton, label: string): GuiText {.discardable.} =
+  result = button.addText()
+  result.data = label
+  result.alignX = Center
+  result.alignY = Center
+  result.color = rgb(242, 243, 245)
+  result.passInput = true
+  result.updateHook:
+    self.size = self.parent.size

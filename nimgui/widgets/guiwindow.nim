@@ -2,6 +2,7 @@
 
 import ../guimod
 import ./guibutton
+import ./guitext
 import ./frame
 
 const resizeHitSize = 5.0
@@ -222,3 +223,13 @@ func addWindow*(parent: GuiWidget): GuiWindow =
   result.resizeTopRightButton = result.resizeButtons.addButton()
   result.resizeBottomLeftButton = result.resizeButtons.addButton()
   result.resizeBottomRightButton = result.resizeButtons.addButton()
+
+func addTitle*(window: GuiWindow, title: string): GuiText {.discardable.} =
+  result = window.header.addText()
+  result.data = title
+  result.alignX = Center
+  result.alignY = Center
+  result.color = rgb(242, 243, 245)
+  result.passInput = true
+  result.updateHook:
+    self.size = self.parent.size

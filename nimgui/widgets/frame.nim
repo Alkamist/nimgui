@@ -26,20 +26,16 @@ func drawFrame*(gfx: Gfx,
                 bodyColor, borderColor: Color) =
   let borderThickness = borderThickness.max(1.0)
   let borderThicknessHalf = borderThickness * 0.5
-  let borderThickness2 = borderThickness * 2.0
-
-  let middleCornerRadius = cornerRadius - borderThicknessHalf
-  let innerCornerRadius = middleCornerRadius - borderThicknessHalf
 
   gfx.saveState()
 
   # Body fill:
   gfx.beginPath()
   gfx.roundedRect(
-    x + borderThickness, y + borderThickness,
-    width - borderThickness2, height - borderThickness2,
-    innerCornerRadius, innerCornerRadius,
-    innerCornerRadius, innerCornerRadius,
+    x, y,
+    width, height,
+    cornerRadius, cornerRadius,
+    cornerRadius, cornerRadius,
   )
   gfx.fillColor = bodyColor
   gfx.fill()
@@ -49,8 +45,7 @@ func drawFrame*(gfx: Gfx,
   gfx.roundedRect(
     x + borderThicknessHalf, y + borderThicknessHalf,
     width - borderThickness, height - borderThickness,
-    middleCornerRadius, middleCornerRadius,
-    middleCornerRadius, middleCornerRadius,
+    cornerRadius - borderThicknessHalf,
   )
   gfx.strokeWidth = borderThickness
   gfx.strokeColor = borderColor
@@ -66,19 +61,17 @@ func drawFrameWithHeader*(gfx: Gfx,
                           headerColor, headerBorderColor: Color) =
   let borderThickness = borderThickness.clamp(1.0, 0.5 * headerHeight)
   let borderThicknessHalf = borderThickness * 0.5
-  let borderThickness2 = borderThickness * 2.0
 
-  let middleCornerRadius = cornerRadius - borderThicknessHalf
-  let innerCornerRadius = middleCornerRadius - borderThicknessHalf
+  let borderCornerRadius = cornerRadius - borderThicknessHalf
 
   gfx.saveState()
 
   # Header fill:
   gfx.beginPath()
   gfx.roundedRect(
-    x + borderThickness, y + borderThickness,
-    width - borderThickness2, headerHeight - borderThickness,
-    innerCornerRadius, innerCornerRadius,
+    x, y,
+    width, headerHeight,
+    cornerRadius, cornerRadius,
     0, 0,
   )
   gfx.fillColor = headerColor
@@ -87,10 +80,10 @@ func drawFrameWithHeader*(gfx: Gfx,
   # Body fill:
   gfx.beginPath()
   gfx.roundedRect(
-    x + borderThickness, y + headerHeight,
-    width - borderThickness2, height - headerHeight - borderThickness,
+    x, y + headerHeight,
+    width, height - headerHeight,
     0, 0,
-    innerCornerRadius, innerCornerRadius,
+    cornerRadius, cornerRadius,
   )
   gfx.fillColor = bodyColor
   gfx.fill()
@@ -102,13 +95,13 @@ func drawFrameWithHeader*(gfx: Gfx,
   gfx.arcTo(
     x + width - borderThicknessHalf, y + height - borderThicknessHalf,
     x + width - cornerRadius, y + height - borderThicknessHalf,
-    middleCornerRadius,
+    borderCornerRadius,
   )
   gfx.lineTo(x + cornerRadius, y + height - borderThicknessHalf)
   gfx.arcTo(
     x + borderThicknessHalf, y + height - borderThicknessHalf,
     x + borderThicknessHalf, y + height - cornerRadius,
-    middleCornerRadius,
+    borderCornerRadius,
   )
   gfx.lineTo(x + borderThicknessHalf, y + headerHeight)
   gfx.strokeWidth = borderThickness
@@ -122,13 +115,13 @@ func drawFrameWithHeader*(gfx: Gfx,
   gfx.arcTo(
     x + borderThicknessHalf, y + borderThicknessHalf,
     x + cornerRadius, y + borderThicknessHalf,
-    middleCornerRadius,
+    borderCornerRadius,
   )
   gfx.lineTo(x + width - cornerRadius, y + borderThicknessHalf)
   gfx.arcTo(
     x + width - borderThicknessHalf, y + borderThicknessHalf,
     x + width - borderThicknessHalf, y + cornerRadius,
-    middleCornerRadius,
+    borderCornerRadius,
   )
   gfx.lineTo(x + width - borderThicknessHalf, y + headerHeight)
   gfx.strokeWidth = borderThickness

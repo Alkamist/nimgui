@@ -1,9 +1,12 @@
 {.experimental: "overloadableEnums".}
 
+import opengl
 import std/unicode
+import std/times
 import winim/lean
 import ./oswindowbase; export oswindowbase
-import ../openglwrappers/openglcontext
+
+proc DwmSetWindowAttribute(hwnd: HWND, dwAttribute: DWORD, pvAttribute: LPCVOID, cbAttribute: DWORD): HRESULT {.winapi, stdcall, dynlib: "dwmapi", importc.}
 
 type
   OsWindow* = ref object
@@ -12,7 +15,9 @@ type
     handle*: pointer
     isOpen*: bool
     isChild*: bool
-    openGlContext*: OpenGlContext
+    hdc: HDC
+    hglrc: HGLRC
+
     # moveTimer: UINT_PTR
 
 proc `=destroy`*(window: var type OsWindow()[]) =
@@ -53,6 +58,50 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 const windowClassName = "Default Window Class"
 var windowCount = 0
 
+proc initOpenGlContext*(window: OsWindow) =
+  var pfd = PIXELFORMATDESCRIPTOR(
+    nSize: sizeof(PIXELFORMATDESCRIPTOR).WORD,
+    nVersion: 1,
+    dwFlags: PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_SUPPORT_COMPOSITION or PFD_DOUBLEBUFFER,
+    iPixelType: PFD_TYPE_RGBA,
+    cColorBits: 32,
+    cRedBits: 0, cRedShift: 0,
+    cGreenBits: 0, cGreenShift: 0,
+    cBlueBits: 0, cBlueShift: 0,
+    cAlphaBits: 0, cAlphaShift: 0,
+    cAccumBits: 0,
+    cAccumRedBits: 0,
+    cAccumGreenBits: 0,
+    cAccumBlueBits: 0,
+    cAccumAlphaBits: 0,
+    cDepthBits: 32,
+    cStencilBits: 8,
+    cAuxBuffers: 0,
+    iLayerType: PFD_MAIN_PLANE,
+    bReserved: 0,
+    dwLayerMask: 0,
+    dwVisibleMask: 0,
+    dwDamageMask: 0,
+  )
+
+  let dc = GetDC(window.hwnd)
+  window.hdc = dc
+
+  let fmt = ChoosePixelFormat(dc, pfd.addr)
+  SetPixelFormat(dc, fmt, pfd.addr)
+
+  window.hglrc = wglCreateContext(dc)
+  wglMakeCurrent(dc, window.hglrc)
+
+  opengl.loadExtensions()
+  var currentTexture: GLint
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, currentTexture.addr)
+
+  ReleaseDC(window.hwnd, dc)
+
+proc makeContextCurrent(window: OsWindow) =
+  wglMakeCurrent(window.hdc, window.hglrc)
+
 template updateBounds(window: OsWindow) =
   var rect: RECT
   GetClientRect(window.hwnd, rect.addr)
@@ -76,7 +125,7 @@ proc `mouseCursorImage=`*(window: OsWindow, value: CursorImage) =
   SetCursor(LoadCursor(0, value.toWin32MouseCursor))
 
 proc `backgroundColor=`*(window: OsWindow, color: Color) =
-  window.openGlContext.select()
+  window.makeContextCurrent()
   glClearColor(color.r, color.g, color.b, color.a)
 
 proc `position=`*(window: OsWindow, position: Vec2) =
@@ -211,7 +260,7 @@ func toKeyboardKey(wParam: WPARAM, lParam: LPARAM): KeyboardKey =
       else: KeyboardKey.Unknown
 
 template renderFrameWithoutPollingEvents(window: OsWindow): untyped =
-  window.openGlContext.select()
+  window.makeContextCurrent()
   glClear(GL_COLOR_BUFFER_BIT)
 
   if window.mouseEntered:
@@ -223,8 +272,8 @@ template renderFrameWithoutPollingEvents(window: OsWindow): untyped =
   # if window.mouseExited:
   #   window.mouseCursorImage = Arrow
 
-  window.openGlContext.swapBuffers()
-  window.updateInputState()
+  SwapBuffers(window.hdc)
+  window.updateInputState(cpuTime())
 
 proc process*(window: OsWindow) =
   if not window.isChild:
@@ -244,7 +293,7 @@ proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
   loadLibraries()
 
   result = OsWindow()
-  result.initInputState()
+  result.initInputState(cpuTime())
 
   if windowCount == 0:
     var windowClass = WNDCLASSEX(
@@ -292,8 +341,13 @@ proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
   result.mouseCursorImage = Arrow
   # result.size = result.size
 
-  result.openGlContext = newOpenGlContext(result.handle)
-  result.openGlContext.select()
+  result.initOpenGlContext()
+  result.makeContextCurrent()
+
+  # var dwmAttr: BOOL = TRUE
+  # DwmSetWindowAttribute(hwnd, 20, dwmAttr.addr, sizeof(dwmAttr).DWORD)
+  # ShowWindow(hwnd, SW_SHOW)
+  # UpdateWindow(hwnd)
 
   inc windowCount
 
@@ -437,7 +491,7 @@ proc windowProc(hwnd: HWND, msg: UINT, wParam: WPARAM, lParam: LPARAM): LRESULT 
 
   #   let hitTests = [
   #     [HTTOPLEFT, if onResizeBorder: HTTOP else: HTCAPTION, HTTOPRIGHT],
-  #     [HTLEFT, HTNOWHERE, HTRIGHT],
+  #     [HTLEFT, HTCLIENT, HTRIGHT],
   #     [HTBOTTOMLEFT, HTBOTTOM, HTBOTTOMRIGHT],
   #   ]
 

@@ -84,7 +84,7 @@ proc mainLoop(time: cdouble, userData: pointer): EM_BOOL {.cdecl.} =
   if window.onFrame != nil:
     window.onFrame()
 
-  window.updateInputState()
+  window.updateInputState(emscripten_performance_now() * 0.001)
   emscripten_request_animation_frame(mainLoop, cast[pointer](window))
 
 proc onResize(eventType: cint, uiEvent: ptr EmscriptenUiEvent, userData: pointer): EM_BOOL {.cdecl.} =
@@ -134,7 +134,7 @@ template process*(window: OsWindow) = discard
 
 proc newOsWindow*(parentHandle: pointer = nil): OsWindow =
   mainWindow = OsWindow()
-  mainWindow.initInputState()
+  mainWindow.initInputState(emscripten_performance_now() * 0.001)
   mainWindow.createWebGlContext()
   mainWindow.makeContextCurrent()
 

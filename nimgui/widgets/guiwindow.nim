@@ -57,13 +57,13 @@ func updateMoveResizeButtonBounds(window: GuiWindow) =
 func moveAndResize(window: GuiWindow) =
   let gui = window.gui
 
-  template calculateGrabDelta(): Vec2 =
+  template calculateGrabDelta(): Vec2 {.dirty.} =
     gui.mousePosition - window.guiMousePositionWhenGrabbed
 
-  template moveWindow(grabDelta: Vec2): untyped =
+  template moveWindow(grabDelta: Vec2): untyped {.dirty.} =
     window.position = window.positionWhenGrabbed + grabDelta
 
-  template resizeWindowLeft(grabDelta: Vec2): untyped =
+  template resizeWindowLeft(grabDelta: Vec2): untyped {.dirty.} =
     window.x = window.positionWhenGrabbed.x + grabDelta.x
     window.width = window.sizeWhenGrabbed.x - grabDelta.x
     if window.width < window.minSize.x:
@@ -71,13 +71,13 @@ func moveAndResize(window: GuiWindow) =
       window.x += correction
       window.width -= correction
 
-  template resizeWindowRight(grabDelta: Vec2): untyped =
+  template resizeWindowRight(grabDelta: Vec2): untyped {.dirty.} =
     window.width = window.sizeWhenGrabbed.x + grabDelta.x
     if window.width < window.minSize.x:
       let correction = window.width - window.minSize.x
       window.width -= correction
 
-  template resizeWindowTop(grabDelta: Vec2): untyped =
+  template resizeWindowTop(grabDelta: Vec2): untyped {.dirty.} =
     window.y = window.positionWhenGrabbed.y + grabDelta.y
     window.height = window.sizeWhenGrabbed.y - grabDelta.y
     if window.height < window.minSize.y:
@@ -85,7 +85,7 @@ func moveAndResize(window: GuiWindow) =
       window.y += correction
       window.height -= correction
 
-  template resizeWindowBottom(grabDelta: Vec2): untyped =
+  template resizeWindowBottom(grabDelta: Vec2): untyped {.dirty.} =
     window.height = window.sizeWhenGrabbed.y + grabDelta.y
     if window.height < window.minSize.y:
       let correction = window.height - window.minSize.y
@@ -159,18 +159,18 @@ proc updateWindow(widget: GuiWidget) =
   )
 
   if window.resizeLeftButton.mouseEntered or window.resizeRightButton.mouseEntered:
-    gui.mouseCursorImage = ResizeLeftRight
+    gui.mouseCursorStyle = ResizeLeftRight
   elif window.resizeTopButton.mouseEntered or window.resizeBottomButton.mouseEntered:
-    gui.mouseCursorImage = ResizeTopBottom
+    gui.mouseCursorStyle = ResizeTopBottom
   elif window.resizeTopLeftButton.mouseEntered or window.resizeBottomRightButton.mouseEntered:
-    gui.mouseCursorImage = ResizeTopLeftBottomRight
+    gui.mouseCursorStyle = ResizeTopLeftBottomRight
   elif window.resizeTopRightButton.mouseEntered or window.resizeBottomLeftButton.mouseEntered:
-    gui.mouseCursorImage = ResizeTopRightBottomLeft
+    gui.mouseCursorStyle = ResizeTopRightBottomLeft
   elif window.resizeLeftButton.mouseExited or window.resizeRightButton.mouseExited or
        window.resizeTopButton.mouseExited or window.resizeBottomButton.mouseExited or
        window.resizeTopLeftButton.mouseExited or window.resizeBottomRightButton.mouseExited or
        window.resizeTopRightButton.mouseExited or window.resizeBottomLeftButton.mouseExited:
-    gui.mouseCursorImage = Arrow
+    gui.mouseCursorStyle = Arrow
 
   if window.isHoveredIncludingChildren and
      (gui.mouseJustPressed(Left) or gui.mouseJustPressed(Middle) or gui.mouseJustPressed(Right)):

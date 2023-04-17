@@ -1,9 +1,0 @@
-{
-  "files.associations": {
-    "nanovg.h": "c",
-    "nanovg_gl_utils.h": "c",
-    "glad.h": "c",
-    "nanovg_gl.h": "c",
-    "math.h": "c"
-  }
-}

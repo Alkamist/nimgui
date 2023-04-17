@@ -10,8 +10,8 @@ type
     wasDown*: bool
     justClicked*: bool
 
-template justPressed*(button: GuiButton): bool = button.isDown and not button.wasDown
-template justReleased*(button: GuiButton): bool = button.wasDown and not button.isDown
+proc justPressed*(button: GuiButton): bool = button.isDown and not button.wasDown
+proc justReleased*(button: GuiButton): bool = button.wasDown and not button.isDown
 
 proc updateButton(widget: GuiWidget, mouseButton: MouseButton) =
   let button = GuiButton(widget)

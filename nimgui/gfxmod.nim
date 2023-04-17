@@ -253,6 +253,8 @@ proc addFont*(gfx: Gfx, name, data: string) =
     echo "Failed to load font: " & name
 
 proc drawText*(gfx: Gfx, position: Vec2, text: openArray[char]): float32 {.discardable.} =
+  if text.len <= 0:
+    return
   nvgText(
     gfx.nvgContext,
     position.x, position.y,
@@ -310,7 +312,7 @@ proc scale*(gfx: Gfx, amount: Vec2) =
 template width*(glyph: Glyph): auto = glyph.maxX - glyph.minX
 
 proc getGlyphs*(gfx: Gfx, position: Vec2, text: openArray[char]): seq[Glyph] =
-  if text.len == 0:
+  if text.len <= 0:
     return
 
   var nvgPositions = newSeq[NVGglyphPosition](text.len)

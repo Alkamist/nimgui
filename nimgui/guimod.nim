@@ -50,8 +50,9 @@ type
     update*: proc(widget: GuiWidget)
     draw*: proc(widget: GuiWidget)
     dontDraw*: bool
-    dontClip*: bool
-    passInput*: bool
+    clipDrawing*: bool
+    clipInput*: bool
+    eatInput*: bool
     isHovered*: bool
     wasHovered*: bool
     position*: Vec2
@@ -111,6 +112,12 @@ template keyJustReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyRele
 template anyKeyJustPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 template anyKeyJustReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 
+proc absolutePosition*(widget: GuiWidget): Vec2 =
+  if widget.parent != nil:
+    widget.position + widget.parent.absolutePosition
+  else:
+    widget.position
+
 template updateHook*(widgetToHook: GuiWidget, code: untyped): untyped =
   let previous = widgetToHook.update
   widgetToHook.update = proc(widgetBase: GuiWidget) =
@@ -131,6 +138,9 @@ func addWidget*(parent: GuiWidget, T: typedesc = GuiWidget): T =
   result = T()
   result.gui = parent.gui
   result.parent = parent
+  result.eatInput = true
+  result.clipInput = true
+  result.clipDrawing = true
   result.update = proc(widget: GuiWidget) = widget.updateChildren()
   result.draw = proc(widget: GuiWidget) = widget.drawChildren()
   parent.children.add(result)
@@ -158,6 +168,9 @@ func isHoveredIncludingChildren*(parent: GuiWidget): bool =
 
 func bringToTop*(widget: GuiWidget) =
   let parent = widget.parent
+  if parent.children[^1] == widget:
+    return
+
   var foundChild = false
 
   for i in 0 ..< parent.children.len - 1:
@@ -177,7 +190,7 @@ proc updateChildren*(parent: GuiWidget) =
     child.wasHovered = child.isHovered
     gfx.saveState()
     gfx.translate(gfx.pixelAlign(child.position))
-    if not child.dontClip:
+    if child.clipDrawing:
       gfx.clip(vec2(0, 0), child.size)
     child.isHovered = child in child.gui.hovers
     child.mousePosition = parent.mousePosition - child.position
@@ -190,7 +203,7 @@ proc drawChildren*(parent: GuiWidget) =
     if not child.dontDraw:
       gfx.saveState()
       gfx.translate(gfx.pixelAlign(child.position))
-      if not child.dontClip:
+      if child.clipDrawing:
         gfx.clip(vec2(0, 0), child.size)
       child.draw(child)
       gfx.restoreState()
@@ -199,10 +212,10 @@ func childMouseHitTest(parent: GuiWidget): seq[GuiWidget] =
   let mouseCapture = parent.gui.mouseCapture
   for child in parent.children:
     let childBounds = child.bounds
-    let mouseInside = childBounds.contains(parent.mousePosition) or child.dontClip
+    let mouseInside = childBounds.contains(parent.mousePosition) or (not child.clipInput)
     let noCapture = mouseCapture == nil
-    let captureAndIsChild = mouseCapture != nil and mouseCapture == child
-    if (noCapture and mouseInside) or (captureAndIsChild and mouseInside):
+    let captureIsChild = mouseCapture != nil and mouseCapture == child
+    if (noCapture and mouseInside) or (captureIsChild and mouseInside):
       result.add(child)
       let hitTest = child.childMouseHitTest()
       for hit in hitTest:
@@ -214,10 +227,12 @@ func updateHovers(gui: Gui) =
   for i in countdown(childHitTest.len - 1, 0, 1):
     let hit = childHitTest[i]
     gui.hovers.add(hit)
-    if not hit.passInput:
+    if hit.eatInput:
       return
-  if gui.bounds.contains(gui.mousePosition):
+  if gui.bounds.contains(gui.mousePosition) and gui.mouseCapture == nil:
     gui.hovers.add(gui)
+  if gui.mouseCapture != nil:
+    gui.hovers.add(gui.mouseCapture)
 
 proc process*(gui: Gui, widthPixels, heightPixels: int, pixelDensity: float) =
   gui.previousMouseCursorStyle = gui.mouseCursorStyle
@@ -249,4 +264,6 @@ proc newGui*(): Gui =
   result.gui = result
   result.update = proc(widget: GuiWidget) = widget.updateChildren()
   result.draw = proc(widget: GuiWidget) = widget.drawChildren()
-  result.dontClip = true
+  result.eatInput = false
+  result.clipInput = false
+  result.clipDrawing = false

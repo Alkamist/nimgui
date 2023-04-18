@@ -66,3 +66,6 @@ func addText*(parent: GuiWidget): GuiText =
   result.alignX = Center
   result.alignY = Baseline
   result.color = rgb(255, 255, 255)
+  result.eatInput = false
+  result.clipInput = false
+  result.clipDrawing = false

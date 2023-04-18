@@ -80,6 +80,9 @@ func addButton*(parent: GuiWidget, mouseButton = MouseButton.Left): GuiButton =
   result.update = proc(widget: GuiWidget) =
     widget.updateButton(mouseButton)
   result.draw = drawButton
+  result.eatInput = true
+  result.clipInput = true
+  result.clipDrawing = true
 
 func addLabel*(button: GuiButton, label: string): GuiText {.discardable.} =
   result = button.addText()
@@ -87,6 +90,8 @@ func addLabel*(button: GuiButton, label: string): GuiText {.discardable.} =
   result.alignX = Center
   result.alignY = Center
   result.color = rgb(242, 243, 245)
-  result.passInput = true
+  result.eatInput = false
+  result.clipInput = false
+  result.clipDrawing = false
   result.updateHook:
     self.size = self.parent.size

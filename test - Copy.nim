@@ -45,12 +45,12 @@ txt.size = vec2(500, 200)
 txt.updateHook:
   self.position = self.parent.mousePosition - 0.5 * self.size
 
-txt.drawHook:
-  let gfx = self.gui.gfx
-  gfx.beginPath()
-  gfx.rect(vec2(0, 0), self.size)
-  gfx.strokeColor = rgb(255, 100, 0)
-  gfx.stroke()
+# txt.drawHook:
+#   let gfx = self.gui.gfx
+#   gfx.beginPath()
+#   gfx.rect(vec2(0, 0), self.size)
+#   gfx.strokeColor = rgb(255, 100, 0)
+#   gfx.stroke()
 
 let delta = gui.addText()
 delta.alignX = Left

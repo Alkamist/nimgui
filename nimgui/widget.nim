@@ -54,7 +54,7 @@ type
     hovers*: seq[Widget]
     time*: float
     timePrevious*: float
-    mouseCapture*: Widget
+    mouseCapture* {.cursor.}: Widget
     mousePosition*: Vec2
     mousePositionPrevious*: Vec2
     mouseWheel*: Vec2
@@ -66,16 +66,16 @@ type
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
 
-  Widget* = ref object
+  Widget* = ref object of RootObj
     update*: proc(widget: Widget)
     draw*: proc(widget: Widget)
     sharedState*: SharedState
-    parent*: Widget
+    parent* {.cursor.}: Widget
     children*: seq[Widget]
     position*: Vec2
     size*: Vec2
     dontDraw*: bool
-    clapDrawing*: bool
+    clipDrawing*: bool
     clipInput*: bool
     consumeInput*: bool
 
@@ -113,15 +113,12 @@ proc newRoot*(_: typedesc[Widget]): Widget =
   result.dontDraw = false
   result.consumeInput = false
   result.clipInput = false
-  result.clapDrawing = false
+  result.clipDrawing = false
 
   result.sharedState = SharedState.new()
 
-  result.update = proc(widget: Widget) =
-    widget.updateChildren()
-
-  result.draw = proc(widget: Widget) =
-    widget.drawChildren()
+  result.update = proc(widget: Widget) = widget.updateChildren()
+  result.draw = proc(widget: Widget) = widget.drawChildren()
 
 proc processFrame*(widget: Widget, time: float) =
   let vg = widget.sharedState.vg
@@ -193,6 +190,7 @@ template updateHook*(widgetToHook: Widget, code: untyped): untyped =
   let previousUpdate = widgetToHook.update
   widgetToHook.update = proc(widgetBase: Widget) =
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
+    {.hint[XDeclaredButNotUsed]: off.}
     let self {.inject.} = typeof(widgetToHook)(widgetBase)
     let vg {.inject.} = self.vg
     previousUpdate(widgetBase)
@@ -202,6 +200,7 @@ template drawHook*(widgetToHook: Widget, code: untyped): untyped =
   let previousDraw = widgetToHook.draw
   widgetToHook.draw = proc(widgetBase: Widget) =
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
+    {.hint[XDeclaredButNotUsed]: off.}
     let self {.inject.} = typeof(widgetToHook)(widgetBase)
     let vg {.inject.} = self.vg
     previousDraw(widgetBase)
@@ -209,6 +208,15 @@ template drawHook*(widgetToHook: Widget, code: untyped): untyped =
 
 proc isRoot*(widget: Widget): bool =
   return widget.parent == nil
+
+template x*(widget: Widget): untyped = widget.position.x
+template `x=`*(widget: Widget, value: untyped): untyped = widget.position.x = value
+template y*(widget: Widget): untyped = widget.position.y
+template `y=`*(widget: Widget, value: untyped): untyped = widget.position.y = value
+template width*(widget: Widget): untyped = widget.size.x
+template `width=`*(widget: Widget, value: untyped): untyped = widget.size.x = value
+template height*(widget: Widget): untyped = widget.size.y
+template `height=`*(widget: Widget, value: untyped): untyped = widget.size.y = value
 
 proc bounds*(widget: Widget): Rect2 =
   return rect2(widget.position, widget.size)
@@ -223,7 +231,7 @@ proc globalMousePosition*(widget: Widget): Vec2 =
   return widget.sharedState.mousePosition
 
 proc mousePosition*(widget: Widget): Vec2 =
-  return widget.globalPosition + widget.sharedState.mouse_position
+  return widget.sharedState.mousePosition - widget.globalPosition
 
 proc mouseDelta*(widget: Widget): Vec2 =
   let state = widget.sharedState
@@ -300,13 +308,13 @@ proc releaseMouseCapture*(widget: Widget) =
 proc vg*(widget: Widget): VectorGraphics =
   return widget.sharedState.vg
 
-proc addWidget*[T](parent: Widget): T =
+proc addWidget*(parent: Widget, T: typedesc = Widget): T =
   result = T()
 
   result.dontDraw = false
   result.consumeInput = true
   result.clipInput = true
-  result.clapDrawing = true
+  result.clipDrawing = true
 
   result.sharedState = parent.sharedState
   result.parent = parent
@@ -319,9 +327,9 @@ proc updateChildren*(widget: Widget) =
   let vg = widget.vg
   for child in widget.children:
     vg.saveState()
-    vg.translate(child.position.x, child.position.y)
-    if widget.clapDrawing:
-      vg.clip(0, 0, child.size.x, child.size.y)
+    vg.translate(child.position)
+    if child.clipDrawing:
+      vg.clip(vec2(0, 0), child.size)
     child.updateWidget()
     vg.restoreState()
 
@@ -329,9 +337,9 @@ proc drawChildren*(widget: Widget) =
   let vg = widget.vg
   for child in widget.children:
     vg.saveState()
-    vg.translate(child.position.x, child.position.y)
-    if widget.clapDrawing:
-      vg.clip(0, 0, child.size.x, child.size.y)
+    vg.translate(child.position)
+    if child.clipDrawing:
+      vg.clip(vec2(0, 0), child.size)
     child.drawWidget()
     vg.restoreState()
 

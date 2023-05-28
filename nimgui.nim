@@ -1,6 +1,6 @@
 import ./nimgui/math; export math
 import ./nimgui/widget; export widget
 
-# import ./nimgui/widgets/guitext; export guitext
-# import ./nimgui/widgets/guibutton; export guibutton
-# import ./nimgui/widgets/guiwindow; export guiwindow
+import ./nimgui/widgets/text; export text
+import ./nimgui/widgets/button; export button
+import ./nimgui/widgets/window; export window

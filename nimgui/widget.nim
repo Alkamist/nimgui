@@ -8,15 +8,15 @@ import vectorgraphics; export vectorgraphics
 const densityPixelDpi = 96.0
 
 type
-  # CursorStyle* = enum
-  #   Arrow
-  #   IBeam
-  #   Crosshair
-  #   PointingHand
-  #   ResizeLeftRight
-  #   ResizeTopBottom
-  #   ResizeTopLeftBottomRight
-  #   ResizeTopRightBottomLeft
+  CursorStyle* = enum
+    Arrow
+    IBeam
+    Crosshair
+    PointingHand
+    ResizeLeftRight
+    ResizeTopBottom
+    ResizeTopLeftBottomRight
+    ResizeTopRightBottomLeft
 
   MouseButton* = enum
     Unknown,
@@ -65,6 +65,7 @@ type
     keyReleases*: seq[KeyboardKey]
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
+    setCursorStyle*: proc(style: CursorStyle)
 
   Widget* = ref object of RootObj
     update*: proc(widget: Widget)
@@ -78,6 +79,7 @@ type
     clipDrawing*: bool
     clipInput*: bool
     consumeInput*: bool
+    cursorStyle*: CursorStyle
 
 # =================================================================================
 # Shared state
@@ -124,6 +126,9 @@ proc processFrame*(widget: Widget, time: float) =
   let vg = widget.sharedState.vg
 
   widget.updateHovers()
+  if widget.sharedState != nil and widget.sharedState.hovers.len > 0:
+    widget.sharedState.setCursorStyle(widget.sharedState.hovers[^1].cursorStyle)
+
   vg.beginFrame(int(widget.size.x), int(widget.size.y), 1.0)
 
   widget.updateWidget()
@@ -131,6 +136,9 @@ proc processFrame*(widget: Widget, time: float) =
 
   vg.endFrame()
   widget.sharedState.update()
+
+proc setCursorStyleProc*(widget: Widget, value: proc(style: CursorStyle)) =
+  widget.sharedState.setCursorStyle = value
 
 proc inputResize*(widget: Widget, width, height: float) =
   widget.size = vec2(width, height)
@@ -176,11 +184,11 @@ proc updateHovers(widget: Widget) =
     if hit.consumeInput:
       return
 
-    if widget.bounds.contains(state.mousePosition) and state.mouseCapture == nil:
-      state.hovers.add(widget)
+  if widget.bounds.contains(state.mousePosition) and state.mouseCapture == nil:
+    state.hovers.add(widget)
 
-    if state.mouseCapture != nil:
-      state.hovers.add(state.mouseCapture)
+  if state.mouseCapture != nil:
+    state.hovers.add(state.mouseCapture)
 
 # =================================================================================
 # Widget
@@ -308,6 +316,16 @@ proc releaseMouseCapture*(widget: Widget) =
 proc vg*(widget: Widget): VectorGraphics =
   return widget.sharedState.vg
 
+proc pixelAlign*(widget: Widget, value: float): float =
+  let pixelDensity = widget.sharedState.pixelDensity
+  (value * pixelDensity).round / pixelDensity
+
+proc pixelAlign*(widget: Widget, position: Vec2): Vec2 =
+  vec2(
+    widget.pixelAlign(position.x),
+    widget.pixelAlign(position.y),
+  )
+
 proc addWidget*(parent: Widget, T: typedesc = Widget): T =
   result = T()
 
@@ -327,7 +345,7 @@ proc updateChildren*(widget: Widget) =
   let vg = widget.vg
   for child in widget.children:
     vg.saveState()
-    vg.translate(child.position)
+    vg.translate(child.pixelAlign(child.position))
     if child.clipDrawing:
       vg.clip(vec2(0, 0), child.size)
     child.updateWidget()
@@ -337,7 +355,7 @@ proc drawChildren*(widget: Widget) =
   let vg = widget.vg
   for child in widget.children:
     vg.saveState()
-    vg.translate(child.position)
+    vg.translate(child.pixelAlign(child.position))
     if child.clipDrawing:
       vg.clip(vec2(0, 0), child.size)
     child.drawWidget()

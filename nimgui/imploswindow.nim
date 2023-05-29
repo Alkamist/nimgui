@@ -1,15 +1,23 @@
 import std/unicode
 import oswindow
-import ./widget
+import ./widget as widgetModule
 
-proc toWidgetMouseButton(button: oswindow.MouseButton): widget.MouseButton =
-  return cast[widget.MouseButton](button)
+proc toWidgetMouseButton(button: oswindow.MouseButton): widgetModule.MouseButton =
+  return cast[widgetModule.MouseButton](button)
 
-proc toWidgetKeyboardKey(key: oswindow.KeyboardKey): widget.KeyboardKey =
-  return cast[widget.KeyboardKey](key)
+proc toWidgetKeyboardKey(key: oswindow.KeyboardKey): widgetModule.KeyboardKey =
+  return cast[widgetModule.KeyboardKey](key)
+
+proc toOsWindowCursorStyle(style: widgetModule.CursorStyle): oswindow.CursorStyle =
+  return cast[oswindow.CursorStyle](style)
 
 proc attachToOsWindow*(widget: Widget, window: OsWindow, processFrame: proc(window: OsWindow)) =
   GcRef(widget)
+
+  let windowCapture = window
+  widget.setCursorStyleProc(proc(style: widgetModule.CursorStyle) =
+    windowCapture.setCursorStyle(style.toOsWindowCursorStyle)
+  )
 
   window.userData = cast[pointer](widget)
 

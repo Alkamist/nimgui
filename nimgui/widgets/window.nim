@@ -156,20 +156,6 @@ proc updateWindow(widget: Widget) =
     window.height - headerHeight - roundingInset - 2.0 * borderThickness,
   )
 
-  # if window.resizeLeftButton.mouseEntered or window.resizeRightButton.mouseEntered:
-  #   window.cursorStyle = ResizeLeftRight
-  # elif window.resizeTopButton.mouseEntered or window.resizeBottomButton.mouseEntered:
-  #   window.cursorStyle = ResizeTopBottom
-  # elif window.resizeTopLeftButton.mouseEntered or window.resizeBottomRightButton.mouseEntered:
-  #   window.cursorStyle = ResizeTopLeftBottomRight
-  # elif window.resizeTopRightButton.mouseEntered or window.resizeBottomLeftButton.mouseEntered:
-  #   window.cursorStyle = ResizeTopRightBottomLeft
-  # elif window.resizeLeftButton.mouseExited or window.resizeRightButton.mouseExited or
-  #      window.resizeTopButton.mouseExited or window.resizeBottomButton.mouseExited or
-  #      window.resizeTopLeftButton.mouseExited or window.resizeBottomRightButton.mouseExited or
-  #      window.resizeTopRightButton.mouseExited or window.resizeBottomLeftButton.mouseExited:
-  #   window.cursorStyle = Arrow
-
   if window.isHoveredIncludingChildren and
     (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
     window.bringToTop()
@@ -221,13 +207,21 @@ func addWindow*(parent: Widget): Window =
   result.resizeButtons.clipInput = false
   result.resizeButtons.clipDrawing = false
   result.resizeLeftButton = result.resizeButtons.addButton()
+  result.resizeLeftButton.cursorStyle = ResizeLeftRight
   result.resizeRightButton = result.resizeButtons.addButton()
+  result.resizeRightButton.cursorStyle = ResizeLeftRight
   result.resizeTopButton = result.resizeButtons.addButton()
+  result.resizeTopButton.cursorStyle = ResizeTopBottom
   result.resizeBottomButton = result.resizeButtons.addButton()
+  result.resizeBottomButton.cursorStyle = ResizeTopBottom
   result.resizeTopLeftButton = result.resizeButtons.addButton()
+  result.resizeTopLeftButton.cursorStyle = ResizeTopLeftBottomRight
   result.resizeTopRightButton = result.resizeButtons.addButton()
+  result.resizeTopRightButton.cursorStyle = ResizeTopRightBottomLeft
   result.resizeBottomLeftButton = result.resizeButtons.addButton()
+  result.resizeBottomLeftButton.cursorStyle = ResizeTopRightBottomLeft
   result.resizeBottomRightButton = result.resizeButtons.addButton()
+  result.resizeBottomRightButton.cursorStyle = ResizeTopLeftBottomRight
 
 func addTitle*(window: Window, title: string): Text {.discardable.} =
   result = window.header.addText()

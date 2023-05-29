@@ -39,7 +39,7 @@ window2.position = vec2(50, 50)
 window2.size = vec2(400, 300)
 window2.addTitle("Child Window")
 
-let b = window2.addButton()
+let b = window2.body.addButton()
 b.position = vec2(50, 50)
 b.addLabel("Hello")
 

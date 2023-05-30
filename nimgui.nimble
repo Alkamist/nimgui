@@ -10,7 +10,3 @@ backend = "c"
 # Dependencies
 
 requires "nim >= 1.6.0"
-requires "opengl"
-
-when defined(windows):
-  requires "winim"

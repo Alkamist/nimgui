@@ -27,8 +27,7 @@ proc drawPosition(text: Text): Vec2 =
     of Bottom: text.size.y
     of Baseline: text.lineHeight
 
-proc updateText(widget: Widget) =
-  let text = Text(widget)
+proc update*(text: Text) =
   let vg = text.vg
   vg.font = text.font
   vg.fontSize = text.fontSize
@@ -44,8 +43,7 @@ proc updateText(widget: Widget) =
 
   text.updateChildren()
 
-proc drawText(widget: Widget) =
-  let text = Text(widget)
+proc draw*(text: Text) =
   let vg = text.vg
   vg.font = text.font
   vg.fontSize = text.fontSize
@@ -59,8 +57,6 @@ proc drawText(widget: Widget) =
 
 func addText*(parent: Widget): Text =
   result = parent.addWidget(Text)
-  result.update = updateText
-  result.draw = drawText
   result.fontSize = 13
   result.font = "consola"
   result.alignX = Center

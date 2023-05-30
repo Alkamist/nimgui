@@ -1,8 +1,6 @@
 {.experimental: "overloadableEnums".}
 
-import ../math
 import ../widget
-# import ./frame
 import ./text
 
 type
@@ -10,69 +8,56 @@ type
     isDown*: bool
     wasDown*: bool
     clicked*: bool
-    mouseButton*: MouseButton
+    inputPress*: proc(button: Button): bool
+    inputRelease*: proc(button: Button): bool
 
-proc pressed*(button: Button): bool {.inline.} = button.isDown and not button.wasDown
-proc released*(button: Button): bool {.inline.} = button.wasDown and not button.isDown
+template pressed*(button: Button): bool = button.isDown and not button.wasDown
+template released*(button: Button): bool = button.wasDown and not button.isDown
 
-proc updateButton(widget: Widget) =
-  let button = Button(widget)
+proc update*(button: Button) =
   let isHovered = button.isHovered
 
   button.clicked = false
   button.wasDown = button.isDown
 
-  if isHovered and button.mousePressed(button.mouseButton):
+  if isHovered and button.inputPress(button):
     button.isDown = true
     button.captureMouse()
 
-  if button.isDown and button.mouseReleased(button.mouseButton):
+  if button.isDown and button.inputRelease(button):
     button.isDown = false
-    button.releaseMouseCapture()
+    button.releaseMouse()
     if isHovered:
       button.clicked = true
 
   button.updateChildren()
 
-proc drawButton(widget: Widget) =
-  let button = Button(widget)
+proc drawBody(button: Button, color: Color) =
   let vg = button.vg
-
-  # vg.drawFrame(
-  #   0, 0,
-  #   button.width, button.height,
-  #   1.0, 3.0,
-  #   rgb(30, 31, 34),
-  #   rgb(30, 31, 34).lighten(0.2),
-  # )
-
   vg.beginPath()
   vg.roundedRect(vec2(0, 0), button.size, 3.0)
-  vg.fillColor = rgb(30, 31, 34)
+  vg.fillColor = color
   vg.fill()
 
+proc draw*(button: Button) =
+  button.drawBody(rgb(30, 31, 34))
   button.drawChildren()
-
   if button.isDown:
-    vg.beginPath()
-    vg.roundedRect(vec2(0, 0), button.size, 3.0)
-    vg.fillColor = rgba(0, 0, 0, 8)
-    vg.fill()
+    button.drawBody(rgba(0, 0, 0, 8))
   elif button.isHovered:
-    vg.beginPath()
-    vg.roundedRect(vec2(0, 0), button.size, 3.0)
-    vg.fillColor = rgba(255, 255, 255, 8)
-    vg.fill()
+    button.drawBody(rgba(255, 255, 255, 8))
 
-func addButton*(parent: Widget, mouseButton = MouseButton.Left): Button =
+func addButton*(parent: Widget, mb = MouseButton.Left): Button =
   result = parent.addWidget(Button)
-  result.mouseButton = mouseButton
   result.size = vec2(96, 32)
-  result.update = updateButton
-  result.draw = drawButton
+  result.dontDraw = false
   result.consumeInput = true
   result.clipInput = true
   result.clipDrawing = true
+  result.inputPress = proc(button: Button): bool =
+    button.mousePressed(mb)
+  result.inputRelease = proc(button: Button): bool =
+    button.mouseReleased(mb)
 
 func addLabel*(button: Button, label: string): Text {.discardable.} =
   result = button.addText()

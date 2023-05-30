@@ -1,8 +1,7 @@
 {.experimental: "codeReordering".}
 {.experimental: "overloadableEnums".}
 
-# import ./gfxmod; export gfxmod
-import ./math
+import ./math; export math
 import vectorgraphics; export vectorgraphics
 
 const densityPixelDpi = 96.0
@@ -49,6 +48,7 @@ type
     PadPeriod, PrintScreen,
 
   SharedState* = ref object
+    userData*: pointer
     pixelDensity*: float
     vg*: VectorGraphics
     hovers*: seq[Widget]
@@ -65,11 +65,11 @@ type
     keyReleases*: seq[KeyboardKey]
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
-    setCursorStyle*: proc(style: CursorStyle)
+    activeCursorStyle*: CursorStyle
 
   Widget* = ref object of RootObj
-    update*: proc(widget: Widget)
-    draw*: proc(widget: Widget)
+    updateProc*: proc(widget: Widget)
+    drawProc*: proc(widget: Widget)
     sharedState*: SharedState
     parent* {.cursor.}: Widget
     children*: seq[Widget]
@@ -119,26 +119,27 @@ proc newRoot*(_: typedesc[Widget]): Widget =
 
   result.sharedState = SharedState.new()
 
-  result.update = proc(widget: Widget) = widget.updateChildren()
-  result.draw = proc(widget: Widget) = widget.drawChildren()
+  result.updateProc = proc(widget: Widget) = widget.updateChildren()
+  result.drawProc = proc(widget: Widget) = widget.drawChildren()
 
 proc processFrame*(widget: Widget, time: float) =
   let vg = widget.sharedState.vg
 
   widget.updateHovers()
-  if widget.sharedState != nil and widget.sharedState.hovers.len > 0:
-    widget.sharedState.setCursorStyle(widget.sharedState.hovers[^1].cursorStyle)
-
   vg.beginFrame(int(widget.size.x), int(widget.size.y), 1.0)
 
   widget.updateWidget()
   widget.drawWidget()
 
   vg.endFrame()
+
+  if widget.sharedState.hovers.len > 0:
+    widget.sharedState.activeCursorStyle = widget.sharedState.hovers[^1].cursorStyle
+
   widget.sharedState.update()
 
-proc setCursorStyleProc*(widget: Widget, value: proc(style: CursorStyle)) =
-  widget.sharedState.setCursorStyle = value
+proc activeCursorStyle*(widget: Widget): CursorStyle =
+  widget.sharedState.activeCursorStyle
 
 proc inputResize*(widget: Widget, width, height: float) =
   widget.size = vec2(width, height)
@@ -195,23 +196,23 @@ proc updateHovers(widget: Widget) =
 # =================================================================================
 
 template updateHook*(widgetToHook: Widget, code: untyped): untyped =
-  let previousUpdate = widgetToHook.update
-  widgetToHook.update = proc(widgetBase: Widget) =
+  let previousUpdateProc = widgetToHook.updateProc
+  widgetToHook.updateProc = proc(widgetBase: Widget) =
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
     {.hint[XDeclaredButNotUsed]: off.}
     let self {.inject.} = typeof(widgetToHook)(widgetBase)
     let vg {.inject.} = self.vg
-    previousUpdate(widgetBase)
+    previousUpdateProc(widgetBase)
     code
 
 template drawHook*(widgetToHook: Widget, code: untyped): untyped =
-  let previousDraw = widgetToHook.draw
-  widgetToHook.draw = proc(widgetBase: Widget) =
+  let previousDrawProc = widgetToHook.drawProc
+  widgetToHook.drawProc = proc(widgetBase: Widget) =
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
     {.hint[XDeclaredButNotUsed]: off.}
     let self {.inject.} = typeof(widgetToHook)(widgetBase)
     let vg {.inject.} = self.vg
-    previousDraw(widgetBase)
+    previousDrawProc(widgetBase)
     code
 
 proc isRoot*(widget: Widget): bool =
@@ -310,7 +311,7 @@ proc isHoveredIncludingChildren*(widget: Widget): bool =
 proc captureMouse*(widget: Widget) =
   widget.sharedState.mouseCapture = widget
 
-proc releaseMouseCapture*(widget: Widget) =
+proc releaseMouse*(widget: Widget) =
   widget.sharedState.mouseCapture = nil
 
 proc vg*(widget: Widget): VectorGraphics =
@@ -327,6 +328,11 @@ proc pixelAlign*(widget: Widget, position: Vec2): Vec2 =
   )
 
 proc addWidget*(parent: Widget, T: typedesc = Widget): T =
+  mixin update, draw
+
+  template isBaseWidget(T: typedesc): bool =
+    compiles((var a: T = Widget()))
+
   result = T()
 
   result.dontDraw = false
@@ -336,8 +342,17 @@ proc addWidget*(parent: Widget, T: typedesc = Widget): T =
 
   result.sharedState = parent.sharedState
   result.parent = parent
-  result.update = proc(widget: Widget) = widget.updateChildren()
-  result.draw = proc(widget: Widget) = widget.drawChildren()
+
+  when T.isBaseWidget:
+    result.updateProc = proc(widget: Widget) =
+      widget.updateChildren()
+    result.drawProc = proc(widget: Widget) =
+      widget.drawChildren()
+  else:
+    result.updateProc = proc(widget: Widget) =
+      T(widget).update()
+    result.drawProc = proc(widget: Widget) =
+      T(widget).draw()
 
   parent.children.add(result)
 
@@ -384,14 +399,14 @@ proc bringToTop*(widget: Widget) =
     parent.children[parent.children.len - 1] = widget
 
 proc updateWidget(widget: Widget) =
-  if widget.update != nil:
-    widget.update(widget)
+  if widget.updateProc != nil:
+    widget.updateProc(widget)
 
 proc drawWidget(widget: Widget) =
   if widget.dontDraw:
     return
-  if widget.draw != nil:
-    widget.draw(widget)
+  if widget.drawProc != nil:
+    widget.drawProc(widget)
 
 proc childMouseHitTest(widget: Widget): seq[Widget] =
   let mouseCapture = widget.sharedState.mouseCapture

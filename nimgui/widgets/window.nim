@@ -55,41 +55,41 @@ func updateMoveResizeButtonBounds(window: Window) =
   window.resizeBottomRightButton.position = vec2(window.width - resizeHitSize2, window.height - resizeHitSize)
   window.resizeBottomRightButton.size = vec2(resizeHitSize2, resizeHitSize)
 
-func moveAndResize(window: Window) =
-  template calculateGrabDelta(): Vec2 {.dirty.} =
+func calculateGrabDelta(window: Window): Vec2 =
     window.globalMousePosition - window.globalMousePositionWhenGrabbed
 
-  template moveWindow(grabDelta: Vec2): untyped {.dirty.} =
-    window.position = window.positionWhenGrabbed + grabDelta
+func move(window: Window, grabDelta: Vec2) =
+  window.position = window.positionWhenGrabbed + grabDelta
 
-  template resizeWindowLeft(grabDelta: Vec2): untyped {.dirty.} =
-    window.x = window.positionWhenGrabbed.x + grabDelta.x
-    window.width = window.sizeWhenGrabbed.x - grabDelta.x
-    if window.width < window.minSize.x:
-      let correction = window.width - window.minSize.x
-      window.x += correction
-      window.width -= correction
+func resizeLeft(window: Window, grabDelta: Vec2) =
+  window.x = window.positionWhenGrabbed.x + grabDelta.x
+  window.width = window.sizeWhenGrabbed.x - grabDelta.x
+  if window.width < window.minSize.x:
+    let correction = window.width - window.minSize.x
+    window.x += correction
+    window.width -= correction
 
-  template resizeWindowRight(grabDelta: Vec2): untyped {.dirty.} =
-    window.width = window.sizeWhenGrabbed.x + grabDelta.x
-    if window.width < window.minSize.x:
-      let correction = window.width - window.minSize.x
-      window.width -= correction
+func resizeRight(window: Window, grabDelta: Vec2) =
+  window.width = window.sizeWhenGrabbed.x + grabDelta.x
+  if window.width < window.minSize.x:
+    let correction = window.width - window.minSize.x
+    window.width -= correction
 
-  template resizeWindowTop(grabDelta: Vec2): untyped {.dirty.} =
-    window.y = window.positionWhenGrabbed.y + grabDelta.y
-    window.height = window.sizeWhenGrabbed.y - grabDelta.y
-    if window.height < window.minSize.y:
-      let correction = window.height - window.minSize.y
-      window.y += correction
-      window.height -= correction
+func resizeTop(window: Window, grabDelta: Vec2) =
+  window.y = window.positionWhenGrabbed.y + grabDelta.y
+  window.height = window.sizeWhenGrabbed.y - grabDelta.y
+  if window.height < window.minSize.y:
+    let correction = window.height - window.minSize.y
+    window.y += correction
+    window.height -= correction
 
-  template resizeWindowBottom(grabDelta: Vec2): untyped {.dirty.} =
-    window.height = window.sizeWhenGrabbed.y + grabDelta.y
-    if window.height < window.minSize.y:
-      let correction = window.height - window.minSize.y
-      window.height -= correction
+func resizeBottom(window: Window, grabDelta: Vec2) =
+  window.height = window.sizeWhenGrabbed.y + grabDelta.y
+  if window.height < window.minSize.y:
+    let correction = window.height - window.minSize.y
+    window.height -= correction
 
+func moveAndResize(window: Window) =
   if window.moveButton.pressed or
      window.resizeLeftButton.pressed or window.resizeRightButton.pressed or
      window.resizeTopButton.pressed or window.resizeBottomButton.pressed or
@@ -100,48 +100,46 @@ func moveAndResize(window: Window) =
     window.sizeWhenGrabbed = window.size
 
   if window.moveButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    moveWindow(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.move(grabDelta)
 
   if window.resizeLeftButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowLeft(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeLeft(grabDelta)
 
   if window.resizeRightButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowRight(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeRight(grabDelta)
 
   if window.resizeTopButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowTop(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeTop(grabDelta)
 
   if window.resizeBottomButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowBottom(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeBottom(grabDelta)
 
   if window.resizeTopLeftButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowTop(grabDelta)
-    resizeWindowLeft(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeTop(grabDelta)
+    window.resizeLeft(grabDelta)
 
   if window.resizeTopRightButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowTop(grabDelta)
-    resizeWindowRight(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeTop(grabDelta)
+    window.resizeRight(grabDelta)
 
   if window.resizeBottomLeftButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowBottom(grabDelta)
-    resizeWindowLeft(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeBottom(grabDelta)
+    window.resizeLeft(grabDelta)
 
   if window.resizeBottomRightButton.isDown:
-    let grabDelta = calculateGrabDelta()
-    resizeWindowBottom(grabDelta)
-    resizeWindowRight(grabDelta)
+    let grabDelta = window.calculateGrabDelta()
+    window.resizeBottom(grabDelta)
+    window.resizeRight(grabDelta)
 
-proc updateWindow(widget: Widget) =
-  let window = Window(widget)
-
+proc update*(window: Window) =
   window.updateMoveResizeButtonBounds()
   window.moveAndResize()
 
@@ -162,8 +160,7 @@ proc updateWindow(widget: Widget) =
 
   window.updateChildren()
 
-proc drawWindow(widget: Widget) =
-  let window = Window(widget)
+proc draw*(window: Window) =
   let vg = window.vg
 
   vg.drawFrameShadow(vec2(0, 0), window.size, cornerRadius)
@@ -183,11 +180,10 @@ proc drawWindow(widget: Widget) =
 
 func addWindow*(parent: Widget): Window =
   result = parent.addWidget(Window)
+
   result.consumeInput = true
   result.clipInput = true
   result.clipDrawing = false
-  result.update = updateWindow
-  result.draw = drawWindow
   result.size = vec2(300, 200)
   result.minSize = vec2(200, headerHeight * 2.0)
 
@@ -195,12 +191,15 @@ func addWindow*(parent: Widget): Window =
   result.body.consumeInput = false
   result.body.clipInput = true
   result.body.clipDrawing = true
-  result.moveButton = result.addButton()
-  result.moveButton.dontDraw = true
+
   result.header = result.addWidget()
   result.header.consumeInput = false
   result.header.clipInput = true
   result.header.clipDrawing = true
+
+  result.moveButton = result.addButton()
+  result.moveButton.dontDraw = true
+
   result.resizeButtons = result.addWidget()
   result.resizeButtons.dontDraw = true
   result.resizeButtons.consumeInput = false

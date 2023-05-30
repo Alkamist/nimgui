@@ -15,6 +15,7 @@ proc processFrame(window: OsWindow) =
   glClear(GL_COLOR_BUFFER_BIT)
 
   let root = cast[Widget](window.userData)
+  window.setCursorStyle(cast[oswindow.CursorStyle](root.activeCursorStyle))
   root.processFrame(cpuTime())
 
   window.swapBuffers()

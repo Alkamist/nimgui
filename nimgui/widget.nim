@@ -386,6 +386,8 @@ proc drawChildren*(widget: Widget) =
 
 proc bringToTop*(widget: Widget) =
   let parent = widget.parent
+  if parent == nil or parent.children.len == 0:
+    return
 
   # Already on top.
   if parent.children[parent.children.len - 1] == widget:

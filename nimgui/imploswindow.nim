@@ -1,4 +1,3 @@
-import std/unicode
 import std/times
 import oswindow
 import ./widget as widgetModule
@@ -59,9 +58,9 @@ proc attachToOsWindow*(widget: Widget, window: OsWindow) =
     let widget = cast[Widget](window.userData)
     widget.inputKeyRelease(key.toWidgetKeyboardKey)
 
-  window.onRune = proc(window: OsWindow, r: Rune) =
+  window.onTextInput = proc(window: OsWindow, text: string) =
     let widget = cast[Widget](window.userData)
-    widget.inputText(r.toUTF8)
+    widget.inputText(text)
 
   window.onScaleChange = proc(window: OsWindow, scale: float) =
     let widget = cast[Widget](window.userData)

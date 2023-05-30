@@ -4,8 +4,6 @@
 import ./math; export math
 import vectorgraphics; export vectorgraphics
 
-const densityPixelDpi = 96.0
-
 type
   CursorStyle* = enum
     Arrow
@@ -49,7 +47,7 @@ type
 
   SharedState* = ref object
     userData*: pointer
-    pixelDensity*: float
+    scale*: float
     vg*: VectorGraphics
     hovers*: seq[Widget]
     time*: float
@@ -66,6 +64,7 @@ type
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
     activeCursorStyle*: CursorStyle
+    activeCursorStylePrevious*: CursorStyle
 
   Widget* = ref object of RootObj
     updateProc*: proc(widget: Widget)
@@ -104,6 +103,10 @@ proc update*(state: SharedState) =
   state.textInput.setLen(0)
   state.mousePositionPrevious = state.mousePosition
   state.timePrevious = state.time
+  state.activeCursorStylePrevious = state.activeCursorStyle
+
+proc cursorStyleChanged*(state: SharedState): bool =
+  state.activeCursorStyle != state.activeCursorStylePrevious
 
 # =================================================================================
 # Root
@@ -133,10 +136,15 @@ proc processFrame*(widget: Widget, time: float) =
 
   vg.endFrame()
 
-  if widget.sharedState.hovers.len > 0:
-    widget.sharedState.activeCursorStyle = widget.sharedState.hovers[^1].cursorStyle
+  let activeCursorStyle =
+    if widget.sharedState.hovers.len > 0:
+      widget.sharedState.hovers[^1].cursorStyle
+    else:
+      CursorStyle.Arrow
 
   widget.sharedState.update()
+
+  widget.sharedState.activeCursorStyle = activeCursorStyle
 
 proc activeCursorStyle*(widget: Widget): CursorStyle =
   widget.sharedState.activeCursorStyle
@@ -167,8 +175,8 @@ proc inputKeyRelease*(widget: Widget, key: KeyboardKey) =
 proc inputText*(widget: Widget, text: string) =
   widget.sharedState.textInput &= text
 
-proc inputDpi*(widget: Widget, dpi: float) =
-  widget.sharedState.pixelDensity = dpi / densityPixelDpi
+proc inputScale*(widget: Widget, scale: float) =
+  widget.sharedState.scale = scale
 
 proc updateHovers(widget: Widget) =
   if not widget.isRoot:
@@ -318,8 +326,8 @@ proc vg*(widget: Widget): VectorGraphics =
   return widget.sharedState.vg
 
 proc pixelAlign*(widget: Widget, value: float): float =
-  let pixelDensity = widget.sharedState.pixelDensity
-  (value * pixelDensity).round / pixelDensity
+  let scale = widget.sharedState.scale
+  (value * scale).round / scale
 
 proc pixelAlign*(widget: Widget, position: Vec2): Vec2 =
   vec2(

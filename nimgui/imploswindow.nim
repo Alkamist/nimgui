@@ -1,4 +1,5 @@
 import std/unicode
+import std/times
 import oswindow
 import ./widget as widgetModule
 
@@ -8,27 +9,31 @@ proc toWidgetMouseButton(button: oswindow.MouseButton): widgetModule.MouseButton
 proc toWidgetKeyboardKey(key: oswindow.KeyboardKey): widgetModule.KeyboardKey =
   return cast[widgetModule.KeyboardKey](key)
 
-# proc toOsWindowCursorStyle(style: widgetModule.CursorStyle): oswindow.CursorStyle =
-#   return cast[oswindow.CursorStyle](style)
+proc toOsWindowCursorStyle(style: widgetModule.CursorStyle): oswindow.CursorStyle =
+  return cast[oswindow.CursorStyle](style)
 
-proc attachToOsWindow*(widget: Widget, window: OsWindow, processFrame: proc(window: OsWindow)) =
+proc attachToOsWindow*(widget: Widget, window: OsWindow) =
   GcRef(widget)
-
   window.userData = cast[pointer](widget)
 
   let (width, height) = window.size
   widget.inputResize(float(width), float(height))
-  widget.inputDpi(window.dpi)
+  widget.inputScale(window.scale)
+
+  window.onFrame = proc(window: OsWindow) =
+    let widget = cast[Widget](window.userData)
+    widget.processFrame(cpuTime())
+    if window.isHovered:
+      window.setCursorStyle(widget.activeCursorStyle.toOsWindowCursorStyle)
+    window.swapBuffers()
 
   window.onClose = proc(window: OsWindow) =
     let widget = cast[Widget](window.userData)
-    window.makeContextCurrent()
     GcUnref(widget)
 
   window.onResize = proc(window: OsWindow, width, height: int) =
     let widget = cast[Widget](window.userData)
     widget.inputResize(float(width), float(height))
-    processFrame(window)
 
   window.onMouseMove = proc(window: OsWindow, x, y: int) =
     let widget = cast[Widget](window.userData)
@@ -58,6 +63,6 @@ proc attachToOsWindow*(widget: Widget, window: OsWindow, processFrame: proc(wind
     let widget = cast[Widget](window.userData)
     widget.inputText(r.toUTF8)
 
-  window.onDpiChange = proc(window: OsWindow, dpi: float) =
+  window.onScaleChange = proc(window: OsWindow, scale: float) =
     let widget = cast[Widget](window.userData)
-    widget.inputDpi(dpi)
+    widget.inputScale(scale)

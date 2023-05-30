@@ -1,34 +1,17 @@
-import std/times
-import opengl
 import oswindow
 import nimgui
 import nimgui/imploswindow
 
 const consolaData = readFile("consola.ttf")
 
-proc processFrame(window: OsWindow) =
-  window.makeContextCurrent()
-
-  let (width, height) = window.size
-  glViewport(0, 0, int32(width), int32(height))
-  glClearColor(49 / 255, 51 / 255, 56 / 255, 1.0)
-  glClear(GL_COLOR_BUFFER_BIT)
-
-  let root = cast[Widget](window.userData)
-  window.setCursorStyle(cast[oswindow.CursorStyle](root.activeCursorStyle))
-  root.processFrame(cpuTime())
-
-  window.swapBuffers()
-
 let window = OsWindow.new()
+window.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
 window.setSize(800, 600)
 window.show()
 
-opengl.loadExtensions()
-
 let root = Widget.newRoot()
 root.vg.addFont("consola", consolaData)
-root.attachToOsWindow(window, processFrame)
+root.attachToOsWindow(window)
 
 let window1 = root.addWindow()
 window1.position = vec2(50, 50)
@@ -54,13 +37,10 @@ window4.position = vec2(50, 50)
 window4.size = vec2(400, 300)
 window4.addTitle("Child Window")
 
-# root.drawHook:
-#   vg.beginPath()
-#   vg.rect(self.mousePosition, vec2(200, 200))
-#   vg.fillColor = rgb(255, 0, 0)
-#   vg.fill()
+root.drawHook:
+  vg.beginPath()
+  vg.rect(self.mousePosition + 0.5, vec2(200, 200))
+  vg.strokeColor = rgb(255, 255, 255)
+  vg.stroke()
 
-while window.isOpen:
-  window.pollEvents()
-  if window.isOpen:
-    processFrame(window)
+window.run()

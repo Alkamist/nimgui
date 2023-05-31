@@ -130,11 +130,13 @@ proc processFrame*(widget: Widget, time: float) =
   let vg = widget.sharedState.vg
 
   widget.updateHovers()
+
   vg.beginFrame(int(widget.size.x), int(widget.size.y), widget.sharedState.contentScale)
-
   widget.updateWidget()
-  widget.drawWidget()
+  vg.endFrame()
 
+  vg.beginFrame(int(widget.size.x), int(widget.size.y), widget.sharedState.contentScale)
+  widget.drawWidget()
   vg.endFrame()
 
   let activeCursorStyle =

@@ -47,7 +47,7 @@ type
 
   SharedState* = ref object
     userData*: pointer
-    scale*: float
+    contentScale*: float
     vg*: VectorGraphics
     hovers*: seq[Widget]
     time*: float
@@ -101,6 +101,7 @@ proc update*(state: SharedState) =
   state.keyPresses.setLen(0)
   state.keyReleases.setLen(0)
   state.textInput.setLen(0)
+  state.mouseWheel = vec2(0, 0)
   state.mousePositionPrevious = state.mousePosition
   state.timePrevious = state.time
   state.activeCursorStylePrevious = state.activeCursorStyle
@@ -129,7 +130,7 @@ proc processFrame*(widget: Widget, time: float) =
   let vg = widget.sharedState.vg
 
   widget.updateHovers()
-  vg.beginFrame(int(widget.size.x), int(widget.size.y), 1.0)
+  vg.beginFrame(int(widget.size.x), int(widget.size.y), widget.sharedState.contentScale)
 
   widget.updateWidget()
   widget.drawWidget()
@@ -153,14 +154,14 @@ proc inputResize*(widget: Widget, width, height: float) =
   widget.size = vec2(width, height)
 
 proc inputMouseMove*(widget: Widget, x, y: float) =
-  widget.sharedState.mousePosition = vec2(x, y)
+  widget.sharedState.mousePosition = vec2(x, y) / widget.sharedState.contentScale
 
 proc inputMousePress*(widget: Widget, button: MouseButton, x, y: float) =
-  widget.sharedState.mousePosition = vec2(x, y)
+  widget.sharedState.mousePosition = vec2(x, y) / widget.sharedState.contentScale
   widget.sharedState.mousePresses.add(button)
 
 proc inputMouseRelease*(widget: Widget, button: MouseButton, x, y: float) =
-  widget.sharedState.mousePosition = vec2(x, y)
+  widget.sharedState.mousePosition = vec2(x, y) / widget.sharedState.contentScale
   widget.sharedState.mouseReleases.add(button)
 
 proc inputMouseWheel*(widget: Widget, x, y: float) =
@@ -175,8 +176,9 @@ proc inputKeyRelease*(widget: Widget, key: KeyboardKey) =
 proc inputText*(widget: Widget, text: string) =
   widget.sharedState.textInput &= text
 
-proc inputScale*(widget: Widget, scale: float) =
-  widget.sharedState.scale = scale
+proc inputContentScale*(widget: Widget, scale: float) =
+  widget.sharedState.mousePosition *= widget.sharedState.contentScale / scale
+  widget.sharedState.contentScale = scale
 
 proc updateHovers(widget: Widget) =
   if not widget.isRoot:
@@ -254,6 +256,10 @@ proc mouseDelta*(widget: Widget): Vec2 =
   let state = widget.sharedState
   return state.mousePosition - state.mousePositionPrevious
 
+proc mouseWheel*(widget: Widget): Vec2 =
+  let state = widget.sharedState
+  return state.mouseWheel
+
 proc deltaTime*(widget: Widget): float =
   let state = widget.sharedState
   return state.time - state.timePrevious
@@ -326,8 +332,8 @@ proc vg*(widget: Widget): VectorGraphics =
   return widget.sharedState.vg
 
 proc pixelAlign*(widget: Widget, value: float): float =
-  let scale = widget.sharedState.scale
-  (value * scale).round / scale
+  let contentScale = widget.sharedState.contentScale
+  (value * contentScale).round / contentScale
 
 proc pixelAlign*(widget: Widget, position: Vec2): Vec2 =
   vec2(

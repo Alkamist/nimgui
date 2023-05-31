@@ -37,6 +37,13 @@ window4.position = vec2(50, 50)
 window4.size = vec2(400, 300)
 window4.addTitle("Child Window")
 
+var scale = 1.0
+
+root.updateHook:
+  if self.mouseWheelMoved:
+    scale *= 2.0.pow(self.mouseWheel.y * 0.1)
+    self.inputContentScale(scale)
+
 root.drawHook:
   vg.beginPath()
   vg.rect(self.mousePosition + 0.5, vec2(200, 200))

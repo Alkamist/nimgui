@@ -2,14 +2,22 @@ import std/times
 import oswindow
 import ./widget as widgetModule
 
-proc toWidgetMouseButton(button: oswindow.MouseButton): widgetModule.MouseButton =
-  return cast[widgetModule.MouseButton](button)
+const densityPixelDpi = 96.0
 
-proc toWidgetKeyboardKey(key: oswindow.KeyboardKey): widgetModule.KeyboardKey =
-  return cast[widgetModule.KeyboardKey](key)
+proc toContentScale(dpi: float): float {.inline.} =
+  dpi / densityPixelDpi
 
-proc toOsWindowCursorStyle(style: widgetModule.CursorStyle): oswindow.CursorStyle =
-  return cast[oswindow.CursorStyle](style)
+proc toDensityPixels(pixels: int, dpi: float): float {.inline.} =
+  float(pixels) * dpi / densityPixelDpi
+
+proc toWidgetMouseButton(button: oswindow.MouseButton): widgetModule.MouseButton {.inline.} =
+  cast[widgetModule.MouseButton](button)
+
+proc toWidgetKeyboardKey(key: oswindow.KeyboardKey): widgetModule.KeyboardKey {.inline.} =
+  cast[widgetModule.KeyboardKey](key)
+
+proc toOsWindowCursorStyle(style: widgetModule.CursorStyle): oswindow.CursorStyle {.inline.} =
+  cast[oswindow.CursorStyle](style)
 
 proc attachToOsWindow*(widget: Widget, window: OsWindow) =
   GcRef(widget)
@@ -17,7 +25,7 @@ proc attachToOsWindow*(widget: Widget, window: OsWindow) =
 
   let (width, height) = window.size
   widget.inputResize(float(width), float(height))
-  widget.inputScale(window.scale)
+  widget.inputContentScale(window.dpi.toContentScale)
 
   window.onFrame = proc(window: OsWindow) =
     let widget = cast[Widget](window.userData)
@@ -36,15 +44,18 @@ proc attachToOsWindow*(widget: Widget, window: OsWindow) =
 
   window.onMouseMove = proc(window: OsWindow, x, y: int) =
     let widget = cast[Widget](window.userData)
-    widget.inputMouseMove(float(x), float(y))
+    let dpi = window.dpi
+    widget.inputMouseMove(x.toDensityPixels(dpi), y.toDensityPixels(dpi))
 
   window.onMousePress = proc(window: OsWindow, button: oswindow.MouseButton, x, y: int) =
     let widget = cast[Widget](window.userData)
-    widget.inputMousePress(button.toWidgetMouseButton, float(x), float(y))
+    let dpi = window.dpi
+    widget.inputMousePress(button.toWidgetMouseButton, x.toDensityPixels(dpi), y.toDensityPixels(dpi))
 
   window.onMouseRelease = proc(window: OsWindow, button: oswindow.MouseButton, x, y: int) =
     let widget = cast[Widget](window.userData)
-    widget.inputMouseRelease(button.toWidgetMouseButton, float(x), float(y))
+    let dpi = window.dpi
+    widget.inputMouseRelease(button.toWidgetMouseButton, x.toDensityPixels(dpi), y.toDensityPixels(dpi))
 
   window.onMouseWheel = proc(window: OsWindow, x, y: float) =
     let widget = cast[Widget](window.userData)
@@ -62,6 +73,6 @@ proc attachToOsWindow*(widget: Widget, window: OsWindow) =
     let widget = cast[Widget](window.userData)
     widget.inputText(text)
 
-  window.onScaleChange = proc(window: OsWindow, scale: float) =
+  window.onDpiChange = proc(window: OsWindow, dpi: float) =
     let widget = cast[Widget](window.userData)
-    widget.inputScale(scale)
+    widget.inputContentScale(dpi.toContentScale)

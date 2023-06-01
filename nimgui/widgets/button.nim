@@ -1,72 +1,89 @@
 {.experimental: "overloadableEnums".}
 
-import ../widget
-import ./text
+import ../gui
 
 type
   Button* = ref object of Widget
     isDown*: bool
-    wasDown*: bool
-    clicked*: bool
-    inputPress*: proc(button: Button): bool
-    inputRelease*: proc(button: Button): bool
-
-template pressed*(button: Button): bool = button.isDown and not button.wasDown
-template released*(button: Button): bool = button.wasDown and not button.isDown
+    pressProc*: proc(button: Button): bool
+    releaseProc*: proc(button: Button): bool
+    onPressProc*: proc(button: Button)
+    onReleaseProc*: proc(button: Button)
+    onClickProc*: proc(button: Button)
+    wasDown: bool
 
 proc update*(button: Button) =
+  let gui = button.gui
   let isHovered = button.isHovered
-
-  button.clicked = false
   button.wasDown = button.isDown
 
-  if isHovered and button.inputPress(button):
+  if isHovered and not button.isDown and button.pressProc != nil and button.pressProc(button):
     button.isDown = true
-    button.captureMouse()
+    gui.mouseCapture = button
+    if button.onPressProc != nil:
+      button.onPressProc(button)
 
-  if button.isDown and button.inputRelease(button):
+  if button.isDown and button.releaseProc != nil and button.releaseProc(button):
     button.isDown = false
-    button.releaseMouse()
+    gui.mouseCapture = nil
+    if button.onReleaseProc != nil:
+      button.onReleaseProc(button)
     if isHovered:
-      button.clicked = true
-
-  button.updateChildren()
-
-proc drawBody(button: Button, color: Color) =
-  let vg = button.vg
-  vg.beginPath()
-  vg.roundedRect(vec2(0, 0), button.size, 3.0)
-  vg.fillColor = color
-  vg.fill()
+      if button.onClickProc != nil:
+        button.onClickProc(button)
 
 proc draw*(button: Button) =
-  button.drawBody(rgb(30, 31, 34))
-  button.drawChildren()
+  let vg = button.gui.vg
+
+  template drawBody(color: Color): untyped =
+    vg.beginPath()
+    vg.roundedRect(vec2(0, 0), button.size, 3.0)
+    vg.fillColor = color
+    vg.fill()
+
+  drawBody(rgb(31, 32, 34))
   if button.isDown:
-    button.drawBody(rgba(0, 0, 0, 8))
+    drawBody(rgba(0, 0, 0, 8))
   elif button.isHovered:
-    button.drawBody(rgba(255, 255, 255, 8))
+    drawBody(rgba(255, 255, 255, 8))
 
-func addButton*(parent: Widget, mb = MouseButton.Left): Button =
-  result = parent.addWidget(Button)
-  result.size = vec2(96, 32)
-  result.dontDraw = false
-  result.consumeInput = true
-  result.clipInput = true
-  result.clipDrawing = true
-  result.inputPress = proc(button: Button): bool =
-    button.mousePressed(mb)
-  result.inputRelease = proc(button: Button): bool =
-    button.mouseReleased(mb)
+template press*(b: Button, code: untyped): untyped =
+  b.pressProc = proc(self {.inject.}: Button): bool =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let gui {.inject.} = self.gui
+    code
 
-func addLabel*(button: Button, label: string): Text {.discardable.} =
-  result = button.addText()
-  result.data = label
-  result.alignX = Center
-  result.alignY = Center
-  result.color = rgb(242, 243, 245)
-  result.consumeInput = false
-  result.clipInput = false
-  result.clipDrawing = false
-  result.updateHook:
-    self.size = self.parent.size
+template release*(b: Button, code: untyped): untyped =
+  b.releaseProc = proc(self {.inject.}: Button): bool =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let gui {.inject.} = self.gui
+    code
+
+template onPress*(b: Button, code: untyped): untyped =
+  b.onPressProc = proc(self {.inject.}: Button) =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let gui {.inject.} = self.gui
+    code
+
+template onRelease*(b: Button, code: untyped): untyped =
+  b.onReleaseProc = proc(self {.inject.}: Button) =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let gui {.inject.} = self.gui
+    code
+
+template onClick*(b: Button, code: untyped): untyped =
+  b.onClickProc = proc(self {.inject.}: Button) =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let gui {.inject.} = self.gui
+    code
+
+proc init*(button: Button) =
+  button.size = vec2(96, 32)
+  button.dontDraw = false
+  button.clipDrawing = true
+  button.clipInput = true
+  button.consumeInput = true
+  button.press:
+    gui.mousePressed(Left)
+  button.release:
+    gui.mouseReleased(Left)

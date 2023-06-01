@@ -1,23 +1,20 @@
 {.experimental: "overloadableEnums".}
 
-import ../math
-import ../widget
+import ../gui
 import ./button
-import ./text
 import ./frame
-
-const resizeHitSize = 5.0
-const resizeHitSize2 = resizeHitSize * 2.0
-const resizeHitSize4 = resizeHitSize2 * 2.0
-const borderThickness = 1.0
-const headerHeight = 22.0
-const cornerRadius = 4.0
-const roundingInset = (1.0 - sin(45.0.degToRad)) * cornerRadius
 
 type
   Window* = ref object of Widget
+    headerHeight*: float
+    resizeHitSize*: float
+    borderThickness*: float
+    cornerRadius*: float
+    minSize*: Vec2
+
     header*: Widget
     body*: Widget
+
     moveButton*: Button
     resizeLeftButton*: Button
     resizeRightButton*: Button
@@ -27,15 +24,71 @@ type
     resizeTopRightButton*: Button
     resizeBottomLeftButton*: Button
     resizeBottomRightButton*: Button
-    minSize*: Vec2
-    globalMousePositionWhenGrabbed: Vec2
+
+    guiMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
-    resizeButtons: Widget
 
-func updateMoveResizeButtonBounds(window: Window) =
+proc updateGrabState(window: Window) =
+  window.guiMousePositionWhenGrabbed = window.gui.mousePosition
+  window.positionWhenGrabbed = window.position
+  window.sizeWhenGrabbed = window.size
+
+proc newMoveResizeButton(window: Window): Button =
+  let gui = window.gui
+  result = window.addWidget(Button)
+  result.press:
+    gui.mousePressed(Left)
+  result.release:
+    gui.mouseReleased(Left)
+  result.onPress:
+    window.updateGrabState()
+  result.drawProc = nil
+
+proc init*(window: Window) =
+  let gui = window.gui
+
+  window.dontDraw = false
+  window.consumeInput = false
+  window.clipInput = false
+  window.clipDrawing = false
+
+  window.resizeHitSize = 5.0
+  window.borderThickness = 1.0
+  window.headerHeight = 22.0
+  window.cornerRadius = 4.0
+  window.size = vec2(300, 200)
+  window.minSize = vec2(200, window.headerHeight * 2.0)
+
+  window.header = window.addWidget()
+  window.header.dontDraw = false
+  window.header.consumeInput = false
+  window.header.clipInput = true
+  window.header.clipDrawing = true
+
+  window.body = window.addWidget()
+  window.body.dontDraw = false
+  window.body.consumeInput = true
+  window.body.clipInput = true
+  window.body.clipDrawing = true
+
+  window.moveButton = window.newMoveResizeButton()
+  window.resizeLeftButton = window.newMoveResizeButton()
+  window.resizeRightButton = window.newMoveResizeButton()
+  window.resizeTopButton = window.newMoveResizeButton()
+  window.resizeBottomButton = window.newMoveResizeButton()
+  window.resizeTopLeftButton = window.newMoveResizeButton()
+  window.resizeTopRightButton = window.newMoveResizeButton()
+  window.resizeBottomLeftButton = window.newMoveResizeButton()
+  window.resizeBottomRightButton = window.newMoveResizeButton()
+
+proc updateMoveAndResizeButtonBounds(window: Window) =
+  let resizeHitSize = window.resizeHitSize
+  let resizeHitSize2 = resizeHitSize * 2.0
+  let resizeHitSize4 = resizeHitSize2 * 2.0
+
   window.moveButton.position = vec2(0, 0)
-  window.moveButton.size = vec2(window.width, headerHeight)
+  window.moveButton.size = vec2(window.width, window.headerHeight)
 
   window.resizeLeftButton.position = vec2(0, resizeHitSize)
   window.resizeLeftButton.size = vec2(resizeHitSize, window.height - resizeHitSize2)
@@ -55,13 +108,13 @@ func updateMoveResizeButtonBounds(window: Window) =
   window.resizeBottomRightButton.position = vec2(window.width - resizeHitSize2, window.height - resizeHitSize)
   window.resizeBottomRightButton.size = vec2(resizeHitSize2, resizeHitSize)
 
-func calculateGrabDelta(window: Window): Vec2 =
-    window.globalMousePosition - window.globalMousePositionWhenGrabbed
+proc calculateGrabDelta(window: Window): Vec2 =
+  window.gui.mousePosition - window.guiMousePositionWhenGrabbed
 
-func move(window: Window, grabDelta: Vec2) =
+proc move(window: Window, grabDelta: Vec2) =
   window.position = window.positionWhenGrabbed + grabDelta
 
-func resizeLeft(window: Window, grabDelta: Vec2) =
+proc resizeLeft(window: Window, grabDelta: Vec2) =
   window.x = window.positionWhenGrabbed.x + grabDelta.x
   window.width = window.sizeWhenGrabbed.x - grabDelta.x
   if window.width < window.minSize.x:
@@ -69,13 +122,13 @@ func resizeLeft(window: Window, grabDelta: Vec2) =
     window.x += correction
     window.width -= correction
 
-func resizeRight(window: Window, grabDelta: Vec2) =
+proc resizeRight(window: Window, grabDelta: Vec2) =
   window.width = window.sizeWhenGrabbed.x + grabDelta.x
   if window.width < window.minSize.x:
     let correction = window.width - window.minSize.x
     window.width -= correction
 
-func resizeTop(window: Window, grabDelta: Vec2) =
+proc resizeTop(window: Window, grabDelta: Vec2) =
   window.y = window.positionWhenGrabbed.y + grabDelta.y
   window.height = window.sizeWhenGrabbed.y - grabDelta.y
   if window.height < window.minSize.y:
@@ -83,22 +136,13 @@ func resizeTop(window: Window, grabDelta: Vec2) =
     window.y += correction
     window.height -= correction
 
-func resizeBottom(window: Window, grabDelta: Vec2) =
+proc resizeBottom(window: Window, grabDelta: Vec2) =
   window.height = window.sizeWhenGrabbed.y + grabDelta.y
   if window.height < window.minSize.y:
     let correction = window.height - window.minSize.y
     window.height -= correction
 
-func moveAndResize(window: Window) =
-  if window.moveButton.pressed or
-     window.resizeLeftButton.pressed or window.resizeRightButton.pressed or
-     window.resizeTopButton.pressed or window.resizeBottomButton.pressed or
-     window.resizeTopLeftButton.pressed or window.resizeTopRightButton.pressed or
-     window.resizeBottomLeftButton.pressed or window.resizeBottomRightButton.pressed:
-    window.globalMousePositionWhenGrabbed = window.globalMousePosition
-    window.positionWhenGrabbed = window.position
-    window.sizeWhenGrabbed = window.size
-
+proc moveAndResize(window: Window) =
   if window.moveButton.isDown:
     let grabDelta = window.calculateGrabDelta()
     window.move(grabDelta)
@@ -139,9 +183,25 @@ func moveAndResize(window: Window) =
     window.resizeBottom(grabDelta)
     window.resizeRight(grabDelta)
 
+proc shouldBringToTop(window: Window): bool =
+  let gui = window.gui
+
+  if not (gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)):
+    return false
+
+  for child in window.children:
+    if child.isHovered:
+      return true
+
 proc update*(window: Window) =
-  window.updateMoveResizeButtonBounds()
+  let gui = window.gui
+
+  window.updateMoveAndResizeButtonBounds()
   window.moveAndResize()
+
+  let headerHeight = window.headerHeight
+  let borderThickness = window.borderThickness
+  let roundingInset = (1.0 - sin(45.0.degToRad)) * window.cornerRadius
 
   window.header.position = vec2(borderThickness, borderThickness)
   window.header.size = vec2(
@@ -154,82 +214,20 @@ proc update*(window: Window) =
     window.height - headerHeight - roundingInset - 2.0 * borderThickness,
   )
 
-  if window.isHoveredIncludingChildren and
-    (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
+  if window.shouldBringToTop:
     window.bringToTop()
 
-  window.updateChildren()
-
 proc draw*(window: Window) =
-  let vg = window.vg
-
-  vg.drawFrameShadow(vec2(0, 0), window.size, cornerRadius)
+  let vg = window.gui.vg
+  vg.drawFrameShadow(vec2(0, 0), window.size, 5.0)
   vg.drawFrameWithHeader(
     vec2(0, 0),
     window.size,
-    borderThickness = borderThickness,
-    headerHeight = headerHeight,
-    cornerRadius = cornerRadius,
+    borderThickness = window.borderThickness,
+    headerHeight = window.headerHeight,
+    cornerRadius = window.cornerRadius,
     bodyColor = rgb(49, 51, 56),
     bodyBorderColor = rgb(49, 51, 56).lighten(0.1),
     headerColor = rgb(30, 31, 34),
     headerBorderColor = rgb(30, 31, 34),
   )
-
-  window.drawChildren()
-
-func addWindow*(parent: Widget): Window =
-  result = parent.addWidget(Window)
-
-  result.consumeInput = true
-  result.clipInput = true
-  result.clipDrawing = false
-  result.size = vec2(300, 200)
-  result.minSize = vec2(200, headerHeight * 2.0)
-
-  result.body = result.addWidget()
-  result.body.consumeInput = false
-  result.body.clipInput = true
-  result.body.clipDrawing = true
-
-  result.header = result.addWidget()
-  result.header.consumeInput = false
-  result.header.clipInput = true
-  result.header.clipDrawing = true
-
-  result.moveButton = result.addButton()
-  result.moveButton.dontDraw = true
-
-  result.resizeButtons = result.addWidget()
-  result.resizeButtons.dontDraw = true
-  result.resizeButtons.consumeInput = false
-  result.resizeButtons.clipInput = false
-  result.resizeButtons.clipDrawing = false
-  result.resizeLeftButton = result.resizeButtons.addButton()
-  result.resizeLeftButton.cursorStyle = ResizeLeftRight
-  result.resizeRightButton = result.resizeButtons.addButton()
-  result.resizeRightButton.cursorStyle = ResizeLeftRight
-  result.resizeTopButton = result.resizeButtons.addButton()
-  result.resizeTopButton.cursorStyle = ResizeTopBottom
-  result.resizeBottomButton = result.resizeButtons.addButton()
-  result.resizeBottomButton.cursorStyle = ResizeTopBottom
-  result.resizeTopLeftButton = result.resizeButtons.addButton()
-  result.resizeTopLeftButton.cursorStyle = ResizeTopLeftBottomRight
-  result.resizeTopRightButton = result.resizeButtons.addButton()
-  result.resizeTopRightButton.cursorStyle = ResizeTopRightBottomLeft
-  result.resizeBottomLeftButton = result.resizeButtons.addButton()
-  result.resizeBottomLeftButton.cursorStyle = ResizeTopRightBottomLeft
-  result.resizeBottomRightButton = result.resizeButtons.addButton()
-  result.resizeBottomRightButton.cursorStyle = ResizeTopLeftBottomRight
-
-func addTitle*(window: Window, title: string): Text {.discardable.} =
-  result = window.header.addText()
-  result.data = title
-  result.alignX = Center
-  result.alignY = Center
-  result.color = rgb(242, 243, 245)
-  result.consumeInput = false
-  result.clipInput = false
-  result.clipDrawing = false
-  result.updateHook:
-    self.size = self.parent.size

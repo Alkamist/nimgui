@@ -1,53 +1,69 @@
-import oswindow
+{.experimental: "overloadableEnums".}
+
 import nimgui
-import nimgui/imploswindow
+
+let gui = Gui.new()
 
 const consolaData = readFile("consola.ttf")
+gui.vg.addFont("consola", consolaData)
 
-let window = OsWindow.new()
-window.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
-window.setSize(800, 600)
-window.show()
+proc hookHoverOutline(widget: Widget) =
+  widget.drawHook:
+    if self.isHovered:
+      vg.beginPath()
+      vg.rect(vec2(0, 0), self.size)
+      vg.strokeColor = rgb(0, 255, 0)
+      vg.stroke()
 
-let root = Widget.newRoot()
-root.vg.addFont("consola", consolaData)
-root.attachToOsWindow(window)
-
-let window1 = root.addWindow()
+let window1 = gui.addWidget(Window)
+window1.moveButton.hookHoverOutline()
+window1.body.hookHoverOutline()
 window1.position = vec2(50, 50)
-window1.size = vec2(500, 500)
-window1.addTitle("Window 1")
 
-let window2 = window1.body.addWindow()
-window2.position = vec2(50, 50)
-window2.size = vec2(400, 300)
-window2.addTitle("Child Window")
+let window1Child1 = window1.body.addWidget(Window)
+window1Child1.moveButton.hookHoverOutline()
+window1Child1.body.hookHoverOutline()
+window1Child1.position = vec2(50, 50)
 
-let b = window2.body.addButton()
-b.position = vec2(50, 50)
-b.addLabel("Hello")
+let button1 = window1.addWidget(Button)
+button1.position = vec2(-100, -100)
 
-let window3 = root.addWindow()
-window3.position = vec2(600, 50)
-window3.size = vec2(500, 500)
-window3.addTitle("Window 2")
+let window2 = gui.addWidget(Window)
+window2.moveButton.hookHoverOutline()
+window2.body.hookHoverOutline()
+window2.position = vec2(500, 50)
 
-let window4 = window3.body.addWindow()
-window4.position = vec2(50, 50)
-window4.size = vec2(400, 300)
-window4.addTitle("Child Window")
+let window2Child2 = window2.body.addWidget(Window)
+window2Child2.moveButton.hookHoverOutline()
+window2Child2.body.hookHoverOutline()
+window2Child2.position = vec2(50, 50)
 
-var scale = 1.0
+gui.run()
 
-root.updateHook:
-  if self.mouseWheelMoved:
-    scale *= 2.0.pow(self.mouseWheel.y * 0.1)
-    self.inputContentScale(scale)
 
-root.drawHook:
-  vg.beginPath()
-  vg.rect(self.mousePosition + 0.5, vec2(200, 200))
-  vg.strokeColor = rgb(255, 255, 255)
-  vg.stroke()
+# proc drawBody(button: MouseActivatedButton, color: Color) =
+#   let vg = button.vg
+#   vg.beginPath()
+#   vg.roundedRect(button.position, button.size, 3.0)
+#   vg.fillColor = color
+#   vg.fill()
 
-window.run()
+# proc draw(button: MouseActivatedButton) =
+#   button.drawBody(button.color)
+#   if button.isDown:
+#     button.drawBody(rgba(0, 0, 0, 8))
+#   elif button.isHovered:
+#     button.drawBody(rgba(255, 255, 255, 8))
+
+# var button = MouseActivatedButton()
+# button.mb = Right
+# button.color = rgb(31, 32, 34)
+# button.position = vec2(50, 50)
+# button.size = vec2(96, 32)
+# button.sharedState = root.sharedState
+
+# root.sharedState.onFrame = proc(widget: Widget) =
+#   button.update()
+#   button.draw()
+
+# window.run()

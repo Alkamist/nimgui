@@ -17,6 +17,7 @@ type
     size*: Vec2
     updateProc*: proc(widget: Widget)
     drawProc*: proc(widget: Widget)
+    isAsleep*: bool
     dontDraw*: bool
     clipDrawing*: bool
     clipInput*: bool
@@ -71,6 +72,13 @@ proc isHovered*(widget: Widget): bool =
   else:
     widget in widget.gui.hovers
 
+proc isHoveredIncludingChildren*(widget: Widget): bool =
+  if widget.isHovered:
+    return true
+  for child in widget.children:
+    if child.isHoveredIncludingChildren:
+      return true
+
 proc bringToTop*(widget: Widget) =
   let parent = widget.parent
   if parent == nil:
@@ -87,10 +95,17 @@ proc addWidget*(widget: Widget): Widget =
   result = Widget()
   result.gui = widget.gui
   result.parent = widget
+
   result.dontDraw = false
   result.clipDrawing = false
   result.clipInput = false
   result.consumeInput = false
+
+  result.updateProc = proc(widget: Widget) =
+    discard
+  result.drawProc = proc(widget: Widget) =
+    discard
+
   widget.children.add(result)
 
 proc addWidget*(widget: Widget, T: typedesc): T =
@@ -113,11 +128,16 @@ proc addWidget*(widget: Widget, T: typedesc): T =
   widget.children.add(result)
 
 proc childDrawOrder*(widget: Widget): seq[Widget] =
+  if widget.children.len == 0:
+    return
   result = widget.children
   result.sort do (x, y: Widget) -> int:
     cmp(x.zIndex, y.zIndex)
 
 proc mouseHits*(widget: Widget): seq[Widget] =
+  if widget.isAsleep:
+    return
+
   let widgetHit = rect2(vec2(0, 0), widget.size).contains(widget.mousePosition) or not widget.clipInput
   if not widgetHit:
     return
@@ -130,21 +150,15 @@ proc mouseHits*(widget: Widget): seq[Widget] =
     result.add(widget)
 
 proc updateWidget(widget: Widget) =
+  if widget.isAsleep:
+    return
   if widget.updateProc != nil:
     widget.updateProc(widget)
-
-  let gui = widget.gui
-  let vg = gui.vg
-  for child in widget.childDrawOrder:
-    vg.saveState()
-    vg.translate(gui.pixelAlign(child.position))
-    if child.clipDrawing:
-      vg.clip(vec2(0, 0), child.size)
+  for child in widget.children:
     child.updateWidget()
-    vg.restoreState()
 
 proc drawWidget(widget: Widget) =
-  if widget.dontDraw:
+  if widget.isAsleep or widget.dontDraw:
     return
 
   if widget.drawProc != nil:
@@ -167,7 +181,6 @@ template updateHook*(w: Widget, code: untyped): untyped =
     {.hint[XDeclaredButNotUsed]: off.}
     let self {.inject.} = typeof(w)(widgetBase)
     let gui {.inject.} = self.gui
-    let vg {.inject.} = gui.vg
     if oldUpdateProc != nil:
       oldUpdateProc(widgetBase)
     code
@@ -212,6 +225,10 @@ proc pixelAlign*(gui: Gui, position: Vec2): Vec2 =
 
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
+
+  result.time = cpuTime()
+  result.timePrevious = result.time
+
   result.gui = result
 
   result.dontDraw = false
@@ -219,6 +236,7 @@ proc new*(_: typedesc[Gui]): Gui =
   result.clipInput = false
   result.consumeInput = false
 
+  result.hovers = newSeqOfCap[Widget](16)
   result.mousePresses = newSeqOfCap[MouseButton](16)
   result.mouseReleases = newSeqOfCap[MouseButton](16)
   result.keyPresses = newSeqOfCap[KeyboardKey](16)
@@ -250,12 +268,9 @@ proc processFrame*(gui: Gui) =
   gui.time = cpuTime()
 
   gui.updateHovers()
+  gui.updateWidget()
 
   let (pixelWidth, pixelHeight) = gui.osWindow.size
-  gui.vg.beginFrame(pixelWidth, pixelHeight, gui.contentScale)
-  gui.updateWidget()
-  gui.vg.endFrame()
-
   gui.vg.beginFrame(pixelWidth, pixelHeight, gui.contentScale)
   gui.drawWidget()
   gui.vg.endFrame()
@@ -284,12 +299,23 @@ proc attachToOsWindow(gui: Gui) =
   let window = gui.osWindow
   window.userData = cast[pointer](gui)
 
-  gui.contentScale = window.dpi.toContentScale
+  let dpi = window.dpi
+  gui.contentScale = dpi.toContentScale
+
+  let (width, height) = window.size
+  gui.width = width.toDensityPixels(dpi)
+  gui.height = height.toDensityPixels(dpi)
 
   window.onFrame = proc(window: OsWindow) =
     let gui = cast[Gui](window.userData)
     gui.processFrame()
     window.swapBuffers()
+
+  window.onResize = proc(window: OsWindow, width, height: int) =
+    let gui = cast[Gui](window.userData)
+    let dpi = window.dpi
+    gui.width = width.toDensityPixels(dpi)
+    gui.height = height.toDensityPixels(dpi)
 
   window.onMouseMove = proc(window: OsWindow, x, y: int) =
     let gui = cast[Gui](window.userData)

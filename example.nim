@@ -15,6 +15,16 @@ proc hookHoverOutline(widget: Widget) =
       vg.strokeColor = rgb(0, 255, 0)
       vg.stroke()
 
+# let w = gui.width / 10.0
+# let h = gui.height / 10.0
+# for i in 0 ..< 10:
+#   for j in 0 ..< 10:
+#     let window = gui.addWidget(Window)
+#     # window.moveButton.hookHoverOutline()
+#     # window.body.hookHoverOutline()
+#     window.position = vec2(float(i) * w, float(j) * h)
+#     window.size = vec2(w, h)
+
 let window1 = gui.addWidget(Window)
 window1.moveButton.hookHoverOutline()
 window1.body.hookHoverOutline()
@@ -39,31 +49,3 @@ window2Child2.body.hookHoverOutline()
 window2Child2.position = vec2(50, 50)
 
 gui.run()
-
-
-# proc drawBody(button: MouseActivatedButton, color: Color) =
-#   let vg = button.vg
-#   vg.beginPath()
-#   vg.roundedRect(button.position, button.size, 3.0)
-#   vg.fillColor = color
-#   vg.fill()
-
-# proc draw(button: MouseActivatedButton) =
-#   button.drawBody(button.color)
-#   if button.isDown:
-#     button.drawBody(rgba(0, 0, 0, 8))
-#   elif button.isHovered:
-#     button.drawBody(rgba(255, 255, 255, 8))
-
-# var button = MouseActivatedButton()
-# button.mb = Right
-# button.color = rgb(31, 32, 34)
-# button.position = vec2(50, 50)
-# button.size = vec2(96, 32)
-# button.sharedState = root.sharedState
-
-# root.sharedState.onFrame = proc(widget: Widget) =
-#   button.update()
-#   button.draw()
-
-# window.run()

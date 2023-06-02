@@ -190,7 +190,7 @@ proc shouldBringToTop(window: Window): bool =
     return false
 
   for child in window.children:
-    if child.isHovered:
+    if child.isHoveredIncludingChildren:
       return true
 
 proc update*(window: Window) =

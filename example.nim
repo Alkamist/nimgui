@@ -1,5 +1,7 @@
 {.experimental: "overloadableEnums".}
 
+import std/times
+import std/strformat
 import nimgui
 
 let gui = Gui.new()
@@ -7,45 +9,41 @@ let gui = Gui.new()
 const consolaData = readFile("consola.ttf")
 gui.vg.addFont("consola", consolaData)
 
-proc hookHoverOutline(widget: Widget) =
-  widget.drawHook:
-    if self.isHovered:
-      vg.beginPath()
-      vg.rect(vec2(0, 0), self.size)
-      vg.strokeColor = rgb(0, 255, 0)
-      vg.stroke()
+var frames = 0
 
-# let w = gui.width / 10.0
-# let h = gui.height / 10.0
-# for i in 0 ..< 10:
-#   for j in 0 ..< 10:
-#     let window = gui.addWidget(Window)
-#     # window.moveButton.hookHoverOutline()
-#     # window.body.hookHoverOutline()
-#     window.position = vec2(float(i) * w, float(j) * h)
-#     window.size = vec2(w, h)
+gui.run:
+  frames += 1
 
-let window1 = gui.addWidget(Window)
-window1.moveButton.hookHoverOutline()
-window1.body.hookHoverOutline()
-window1.position = vec2(50, 50)
+  let w = gui.width / 100.0
+  let h = gui.height / 100.0
+  for i in 0 ..< 100:
+    for j in 0 ..< 100:
+      gui.button(button[j * 100 + i]):
+        button.x = float(i) * w
+        button.y = float(j) * h + 15
+        button.width = w * 0.8
+        button.height = h * 0.8
 
-let window1Child1 = window1.body.addWidget(Window)
-window1Child1.moveButton.hookHoverOutline()
-window1Child1.body.hookHoverOutline()
-window1Child1.position = vec2(50, 50)
+        button.press:
+          gui.mousePressed(Left)
 
-let button1 = window1.addWidget(Button)
-button1.position = vec2(-100, -100)
+        button.release:
+          gui.mouseReleased(Left)
 
-let window2 = gui.addWidget(Window)
-window2.moveButton.hookHoverOutline()
-window2.body.hookHoverOutline()
-window2.position = vec2(500, 50)
+        button.onPress:
+          echo &"Pressed {button.id}"
 
-let window2Child2 = window2.body.addWidget(Window)
-window2Child2.moveButton.hookHoverOutline()
-window2Child2.body.hookHoverOutline()
-window2Child2.position = vec2(50, 50)
+        button.onRelease:
+          echo &"Released {button.id}"
 
-gui.run()
+        button.draw:
+          vg.beginPath()
+          vg.rect(vec2(0, 0), button.size)
+          vg.fillColor = rgb(100, 100, 100)
+          vg.fill()
+
+  vg.fillColor = rgb(255, 255, 255)
+  vg.font = "consola"
+  vg.fontSize = 13.0
+  vg.setTextAlign(Left, Top)
+  vg.text(vec2(0, 0), $(float(frames) / cpuTime()))

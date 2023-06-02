@@ -12,27 +12,47 @@ type
     onClickProc*: proc(button: Button)
     wasDown: bool
 
-proc update*(button: Button) =
-  let gui = button.gui
-  let isHovered = button.isHovered
-  button.wasDown = button.isDown
+template press*(widget: Button, code: untyped): untyped =
+  widget.pressProc = proc(self {.inject.}: Button): bool =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let `widget` {.inject.} = self
+    let gui {.inject.} = self.gui
+    let vg {.inject.} = gui.vg
+    code
 
-  if isHovered and not button.isDown and button.pressProc != nil and button.pressProc(button):
-    button.isDown = true
-    gui.mouseCapture = button
-    if button.onPressProc != nil:
-      button.onPressProc(button)
+template release*(widget: Button, code: untyped): untyped =
+  widget.releaseProc = proc(self {.inject.}: Button): bool =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let `widget` {.inject.} = self
+    let gui {.inject.} = self.gui
+    let vg {.inject.} = gui.vg
+    code
 
-  if button.isDown and button.releaseProc != nil and button.releaseProc(button):
-    button.isDown = false
-    gui.mouseCapture = nil
-    if button.onReleaseProc != nil:
-      button.onReleaseProc(button)
-    if isHovered:
-      if button.onClickProc != nil:
-        button.onClickProc(button)
+template onPress*(widget: Button, code: untyped): untyped =
+  widget.onPressProc = proc(self {.inject.}: Button) =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let `widget` {.inject.} = self
+    let gui {.inject.} = self.gui
+    let vg {.inject.} = gui.vg
+    code
 
-proc draw*(button: Button) =
+template onRelease*(widget: Button, code: untyped): untyped =
+  widget.onReleaseProc = proc(self {.inject.}: Button) =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let `widget` {.inject.} = self
+    let gui {.inject.} = self.gui
+    let vg {.inject.} = gui.vg
+    code
+
+template onClick*(widget: Button, code: untyped): untyped =
+  widget.onClickProc = proc(self {.inject.}: Button) =
+    {.hint[XDeclaredButNotUsed]: off.}
+    let `widget` {.inject.} = self
+    let gui {.inject.} = self.gui
+    let vg {.inject.} = gui.vg
+    code
+
+proc defaultDraw*(button: Button) =
   let vg = button.gui.vg
 
   template drawBody(color: Color): untyped =
@@ -47,43 +67,24 @@ proc draw*(button: Button) =
   elif button.isHovered:
     drawBody(rgba(255, 255, 255, 8))
 
-template press*(b: Button, code: untyped): untyped =
-  b.pressProc = proc(self {.inject.}: Button): bool =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let gui {.inject.} = self.gui
-    code
+Button.implementWidget(button):
+  let isHovered = self.isHovered
+  self.wasDown = self.isDown
 
-template release*(b: Button, code: untyped): untyped =
-  b.releaseProc = proc(self {.inject.}: Button): bool =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let gui {.inject.} = self.gui
-    code
+  if isHovered and not self.isDown and self.pressProc != nil and self.pressProc(self):
+    self.isDown = true
+    gui.mouseCapture = self
 
-template onPress*(b: Button, code: untyped): untyped =
-  b.onPressProc = proc(self {.inject.}: Button) =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let gui {.inject.} = self.gui
-    code
+    if self.onPressProc != nil:
+      self.onPressProc(self)
 
-template onRelease*(b: Button, code: untyped): untyped =
-  b.onReleaseProc = proc(self {.inject.}: Button) =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let gui {.inject.} = self.gui
-    code
+  if self.isDown and self.releaseProc != nil and self.releaseProc(self):
+    self.isDown = false
+    gui.mouseCapture = nil
 
-template onClick*(b: Button, code: untyped): untyped =
-  b.onClickProc = proc(self {.inject.}: Button) =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let gui {.inject.} = self.gui
-    code
+    if self.onReleaseProc != nil:
+      self.onReleaseProc(self)
 
-proc init*(button: Button) =
-  button.size = vec2(96, 32)
-  button.dontDraw = false
-  button.clipDrawing = true
-  button.clipInput = true
-  button.consumeInput = true
-  button.press:
-    gui.mousePressed(Left)
-  button.release:
-    gui.mouseReleased(Left)
+    if isHovered:
+      if self.onClickProc != nil:
+        self.onClickProc(self)

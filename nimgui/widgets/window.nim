@@ -8,8 +8,6 @@ type
   Window* = ref object of Widget
     headerHeight*: float
     resizeHitSize*: float
-    borderThickness*: float
-    cornerRadius*: float
     minSize*: Vec2
     globalMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
@@ -161,15 +159,18 @@ proc behavior*(window: Window) =
       window.resizeBottom()
       window.resizeRight()
 
+  if gui.mousePressed(Left) and window.isHovered:
+    window.bringToTop()
+
 proc defaultDraw*(window: Window) =
   let gfx = window.vg
   gfx.drawFrameShadow(vec2(0, 0), window.size, 5.0)
   gfx.drawFrameWithHeader(
     vec2(0, 0),
     window.size,
-    borderThickness = window.borderThickness,
+    borderThickness = 1.0,
     headerHeight = window.headerHeight,
-    cornerRadius = window.cornerRadius,
+    cornerRadius = 4.0,
     bodyColor = rgb(49, 51, 56),
     bodyBorderColor = rgb(49, 51, 56).lighten(0.1),
     headerColor = rgb(30, 31, 34),
@@ -180,9 +181,7 @@ template window*(gui: Gui, id: string, code: untyped): untyped =
   gui.newWidget(id, Window):
     if self.init:
       self.resizeHitSize = 5.0
-      self.borderThickness = 1.0
       self.headerHeight = 22.0
-      self.cornerRadius = 4.0
       self.size = vec2(300, 200)
       self.minSize = vec2(200, self.headerHeight * 2.0)
 

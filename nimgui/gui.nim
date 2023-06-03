@@ -13,8 +13,11 @@ type
     gui* {.cursor.}: Gui
     parent* {.cursor.}: Widget
     children*: Table[string, Widget]
+    childDrawOrder*: seq[Widget]
+    hovers*: seq[Widget]
     init*: bool
     isHovered*: bool
+    passInput*: bool
     id*: string
     zIndex*: int
     position*: Vec2
@@ -25,7 +28,6 @@ type
     osWindow*: OsWindow
     vg*: VectorGraphics
     widgetStack*: seq[Widget]
-    widgetsThisFrame*: seq[Widget]
     contentScale*: float
     time*: float
     timePrevious*: float
@@ -104,11 +106,11 @@ proc new*(_: typedesc[Gui]): Gui =
 
   result.id = "gui"
   result.gui = result
+  result.isHovered = true
 
   result.widgetStack = newSeqOfCap[Widget](1024)
   result.widgetStack.add(Widget(result))
 
-  result.widgetsThisFrame = newSeqOfCap[Widget](1024)
   result.mousePresses = newSeqOfCap[MouseButton](16)
   result.mouseReleases = newSeqOfCap[MouseButton](16)
   result.keyPresses = newSeqOfCap[KeyboardKey](16)
@@ -132,13 +134,11 @@ proc processFrame*(gui: Gui) =
 
   let (pixelWidth, pixelHeight) = gui.osWindow.size
   gui.vg.beginFrame(pixelWidth, pixelHeight, gui.contentScale)
-  gui.drawWidgets()
-  if gui.drawProc != nil:
-    gui.drawProc(gui)
+  gui.drawWidget()
   gui.vg.endFrame()
 
+  gui.childDrawOrder.setLen(0)
   gui.widgetStack.setLen(1)
-  gui.widgetsThisFrame.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)
@@ -170,10 +170,10 @@ proc beginWidget*(gui: Gui, id: string, T: typedesc): T =
     parent.children[id] = result
 
   result.parent = parent
-  result.isHovered = rect2(result.globalPosition, result.size).contains(gui.globalMousePosition)
+  result.childDrawOrder.setLen(0)
 
   gui.widgetStack.add(result)
-  gui.widgetsThisFrame.add(result)
+  parent.childDrawOrder.add(result)
 
 proc endWidget*(gui: Gui, T: typedesc): T {.discardable.} =
   {.hint[ConvFromXtoItselfNotNeeded]: off.}
@@ -189,18 +189,42 @@ template newWidget*(gui: Gui, id: string, T: typedesc, updateCode: untyped): unt
     updateCode
     gui.endWidget(T)
 
-proc drawWidgets*(gui: Gui) =
-  let vg = gui.vg
+proc bringToTop*(widget: Widget) =
+  let parent = widget.parent
+  if parent == nil:
+    return
 
-  gui.widgetsThisFrame.sort do (x, y: Widget) -> int:
+  var topZIndex = low(int)
+  for id, child in parent.children:
+    if child.zIndex >= topZIndex:
+      topZIndex = child.zIndex
+
+  widget.zIndex = topZIndex + 1
+
+proc drawWidget(widget: Widget) =
+  let vg = widget.vg
+
+  vg.saveState()
+  vg.translate(widget.globalPosition)
+  if widget.drawProc != nil:
+    widget.drawProc(widget)
+  vg.restoreState()
+
+  widget.childDrawOrder.sort do (x, y: Widget) -> int:
     cmp(x.zIndex, y.zIndex)
 
-  for widget in gui.widgetsThisFrame:
-    vg.saveState()
-    vg.translate(widget.globalPosition)
-    if widget.drawProc != nil:
-      widget.drawProc(widget)
-    vg.restoreState()
+  let gui = widget.gui
+  var inputConsumed = false
+  for child in widget.childDrawOrder.reversed():
+    child.isHovered =
+      not inputConsumed and
+      widget.isHovered and
+      rect2(child.globalPosition, child.size).contains(gui.globalMousePosition)
+    if child.isHovered and not child.passInput:
+      inputConsumed = true
+
+  for child in widget.childDrawOrder:
+    child.drawWidget()
 
 
 # =================================================================================

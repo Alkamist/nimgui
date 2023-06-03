@@ -1,25 +1,25 @@
 import vectorgraphics
 import ../math
 
-func drawFrameShadow*(vg: VectorGraphics,
+func drawFrameShadow*(gfx: VectorGraphics,
                       position, size: Vec2,
                       cornerRadius: float) =
   const feather = 10.0
   const feather2 = feather * 2.0
-  vg.beginPath()
-  vg.rect(-vec2(feather), size + feather2)
-  vg.roundedRect(position, size, cornerRadius)
-  vg.pathWinding = Hole
-  vg.fillPaint = vg.boxGradient(
+  gfx.beginPath()
+  gfx.rect(-vec2(feather), size + feather2)
+  gfx.roundedRect(position, size, cornerRadius)
+  gfx.pathWinding = Hole
+  gfx.fillPaint = gfx.boxGradient(
     vec2(position.x, position.y + 2),
     size,
     cornerRadius * 2.0,
     feather,
     rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
   )
-  vg.fill()
+  gfx.fill()
 
-func drawFrame*(vg: VectorGraphics,
+func drawFrame*(gfx: VectorGraphics,
                 position, size: Vec2,
                 borderThickness: float,
                 cornerRadius: float,
@@ -27,28 +27,28 @@ func drawFrame*(vg: VectorGraphics,
   let borderThickness = borderThickness.max(1.0)
   let borderThicknessHalf = borderThickness * 0.5
 
-  vg.saveState()
+  gfx.saveState()
 
   # Body fill:
-  vg.beginPath()
-  vg.roundedRect(position, size, cornerRadius)
-  vg.fillColor = bodyColor
-  vg.fill()
+  gfx.beginPath()
+  gfx.roundedRect(position, size, cornerRadius)
+  gfx.fillColor = bodyColor
+  gfx.fill()
 
   # Body border:
-  vg.beginPath()
-  vg.roundedRect(
+  gfx.beginPath()
+  gfx.roundedRect(
     position + borderThicknessHalf,
     size - borderThickness,
     cornerRadius - borderThicknessHalf,
   )
-  vg.strokeWidth = borderThickness
-  vg.strokeColor = borderColor
-  vg.stroke()
+  gfx.strokeWidth = borderThickness
+  gfx.strokeColor = borderColor
+  gfx.stroke()
 
-  vg.restoreState()
+  gfx.restoreState()
 
-func drawFrameWithHeader*(vg: VectorGraphics,
+func drawFrameWithHeader*(gfx: VectorGraphics,
                           position, size: Vec2,
                           borderThickness, headerHeight: float,
                           cornerRadius: float,
@@ -64,68 +64,68 @@ func drawFrameWithHeader*(vg: VectorGraphics,
   let width = size.x
   let height = size.y
 
-  vg.saveState()
+  gfx.saveState()
 
   # Header fill:
-  vg.beginPath()
-  vg.roundedRect(
+  gfx.beginPath()
+  gfx.roundedRect(
     vec2(x, y),
     vec2(width, headerHeight),
     cornerRadius, cornerRadius,
     0, 0,
   )
-  vg.fillColor = headerColor
-  vg.fill()
+  gfx.fillColor = headerColor
+  gfx.fill()
 
   # Body fill:
-  vg.beginPath()
-  vg.roundedRect(
+  gfx.beginPath()
+  gfx.roundedRect(
     vec2(x, y + headerHeight),
     vec2(width, height - headerHeight),
     0, 0,
     cornerRadius, cornerRadius,
   )
-  vg.fillColor = bodyColor
-  vg.fill()
+  gfx.fillColor = bodyColor
+  gfx.fill()
 
   # Body border:
-  vg.beginPath()
-  vg.moveTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
-  vg.lineTo(vec2(x + width - borderThicknessHalf, y + height - cornerRadius))
-  vg.arcTo(
+  gfx.beginPath()
+  gfx.moveTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
+  gfx.lineTo(vec2(x + width - borderThicknessHalf, y + height - cornerRadius))
+  gfx.arcTo(
     vec2(x + width - borderThicknessHalf, y + height - borderThicknessHalf),
     vec2(x + width - cornerRadius, y + height - borderThicknessHalf),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + cornerRadius, y + height - borderThicknessHalf))
-  vg.arcTo(
+  gfx.lineTo(vec2(x + cornerRadius, y + height - borderThicknessHalf))
+  gfx.arcTo(
     vec2(x + borderThicknessHalf, y + height - borderThicknessHalf),
     vec2(x + borderThicknessHalf, y + height - cornerRadius),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + borderThicknessHalf, y + headerHeight))
-  vg.strokeWidth = borderThickness
-  vg.strokeColor = bodyBorderColor
-  vg.stroke()
+  gfx.lineTo(vec2(x + borderThicknessHalf, y + headerHeight))
+  gfx.strokeWidth = borderThickness
+  gfx.strokeColor = bodyBorderColor
+  gfx.stroke()
 
   # Header border:
-  vg.beginPath()
-  vg.moveTo(vec2(x + borderThicknessHalf, y + headerHeight))
-  vg.lineTo(vec2(x + borderThicknessHalf, y + cornerRadius))
-  vg.arcTo(
+  gfx.beginPath()
+  gfx.moveTo(vec2(x + borderThicknessHalf, y + headerHeight))
+  gfx.lineTo(vec2(x + borderThicknessHalf, y + cornerRadius))
+  gfx.arcTo(
     vec2(x + borderThicknessHalf, y + borderThicknessHalf),
     vec2(x + cornerRadius, y + borderThicknessHalf),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + width - cornerRadius, y + borderThicknessHalf))
-  vg.arcTo(
+  gfx.lineTo(vec2(x + width - cornerRadius, y + borderThicknessHalf))
+  gfx.arcTo(
     vec2(x + width - borderThicknessHalf, y + borderThicknessHalf),
     vec2(x + width - borderThicknessHalf, y + cornerRadius),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
-  vg.strokeWidth = borderThickness
-  vg.strokeColor = headerBorderColor
-  vg.stroke()
+  gfx.lineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
+  gfx.strokeWidth = borderThickness
+  gfx.strokeColor = headerBorderColor
+  gfx.stroke()
 
-  vg.restoreState()
+  gfx.restoreState()

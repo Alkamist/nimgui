@@ -5,61 +5,66 @@ import ../gui
 type
   Button* = ref object of Widget
     isDown*: bool
-    pressProc*: proc(button: Button): bool
-    releaseProc*: proc(button: Button): bool
-    onPressProc*: proc(button: Button)
-    onReleaseProc*: proc(button: Button)
-    onClickProc*: proc(button: Button)
+    pressed*: bool
+    released*: bool
+    clicked*: bool
     wasDown: bool
+    shouldPress: bool
+    shouldRelease: bool
 
-template press*(widget: Button, code: untyped): untyped =
-  widget.pressProc = proc(self {.inject.}: Button): bool =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let `widget` {.inject.} = self
-    let gui {.inject.} = self.gui
-    let vg {.inject.} = gui.vg
-    code
+proc press*(button: Button) =
+  button.shouldPress = true
 
-template release*(widget: Button, code: untyped): untyped =
-  widget.releaseProc = proc(self {.inject.}: Button): bool =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let `widget` {.inject.} = self
-    let gui {.inject.} = self.gui
-    let vg {.inject.} = gui.vg
-    code
+proc release*(button: Button) =
+  button.shouldRelease = true
 
-template onPress*(widget: Button, code: untyped): untyped =
-  widget.onPressProc = proc(self {.inject.}: Button) =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let `widget` {.inject.} = self
-    let gui {.inject.} = self.gui
-    let vg {.inject.} = gui.vg
-    code
+proc behavior*(button: Button) =
+  # let gui = button.gui
 
-template onRelease*(widget: Button, code: untyped): untyped =
-  widget.onReleaseProc = proc(self {.inject.}: Button) =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let `widget` {.inject.} = self
-    let gui {.inject.} = self.gui
-    let vg {.inject.} = gui.vg
-    code
+  let isHovered = button.isHovered
+  button.wasDown = button.isDown
+  button.pressed = false
+  button.released = false
+  button.clicked = false
 
-template onClick*(widget: Button, code: untyped): untyped =
-  widget.onClickProc = proc(self {.inject.}: Button) =
-    {.hint[XDeclaredButNotUsed]: off.}
-    let `widget` {.inject.} = self
-    let gui {.inject.} = self.gui
-    let vg {.inject.} = gui.vg
+  if isHovered and not button.isDown and button.shouldPress:
+    button.isDown = true
+    # gui.mouseCapture = button
+
+    button.pressed = true
+
+  if button.isDown and button.shouldRelease:
+    button.isDown = false
+    # gui.mouseCapture = nil
+
+    button.released = true
+
+    if isHovered:
+      button.clicked = true
+
+  button.shouldPress = false
+  button.shouldRelease = false
+
+template invisibleButton*(gui: Gui, id: string, code: untyped): untyped =
+  gui.newWidget(id, Button):
+    if gui.mousePressed(Left):
+      self.press()
+
+    if gui.mouseReleased(Left):
+      self.release()
+
+    self.behavior()
+
     code
 
 proc defaultDraw*(button: Button) =
-  let vg = button.gui.vg
+  let gfx = button.vg
 
   template drawBody(color: Color): untyped =
-    vg.beginPath()
-    vg.roundedRect(vec2(0, 0), button.size, 3.0)
-    vg.fillColor = color
-    vg.fill()
+    gfx.beginPath()
+    gfx.roundedRect(vec2(0, 0), button.size, 3.0)
+    gfx.fillColor = color
+    gfx.fill()
 
   drawBody(rgb(31, 32, 34))
   if button.isDown:
@@ -67,24 +72,16 @@ proc defaultDraw*(button: Button) =
   elif button.isHovered:
     drawBody(rgba(255, 255, 255, 8))
 
-Button.implementWidget(button):
-  let isHovered = self.isHovered
-  self.wasDown = self.isDown
+template button*(gui: Gui, id: string, code: untyped): untyped =
+  gui.newWidget(id, Button):
+    if gui.mousePressed(Left):
+      self.press()
 
-  if isHovered and not self.isDown and self.pressProc != nil and self.pressProc(self):
-    self.isDown = true
-    gui.mouseCapture = self
+    if gui.mouseReleased(Left):
+      self.release()
 
-    if self.onPressProc != nil:
-      self.onPressProc(self)
+    self.behavior()
+    code
 
-  if self.isDown and self.releaseProc != nil and self.releaseProc(self):
-    self.isDown = false
-    gui.mouseCapture = nil
-
-    if self.onReleaseProc != nil:
-      self.onReleaseProc(self)
-
-    if isHovered:
-      if self.onClickProc != nil:
-        self.onClickProc(self)
+    self.draw:
+      self.defaultDraw()

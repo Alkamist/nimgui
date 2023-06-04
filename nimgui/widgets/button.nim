@@ -19,7 +19,7 @@ proc release*(button: Button) =
   button.shouldRelease = true
 
 proc behavior*(button: Button) =
-  # let gui = button.gui
+  let gui = button.gui
 
   let isHovered = button.isHovered
   button.wasDown = button.isDown
@@ -29,16 +29,13 @@ proc behavior*(button: Button) =
 
   if isHovered and not button.isDown and button.shouldPress:
     button.isDown = true
-    # gui.mouseCapture = button
-
+    gui.mouseCapture = button
     button.pressed = true
 
   if button.isDown and button.shouldRelease:
     button.isDown = false
-    # gui.mouseCapture = nil
-
+    gui.mouseCapture = nil
     button.released = true
-
     if isHovered:
       button.clicked = true
 

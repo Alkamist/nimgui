@@ -76,6 +76,7 @@ proc behavior*(window: Window) =
       window.move()
 
   gui.invisibleButton("WindowResizeLeftButton"):
+    self.cursorStyle = ResizeLeftRight
     self.position = vec2(0, resizeHitSize)
     self.size = vec2(resizeHitSize, window.height - resizeHitSize2)
 
@@ -86,6 +87,7 @@ proc behavior*(window: Window) =
       window.resizeLeft()
 
   gui.invisibleButton("WindowResizeRightButton"):
+    self.cursorStyle = ResizeLeftRight
     self.position = vec2(window.width - resizeHitSize, resizeHitSize)
     self.size = vec2(resizeHitSize, window.height - resizeHitSize2)
 
@@ -96,6 +98,7 @@ proc behavior*(window: Window) =
       window.resizeRight()
 
   gui.invisibleButton("WindowResizeTopButton"):
+    self.cursorStyle = ResizeTopBottom
     self.position = vec2(resizeHitSize2, 0)
     self.size = vec2(window.width - resizeHitSize4, resizeHitSize)
 
@@ -106,6 +109,7 @@ proc behavior*(window: Window) =
       window.resizeTop()
 
   gui.invisibleButton("WindowResizeBottomButton"):
+    self.cursorStyle = ResizeTopBottom
     self.position = vec2(resizeHitSize2, window.height - resizeHitSize)
     self.size = vec2(window.width - resizeHitSize4, resizeHitSize)
 
@@ -116,6 +120,7 @@ proc behavior*(window: Window) =
       window.resizeBottom()
 
   gui.invisibleButton("WindowResizeTopLeftButton"):
+    self.cursorStyle = ResizeTopLeftBottomRight
     self.position = vec2(0, 0)
     self.size = vec2(resizeHitSize2, resizeHitSize)
 
@@ -127,6 +132,7 @@ proc behavior*(window: Window) =
       window.resizeLeft()
 
   gui.invisibleButton("WindowResizeTopRightButton"):
+    self.cursorStyle = ResizeTopRightBottomLeft
     self.position = vec2(window.width - resizeHitSize2, 0)
     self.size = vec2(resizeHitSize2, resizeHitSize)
 
@@ -138,6 +144,7 @@ proc behavior*(window: Window) =
       window.resizeRight()
 
   gui.invisibleButton("WindowResizeBottomLeftButton"):
+    self.cursorStyle = ResizeTopRightBottomLeft
     self.position = vec2(0, window.height - resizeHitSize)
     self.size = vec2(resizeHitSize2, resizeHitSize)
 
@@ -149,6 +156,7 @@ proc behavior*(window: Window) =
       window.resizeLeft()
 
   gui.invisibleButton("WindowResizeBottomRightButton"):
+    self.cursorStyle = ResizeTopLeftBottomRight
     self.position = vec2(window.width - resizeHitSize2, window.height - resizeHitSize)
     self.size = vec2(resizeHitSize2, resizeHitSize)
 
@@ -159,7 +167,7 @@ proc behavior*(window: Window) =
       window.resizeBottom()
       window.resizeRight()
 
-  if gui.mousePressed(Left) and window.isHovered:
+  if gui.mousePressed(Left) and window.isHoveredIncludingChildren:
     window.bringToTop()
 
 proc defaultDraw*(window: Window) =

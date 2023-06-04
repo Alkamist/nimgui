@@ -17,21 +17,24 @@ type
     hovers*: seq[Widget]
     init*: bool
     isHovered*: bool
+    isHoveredIncludingChildren*: bool
     passInput*: bool
     id*: string
     zIndex*: int
     position*: Vec2
     size*: Vec2
     drawProc*: proc(widget: Widget)
+    drawHook*: proc(widget: Widget)
+    cursorStyle*: CursorStyle
 
   Gui* = ref object of Widget
     osWindow*: OsWindow
     vg*: VectorGraphics
+    mouseCapture*: Widget
     widgetStack*: seq[Widget]
     contentScale*: float
     time*: float
     timePrevious*: float
-    mouseCapture*: pointer
     globalMousePosition*: Vec2
     globalMousePositionPrevious*: Vec2
     mouseWheel*: Vec2
@@ -43,6 +46,7 @@ type
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
     onFrameProc*: proc(gui: Gui)
+    activeCursorStyle: CursorStyle
 
 
 # =================================================================================
@@ -106,7 +110,6 @@ proc new*(_: typedesc[Gui]): Gui =
 
   result.id = "gui"
   result.gui = result
-  result.isHovered = true
 
   result.widgetStack = newSeqOfCap[Widget](1024)
   result.widgetStack.add(Widget(result))
@@ -128,6 +131,8 @@ proc new*(_: typedesc[Gui]): Gui =
 
 proc processFrame*(gui: Gui) =
   gui.time = cpuTime()
+  gui.isHoveredIncludingChildren = gui.osWindow.isHovered
+  gui.isHovered = gui.isHoveredIncludingChildren
 
   if gui.onFrameProc != nil:
     gui.onFrameProc(gui)
@@ -170,6 +175,12 @@ proc beginWidget*(gui: Gui, id: string, T: typedesc): T =
     parent.children[id] = result
 
   result.parent = parent
+  result.isHovered = result.isHoveredIncludingChildren
+  if gui.mouseCapture != nil:
+    result.isHovered = gui.mouseCapture == result
+  if result.isHovered:
+    parent.isHovered = false
+
   result.childDrawOrder.setLen(0)
 
   gui.widgetStack.add(result)
@@ -202,27 +213,37 @@ proc bringToTop*(widget: Widget) =
   widget.zIndex = topZIndex + 1
 
 proc drawWidget(widget: Widget) =
+  let gui = widget.gui
   let vg = widget.vg
 
+  if widget.isHovered:
+    gui.activeCursorStyle = widget.cursorStyle
+
+  # Draw widget.
   vg.saveState()
   vg.translate(widget.globalPosition)
   if widget.drawProc != nil:
     widget.drawProc(widget)
+  if widget.drawHook != nil:
+    widget.drawHook(widget)
   vg.restoreState()
 
+  # Sort draw order by z index.
   widget.childDrawOrder.sort do (x, y: Widget) -> int:
     cmp(x.zIndex, y.zIndex)
 
-  let gui = widget.gui
+  # Update hovers here since it depends on draw order.
   var inputConsumed = false
   for child in widget.childDrawOrder.reversed():
-    child.isHovered =
-      not inputConsumed and
-      widget.isHovered and
+    child.isHoveredIncludingChildren =
+      (not inputConsumed) and
+      widget.isHoveredIncludingChildren and
       rect2(child.globalPosition, child.size).contains(gui.globalMousePosition)
-    if child.isHovered and not child.passInput:
+
+    if child.isHoveredIncludingChildren and not child.passInput:
       inputConsumed = true
 
+  # Recursively draw children.
   for child in widget.childDrawOrder:
     child.drawWidget()
 
@@ -254,6 +275,8 @@ proc attachToOsWindow(gui: Gui) =
   window.onFrame = proc(window: OsWindow) =
     let gui = cast[Gui](window.userData)
     gui.processFrame()
+    if window.isHovered:
+      window.setCursorStyle(gui.activeCursorStyle)
     window.swapBuffers()
 
   window.onResize = proc(window: OsWindow, width, height: int) =
@@ -267,6 +290,7 @@ proc attachToOsWindow(gui: Gui) =
     let dpi = window.dpi
     gui.globalMousePosition.x = x.toDensityPixels(dpi)
     gui.globalMousePosition.y = y.toDensityPixels(dpi)
+    window.setCursorStyle(gui.activeCursorStyle)
 
   window.onMousePress = proc(window: OsWindow, button: MouseButton, x, y: int) =
     let gui = cast[Gui](window.userData)

@@ -9,6 +9,17 @@ let gui = Gui.new()
 const consolaData = readFile("consola.ttf")
 gui.vg.addFont("consola", consolaData)
 
+proc highlightOnOverHook(widget: Widget) =
+  for child in widget.childDrawOrder:
+    child.drawHook = proc(widget: Widget) =
+      if widget.isHovered:
+        let gfx = widget.vg
+        gfx.beginPath()
+        gfx.rect(vec2(0, 0), widget.size)
+        gfx.strokeColor = rgb(0, 255, 0)
+        gfx.stroke()
+    child.highlightOnOverHook()
+
 var frames = 0
 
 gui.run:
@@ -30,3 +41,5 @@ gui.run:
   gui.window("Window2"):
     if self.init:
       self.position = vec2(200, 200)
+
+  gui.highlightOnOverHook()

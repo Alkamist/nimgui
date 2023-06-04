@@ -9,6 +9,7 @@ type
     headerHeight*: float
     resizeHitSize*: float
     minSize*: Vec2
+
     globalMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
@@ -57,118 +58,166 @@ proc resizeBottom(window: Window) =
     let correction = window.height - window.minSize.y
     window.height -= correction
 
-proc behavior*(window: Window) =
-  let gui = window.gui
+proc addMoveResizeButton(window: Window, id: string, style: CursorStyle): Button =
+  let button = window.addWidget(id, Button)
 
-  let headerHeight = window.headerHeight
-  let resizeHitSize = window.resizeHitSize
-  let resizeHitSize2 = resizeHitSize * 2.0
-  let resizeHitSize4 = resizeHitSize2 * 2.0
+  if button.init:
+    button.drawProc = nil
+    button.cursorStyle = style
 
-  gui.invisibleButton("WindowMoveButton"):
-    self.position = vec2(0, 0)
-    self.size = vec2(window.width, headerHeight)
+  button.press = button.mousePressed(Left)
+  button.release = button.mouseReleased(Left)
 
-    if self.pressed:
-      window.updateGrabState()
+  button
 
-    if self.isDown:
-      window.move()
+proc addMoveButton(window: Window) =
+  let button = window.addMoveResizeButton("MoveButton", Arrow)
 
-  gui.invisibleButton("WindowResizeLeftButton"):
-    self.cursorStyle = ResizeLeftRight
-    self.position = vec2(0, resizeHitSize)
-    self.size = vec2(resizeHitSize, window.height - resizeHitSize2)
+  button.position = vec2(0, 0)
+  button.size = vec2(window.width, window.headerHeight)
 
-    if self.pressed:
-      window.updateGrabState()
+  button.update()
 
-    if self.isDown:
-      window.resizeLeft()
+  if button.pressed:
+    window.updateGrabState()
 
-  gui.invisibleButton("WindowResizeRightButton"):
-    self.cursorStyle = ResizeLeftRight
-    self.position = vec2(window.width - resizeHitSize, resizeHitSize)
-    self.size = vec2(resizeHitSize, window.height - resizeHitSize2)
+  if button.isDown:
+    window.move()
 
-    if self.pressed:
-      window.updateGrabState()
+proc addResizeLeftButton(window: Window) =
+  let button = window.addMoveResizeButton("ResizeLeftButton", ResizeLeftRight)
 
-    if self.isDown:
-      window.resizeRight()
+  button.position = vec2(0, window.resizeHitSize)
+  button.size = vec2(window.resizeHitSize, window.height - window.resizeHitSize * 2.0)
 
-  gui.invisibleButton("WindowResizeTopButton"):
-    self.cursorStyle = ResizeTopBottom
-    self.position = vec2(resizeHitSize2, 0)
-    self.size = vec2(window.width - resizeHitSize4, resizeHitSize)
+  button.update()
 
-    if self.pressed:
-      window.updateGrabState()
+  if button.pressed:
+    window.updateGrabState()
 
-    if self.isDown:
-      window.resizeTop()
+  if button.isDown:
+    window.resizeLeft()
 
-  gui.invisibleButton("WindowResizeBottomButton"):
-    self.cursorStyle = ResizeTopBottom
-    self.position = vec2(resizeHitSize2, window.height - resizeHitSize)
-    self.size = vec2(window.width - resizeHitSize4, resizeHitSize)
+proc addResizeRightButton(window: Window) =
+  let button = window.addMoveResizeButton("ResizeRightButton", ResizeLeftRight)
 
-    if self.pressed:
-      window.updateGrabState()
+  button.position = vec2(window.width - window.resizeHitSize, window.resizeHitSize)
+  button.size = vec2(window.resizeHitSize, window.height - window.resizeHitSize * 2.0)
 
-    if self.isDown:
-      window.resizeBottom()
+  button.update()
 
-  gui.invisibleButton("WindowResizeTopLeftButton"):
-    self.cursorStyle = ResizeTopLeftBottomRight
-    self.position = vec2(0, 0)
-    self.size = vec2(resizeHitSize2, resizeHitSize)
+  if button.pressed:
+    window.updateGrabState()
 
-    if self.pressed:
-      window.updateGrabState()
+  if button.isDown:
+    window.resizeRight()
 
-    if self.isDown:
-      window.resizeTop()
-      window.resizeLeft()
+proc addResizeTopButton(window: Window) =
+  let button = window.addMoveResizeButton("WindowResizeTopButton", ResizeTopBottom)
 
-  gui.invisibleButton("WindowResizeTopRightButton"):
-    self.cursorStyle = ResizeTopRightBottomLeft
-    self.position = vec2(window.width - resizeHitSize2, 0)
-    self.size = vec2(resizeHitSize2, resizeHitSize)
+  button.position = vec2(window.resizeHitSize * 2.0, 0)
+  button.size = vec2(window.width - window.resizeHitSize * 4.0, window.resizeHitSize)
 
-    if self.pressed:
-      window.updateGrabState()
+  button.update()
 
-    if self.isDown:
-      window.resizeTop()
-      window.resizeRight()
+  if button.pressed:
+    window.updateGrabState()
 
-  gui.invisibleButton("WindowResizeBottomLeftButton"):
-    self.cursorStyle = ResizeTopRightBottomLeft
-    self.position = vec2(0, window.height - resizeHitSize)
-    self.size = vec2(resizeHitSize2, resizeHitSize)
+  if button.isDown:
+    window.resizeTop()
 
-    if self.pressed:
-      window.updateGrabState()
+proc addResizeBottomButton(window: Window) =
+  let button = window.addMoveResizeButton("WindowResizeBottomButton", ResizeTopBottom)
 
-    if self.isDown:
-      window.resizeBottom()
-      window.resizeLeft()
+  button.position = vec2(window.resizeHitSize * 2.0, window.height - window.resizeHitSize)
+  button.size = vec2(window.width - window.resizeHitSize * 4.0, window.resizeHitSize)
 
-  gui.invisibleButton("WindowResizeBottomRightButton"):
-    self.cursorStyle = ResizeTopLeftBottomRight
-    self.position = vec2(window.width - resizeHitSize2, window.height - resizeHitSize)
-    self.size = vec2(resizeHitSize2, resizeHitSize)
+  button.update()
 
-    if self.pressed:
-      window.updateGrabState()
+  if button.pressed:
+    window.updateGrabState()
 
-    if self.isDown:
-      window.resizeBottom()
-      window.resizeRight()
+  if button.isDown:
+    window.resizeBottom()
 
-  if gui.mousePressed(Left) and window.isHoveredIncludingChildren:
+proc addResizeTopLeftButton(window: Window) =
+  let button = window.addMoveResizeButton("WindowResizeTopLeftButton", ResizeTopLeftBottomRight)
+
+  button.position = vec2(0, 0)
+  button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
+
+  button.update()
+
+  if button.pressed:
+    window.updateGrabState()
+
+  if button.isDown:
+    window.resizeTop()
+    window.resizeLeft()
+
+proc addResizeTopRightButton(window: Window) =
+  let button = window.addMoveResizeButton("WindowResizeTopRightButton", ResizeTopRightBottomLeft)
+
+  button.position = vec2(window.width - window.resizeHitSize * 2.0, 0)
+  button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
+
+  button.update()
+
+  if button.pressed:
+    window.updateGrabState()
+
+  if button.isDown:
+    window.resizeTop()
+    window.resizeRight()
+
+proc addResizeBottomLeftButton(window: Window) =
+  let button = window.addMoveResizeButton("WindowResizeBottomLeftButton", ResizeTopRightBottomLeft)
+
+  button.position = vec2(0, window.height - window.resizeHitSize)
+  button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
+
+  button.update()
+
+  if button.pressed:
+    window.updateGrabState()
+
+  if button.isDown:
+    window.resizeBottom()
+    window.resizeLeft()
+
+proc addResizeBottomRightButton(window: Window) =
+  let button = window.addMoveResizeButton("WindowResizeBottomRightButton", ResizeTopLeftBottomRight)
+
+  button.position = vec2(window.width - window.resizeHitSize * 2.0, window.height - window.resizeHitSize)
+  button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
+
+  button.update()
+
+  if button.pressed:
+    window.updateGrabState()
+
+  if button.isDown:
+    window.resizeBottom()
+    window.resizeRight()
+
+proc update*(window: Window) =
+  window.addMoveButton()
+  window.addResizeLeftButton()
+  window.addResizeRightButton()
+  window.addResizeTopButton()
+  window.addResizeBottomButton()
+  window.addResizeTopLeftButton()
+  window.addResizeTopRightButton()
+  window.addResizeBottomLeftButton()
+  window.addResizeBottomRightButton()
+
+  if window.mousePressed(Left) and window.isHoveredIncludingChildren:
     window.bringToTop()
+
+# Const for now but should probably be in a theme.
+const borderThickness = 1.0
+const cornerRadius = 4.0
+const roundingInset = (1.0 - sin(45.0.degToRad)) * cornerRadius
 
 proc defaultDraw*(window: Window) =
   let gfx = window.vg
@@ -176,25 +225,53 @@ proc defaultDraw*(window: Window) =
   gfx.drawFrameWithHeader(
     vec2(0, 0),
     window.size,
-    borderThickness = 1.0,
+    borderThickness = borderThickness,
     headerHeight = window.headerHeight,
-    cornerRadius = 4.0,
+    cornerRadius = cornerRadius,
     bodyColor = rgb(49, 51, 56),
     bodyBorderColor = rgb(49, 51, 56).lighten(0.1),
     headerColor = rgb(30, 31, 34),
     headerBorderColor = rgb(30, 31, 34),
   )
 
-template window*(gui: Gui, id: string, code: untyped): untyped =
-  gui.newWidget(id, Window):
-    if self.init:
-      self.resizeHitSize = 5.0
-      self.headerHeight = 22.0
-      self.size = vec2(300, 200)
-      self.minSize = vec2(200, self.headerHeight * 2.0)
+proc addWindow*(widget: Widget, id: string): Window =
+  let window = widget.addWidget(id, Window)
 
-    self.behavior()
-    code
+  if window.init:
+    window.draw:
+      window.defaultDraw()
+    window.resizeHitSize = 5.0
+    window.headerHeight = 22.0
+    window.size = vec2(300, 200)
+    window.minSize = vec2(200, window.headerHeight * 2.0)
 
-    self.draw:
-      self.defaultDraw()
+  window
+
+proc addHeader*(window: Window): Widget =
+  let header = window.addWidget("Header", Widget)
+  if header.init:
+    header.passInput = true
+
+  header.position = vec2(borderThickness, borderThickness)
+  header.size = vec2(
+    window.width - 2.0 * borderThickness,
+    window.headerHeight - borderThickness,
+  )
+
+  header
+
+proc addBody*(window: Window): Widget =
+  let body = window.addWidget("Body", Widget)
+  if body.init:
+    body.passInput = true
+
+  body.position = vec2(
+    borderThickness + roundingInset,
+    window.headerHeight + borderThickness,
+  )
+  body.size = vec2(
+    window.width - 2.0 * (borderThickness + roundingInset),
+    window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
+  )
+
+  body

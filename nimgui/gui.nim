@@ -31,7 +31,6 @@ type
     osWindow*: OsWindow
     vg*: VectorGraphics
     mouseCapture*: Widget
-    widgetStack*: seq[Widget]
     contentScale*: float
     time*: float
     timePrevious*: float
@@ -54,8 +53,6 @@ type
 # =================================================================================
 
 
-proc vg*(widget: Widget): VectorGraphics = widget.gui.vg
-
 template x*(widget: Widget): untyped = widget.position.x
 template `x=`*(widget: Widget, value: untyped): untyped = widget.position.x = value
 template y*(widget: Widget): untyped = widget.position.y
@@ -65,6 +62,24 @@ template `width=`*(widget: Widget, value: untyped): untyped = widget.size.x = va
 template height*(widget: Widget): untyped = widget.size.y
 template `height=`*(widget: Widget, value: untyped): untyped = widget.size.y = value
 
+proc vg*(widget: Widget): VectorGraphics = widget.gui.vg
+proc mouseDelta*(widget: Widget): Vec2 = widget.gui.mouseDelta
+proc deltaTime*(widget: Widget): float = widget.gui.deltaTime
+proc mouseDown*(widget: Widget, button: MouseButton): bool = widget.gui.mouseDown(button)
+proc keyDown*(widget: Widget, key: KeyboardKey): bool = widget.gui.keyDown(key)
+proc mouseMoved*(widget: Widget): bool = widget.gui.mouseMoved
+proc mouseWheelMoved*(widget: Widget): bool = widget.gui.mouseWheelMoved
+proc mousePressed*(widget: Widget, button: MouseButton): bool = widget.gui.mousePressed(button)
+proc mouseReleased*(widget: Widget, button: MouseButton): bool = widget.gui.mouseReleased(button)
+proc anyMousePressed*(widget: Widget): bool = widget.gui.anyMousePressed
+proc anyMouseReleased*(widget: Widget): bool = widget.gui.anyMouseReleased
+proc keyPressed*(widget: Widget, key: KeyboardKey): bool = widget.gui.keyPressed(key)
+proc keyReleased*(widget: Widget, key: KeyboardKey): bool = widget.gui.keyReleased(key)
+proc anyKeyPressed*(widget: Widget): bool = widget.gui.anyKeyPressed
+proc anyKeyReleased*(widget: Widget): bool = widget.gui.anyKeyReleased
+
+proc globalMousePosition*(widget: Widget): Vec2 = widget.gui.globalMousePosition
+
 proc globalPosition*(widget: Widget): Vec2 =
   let parent = widget.parent
   if parent == nil:
@@ -72,14 +87,9 @@ proc globalPosition*(widget: Widget): Vec2 =
   else:
     parent.globalPosition + widget.position
 
-template draw*(w: Widget, code: untyped): untyped =
-  w.drawProc = proc(widgetBase: Widget) =
-    {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    {.hint[XDeclaredButNotUsed]: off.}
-    let self {.inject.} = typeof(w)(widgetBase)
-    let gui {.inject.} = self.gui
-    let gfx {.inject.} = self.vg
-    code
+proc mousePosition*(widget: Widget): Vec2 = widget.globalMousePosition - widget.globalPosition
+proc captureMouse*(widget: Widget) = widget.gui.mouseCapture = widget
+proc releaseMouse*(widget: Widget) = widget.gui.mouseCapture = nil
 
 
 # =================================================================================
@@ -111,9 +121,6 @@ proc new*(_: typedesc[Gui]): Gui =
   result.id = "gui"
   result.gui = result
 
-  result.widgetStack = newSeqOfCap[Widget](1024)
-  result.widgetStack.add(Widget(result))
-
   result.mousePresses = newSeqOfCap[MouseButton](16)
   result.mouseReleases = newSeqOfCap[MouseButton](16)
   result.keyPresses = newSeqOfCap[KeyboardKey](16)
@@ -134,16 +141,17 @@ proc processFrame*(gui: Gui) =
   gui.isHoveredIncludingChildren = gui.osWindow.isHovered
   gui.isHovered = gui.isHoveredIncludingChildren
 
+  let (pixelWidth, pixelHeight) = gui.osWindow.size
+  gui.vg.beginFrame(pixelWidth, pixelHeight, gui.contentScale)
+
   if gui.onFrameProc != nil:
     gui.onFrameProc(gui)
 
-  let (pixelWidth, pixelHeight) = gui.osWindow.size
-  gui.vg.beginFrame(pixelWidth, pixelHeight, gui.contentScale)
   gui.drawWidget()
+
   gui.vg.endFrame()
 
   gui.childDrawOrder.setLen(0)
-  gui.widgetStack.setLen(1)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)
@@ -161,44 +169,34 @@ template run*(g: Gui, code: untyped): untyped =
 
   g.osWindow.run()
 
-proc beginWidget*(gui: Gui, id: string, T: typedesc): T =
-  let parent = gui.widgetStack[gui.widgetStack.len - 1]
-  if parent.children.hasKey(id):
+template draw*(widget: Widget, code: untyped): untyped =
+  if true:
+    widget.drawProc = proc(widgetBase: Widget) =
+      {.hint[XDeclaredButNotUsed]: off.}
+      let `widget` {.inject.} = typeof(widget)(widgetBase)
+      code
+
+proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
+  if widget.children.hasKey(id):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    result = T(parent.children[id])
+    result = T(widget.children[id])
     result.init = false
   else:
     result = T()
     result.init = true
-    result.gui = gui
+    result.gui = widget.gui
     result.id = id
-    parent.children[id] = result
+    widget.children[id] = result
 
-  result.parent = parent
+  result.parent = widget
   result.isHovered = result.isHoveredIncludingChildren
-  if gui.mouseCapture != nil:
-    result.isHovered = gui.mouseCapture == result
+  if result.gui.mouseCapture != nil:
+    result.isHovered = result.gui.mouseCapture == result
   if result.isHovered:
-    parent.isHovered = false
+    widget.isHovered = false
 
   result.childDrawOrder.setLen(0)
-
-  gui.widgetStack.add(result)
-  parent.childDrawOrder.add(result)
-
-proc endWidget*(gui: Gui, T: typedesc): T {.discardable.} =
-  {.hint[ConvFromXtoItselfNotNeeded]: off.}
-  result = T(gui.widgetStack[gui.widgetStack.len - 1])
-  if gui.widgetStack.len <= 1:
-    echo "Error: gui.endWidget was called more times than gui.beginWidget"
-  gui.widgetStack.setLen(gui.widgetStack.len - 1)
-
-template newWidget*(gui: Gui, id: string, T: typedesc, updateCode: untyped): untyped =
-  block:
-    {.hint[XDeclaredButNotUsed]: off.}
-    let self {.inject.} = gui.beginWidget(id, T)
-    updateCode
-    gui.endWidget(T)
+  widget.childDrawOrder.add(result)
 
 proc bringToTop*(widget: Widget) =
   let parent = widget.parent

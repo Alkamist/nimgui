@@ -52,14 +52,15 @@ proc addText*(widget: Widget, id: string): Text =
   let text = widget.addWidget(id, Text)
 
   if text.init:
-    text.draw:
-      text.defaultDraw()
     text.passInput = true
     text.font = "consola"
     text.fontSize = 13
     text.alignX = Center
     text.alignY = Center
     text.color = rgb(242, 243, 245)
+
+  text.draw:
+    text.defaultDraw()
 
   text.size = widget.size
 

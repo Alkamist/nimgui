@@ -62,9 +62,9 @@ proc addMoveResizeButton(window: Window, id: string, style: CursorStyle): Button
   let button = window.addWidget(id, Button)
 
   if button.init:
-    button.drawProc = nil
     button.cursorStyle = style
 
+  button.drawProc = nil
   button.press = button.mousePressed(Left)
   button.release = button.mouseReleased(Left)
 
@@ -211,8 +211,8 @@ proc update*(window: Window) =
   window.addResizeBottomLeftButton()
   window.addResizeBottomRightButton()
 
-  if window.mousePressed(Left) and window.isHoveredIncludingChildren:
-    window.bringToTop()
+  # if window.mousePressed(Left) and window.isHoveredIncludingChildren:
+  #   window.bringToTop()
 
 # Const for now but should probably be in a theme.
 const borderThickness = 1.0
@@ -238,12 +238,13 @@ proc addWindow*(widget: Widget, id: string): Window =
   let window = widget.addWidget(id, Window)
 
   if window.init:
-    window.draw:
-      window.defaultDraw()
     window.resizeHitSize = 5.0
     window.headerHeight = 22.0
     window.size = vec2(300, 200)
     window.minSize = vec2(200, window.headerHeight * 2.0)
+
+  window.draw:
+    window.defaultDraw()
 
   window
 

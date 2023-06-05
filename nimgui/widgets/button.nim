@@ -52,9 +52,10 @@ proc addButton*(widget: Widget, id: string, mouseButton = MouseButton.Left): But
   let button = widget.addWidget(id, Button)
 
   if button.init:
-    button.draw:
-      button.defaultDraw()
     button.size = vec2(96, 32)
+
+  button.draw:
+    button.defaultDraw()
 
   button.press = button.mousePressed(mouseButton)
   button.release = button.mouseReleased(mouseButton)

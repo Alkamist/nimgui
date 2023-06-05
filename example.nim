@@ -10,8 +10,8 @@ const consolaData = readFile("consola.ttf")
 gui.vg.addFont("consola", consolaData)
 
 proc highlightOnHoverHook(widget: Widget) =
-  widget.drawHook = proc(widget: Widget) =
-    if widget.isHovered and not widget.passInput:
+  widget.drawHook:
+    if widget.isHovered:
       let gfx = widget.vg
       gfx.beginPath()
       gfx.rect(vec2(0, 0), widget.size)

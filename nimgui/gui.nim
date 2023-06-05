@@ -14,7 +14,6 @@ type
     parent* {.cursor.}: Widget
     children*: Table[string, Widget]
     childDrawOrder*: seq[Widget]
-    hovers*: seq[Widget]
     init*: bool
     isHovered*: bool
     isHoveredIncludingChildren*: bool
@@ -24,8 +23,8 @@ type
     position*: Vec2
     size*: Vec2
     drawProc*: proc(widget: Widget)
-    drawHook*: proc(widget: Widget)
     cursorStyle*: CursorStyle
+    accessedThisFrame*: bool
 
   Gui* = ref object of Widget
     osWindow*: OsWindow
@@ -91,6 +90,112 @@ proc mousePosition*(widget: Widget): Vec2 = widget.globalMousePosition - widget.
 proc captureMouse*(widget: Widget) = widget.gui.mouseCapture = widget
 proc releaseMouse*(widget: Widget) = widget.gui.mouseCapture = nil
 
+proc mouseIsInside*(widget: Widget): bool =
+  rect2(vec2(0, 0), widget.size).contains(widget.mousePosition)
+
+proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
+  if widget.children.hasKey(id):
+    {.hint[ConvFromXtoItselfNotNeeded]: off.}
+    result = T(widget.children[id])
+    result.init = false
+  else:
+    result = T()
+    result.init = true
+    result.gui = widget.gui
+    result.id = id
+    widget.children[id] = result
+
+  result.parent = widget
+
+  if not result.accessedThisFrame:
+    widget.childDrawOrder.add(result)
+
+  result.accessedThisFrame = true
+
+proc bringToTop*(widget: Widget) =
+  let parent = widget.parent
+  if parent == nil:
+    return
+
+  var topZIndex = low(int)
+  for id, child in parent.children:
+    if child.zIndex >= topZIndex:
+      topZIndex = child.zIndex
+
+  widget.zIndex = topZIndex + 1
+
+proc sortDrawOrderByZIndex(widget: Widget) =
+  widget.childDrawOrder.sort do (x, y: Widget) -> int:
+    cmp(x.zIndex, y.zIndex)
+
+proc updateMouseCaptureHovers(capture: Widget) =
+  capture.isHoveredIncludingChildren = true
+  if capture.parent != nil:
+    capture.parent.updateMouseCaptureHovers()
+
+proc updateHovers(widget: Widget) =
+  let gui = widget.gui
+  if gui.mouseCapture != nil:
+    for child in widget.childDrawOrder:
+      child.isHovered = false
+      child.isHoveredIncludingChildren = false
+
+    gui.mouseCapture.isHovered = true
+    gui.mouseCapture.updateMouseCaptureHovers()
+
+  else:
+    var inputConsumed = false
+    for child in widget.childDrawOrder.reversed():
+      child.isHoveredIncludingChildren =
+        (not inputConsumed) and
+        widget.isHoveredIncludingChildren and
+        child.mouseIsInside
+
+      child.isHovered = child.isHoveredIncludingChildren
+
+      if child.isHoveredIncludingChildren and not child.passInput:
+        inputConsumed = true
+        widget.isHovered = false
+
+      child.updateHovers()
+
+proc drawWidget(widget: Widget) =
+  let vg = widget.vg
+
+  if widget.isHovered and not widget.passInput:
+    widget.gui.activeCursorStyle = widget.cursorStyle
+
+  vg.saveState()
+  vg.translate(widget.globalPosition)
+  if widget.drawProc != nil:
+    widget.drawProc(widget)
+  vg.restoreState()
+
+  for child in widget.childDrawOrder:
+    child.drawWidget()
+
+  widget.childDrawOrder.setLen(0)
+  widget.accessedThisFrame = false
+
+template draw*(widget: Widget, code: untyped): untyped =
+  if true:
+    widget.drawProc = proc(widgetBase: Widget) =
+      {.hint[XDeclaredButNotUsed]: off.}
+      {.hint[ConvFromXtoItselfNotNeeded]: off.}
+      let `widget` {.inject.} = typeof(widget)(widgetBase)
+      code
+
+template drawHook*(widget: Widget, code: untyped): untyped =
+  if true:
+    let previousDrawProc = widget.drawProc
+    widget.drawProc = proc(widgetBase: Widget) =
+      {.hint[XDeclaredButNotUsed]: off.}
+      {.hint[ConvFromXtoItselfNotNeeded]: off.}
+      let `widget` {.inject.} = typeof(widget)(widgetBase)
+      if previousDrawProc != nil:
+        previousDrawProc(widgetBase)
+      code
+
 
 # =================================================================================
 # Gui
@@ -147,6 +252,8 @@ proc processFrame*(gui: Gui) =
   if gui.onFrameProc != nil:
     gui.onFrameProc(gui)
 
+  gui.sortDrawOrderByZIndex()
+  gui.updateHovers()
   gui.drawWidget()
 
   gui.vg.endFrame()
@@ -168,82 +275,6 @@ template run*(g: Gui, code: untyped): untyped =
     code
 
   g.osWindow.run()
-
-template draw*(widget: Widget, code: untyped): untyped =
-  if true:
-    widget.drawProc = proc(widgetBase: Widget) =
-      {.hint[XDeclaredButNotUsed]: off.}
-      let `widget` {.inject.} = typeof(widget)(widgetBase)
-      code
-
-proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
-  if widget.children.hasKey(id):
-    {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    result = T(widget.children[id])
-    result.init = false
-  else:
-    result = T()
-    result.init = true
-    result.gui = widget.gui
-    result.id = id
-    widget.children[id] = result
-
-  result.parent = widget
-  result.isHovered = result.isHoveredIncludingChildren
-  if result.gui.mouseCapture != nil:
-    result.isHovered = result.gui.mouseCapture == result
-  if result.isHovered:
-    widget.isHovered = false
-
-  result.childDrawOrder.setLen(0)
-  widget.childDrawOrder.add(result)
-
-proc bringToTop*(widget: Widget) =
-  let parent = widget.parent
-  if parent == nil:
-    return
-
-  var topZIndex = low(int)
-  for id, child in parent.children:
-    if child.zIndex >= topZIndex:
-      topZIndex = child.zIndex
-
-  widget.zIndex = topZIndex + 1
-
-proc drawWidget(widget: Widget) =
-  let gui = widget.gui
-  let vg = widget.vg
-
-  if widget.isHovered:
-    gui.activeCursorStyle = widget.cursorStyle
-
-  # Draw widget.
-  vg.saveState()
-  vg.translate(widget.globalPosition)
-  if widget.drawProc != nil:
-    widget.drawProc(widget)
-  if widget.drawHook != nil:
-    widget.drawHook(widget)
-  vg.restoreState()
-
-  # Sort draw order by z index.
-  widget.childDrawOrder.sort do (x, y: Widget) -> int:
-    cmp(x.zIndex, y.zIndex)
-
-  # Update hovers here since it depends on draw order.
-  var inputConsumed = false
-  for child in widget.childDrawOrder.reversed():
-    child.isHoveredIncludingChildren =
-      (not inputConsumed) and
-      widget.isHoveredIncludingChildren and
-      rect2(child.globalPosition, child.size).contains(gui.globalMousePosition)
-
-    if child.isHoveredIncludingChildren and not child.passInput:
-      inputConsumed = true
-
-  # Recursively draw children.
-  for child in widget.childDrawOrder:
-    child.drawWidget()
 
 
 # =================================================================================

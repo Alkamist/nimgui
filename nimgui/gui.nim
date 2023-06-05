@@ -18,6 +18,7 @@ type
     isHovered*: bool
     isHoveredIncludingChildren*: bool
     passInput*: bool
+    isFreelyPositionable*: bool
     id*: string
     zIndex*: int
     position*: Vec2
@@ -31,8 +32,8 @@ type
     lastChildPosition*: Vec2
     lastChildSize*: Vec2
     firstAutoPlacedChild*: bool
-    nextSameRow*: bool
-    nextFreePosition*: bool
+    nextChildIsSameRow*: bool
+    nextChildIsFreelyPositionable*: bool
 
   Gui* = ref object of Widget
     osWindow*: OsWindow
@@ -102,16 +103,16 @@ proc mouseIsInside*(widget: Widget): bool =
   rect2(vec2(0, 0), widget.size).contains(widget.mousePosition)
 
 proc sameRow*(widget: Widget) =
-  widget.nextSameRow = true
+  widget.nextChildIsSameRow = true
 
 proc freePosition*(widget: Widget) =
-  widget.nextFreePosition = true
+  widget.nextChildIsFreelyPositionable = true
 
 proc nextChildPosition*(widget: Widget): Vec2 =
   if widget.firstAutoPlacedChild:
     return widget.layoutPosition
 
-  if widget.nextSameRow:
+  if widget.nextChildIsSameRow:
     result.x = widget.lastChildPosition.x + widget.lastChildSize.x + widget.childSpacing.x
     result.y = widget.lastChildPosition.y
   else:
@@ -148,8 +149,8 @@ proc autoPlaceChild(widget, child: Widget) =
   widget.lastChildPosition = child.position
   widget.lastChildSize = child.size
 
-  if widget.nextSameRow:
-    widget.nextSameRow = false
+  if widget.nextChildIsSameRow:
+    widget.nextChildIsSameRow = false
 
   if widget.firstAutoPlacedChild:
     widget.firstAutoPlacedChild = false
@@ -167,16 +168,19 @@ proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
     widget.children[id] = result
 
   result.parent = widget
+  result.drawProc = nil
 
   if not result.accessedThisFrame:
     widget.childDrawOrder.add(result)
     result.accessedThisFrame = true
     result.initLayout()
 
-  if not widget.nextFreePosition:
+  result.isFreelyPositionable = widget.nextChildIsFreelyPositionable
+
+  if not widget.nextChildIsFreelyPositionable:
     widget.autoPlaceChild(result)
 
-  widget.nextFreePosition = false
+  widget.nextChildIsFreelyPositionable = false
 
 proc bringToTop*(widget: Widget) =
   let parent = widget.parent
@@ -325,6 +329,7 @@ proc processFrame*(gui: Gui) =
 
   gui.vg.endFrame()
 
+  gui.drawProc = nil
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)

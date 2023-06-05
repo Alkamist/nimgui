@@ -201,21 +201,22 @@ proc addResizeBottomRightButton(window: Window) =
     window.resizeRight()
 
 proc update*(window: Window) =
-  window.addMoveButton()
-  window.addResizeLeftButton()
-  window.addResizeRightButton()
-  window.addResizeTopButton()
-  window.addResizeBottomButton()
-  window.addResizeTopLeftButton()
-  window.addResizeTopRightButton()
-  window.addResizeBottomLeftButton()
-  window.addResizeBottomRightButton()
+  if window.isFreelyPositionable:
+    window.addMoveButton()
+    window.addResizeLeftButton()
+    window.addResizeRightButton()
+    window.addResizeTopButton()
+    window.addResizeBottomButton()
+    window.addResizeTopLeftButton()
+    window.addResizeTopRightButton()
+    window.addResizeBottomLeftButton()
+    window.addResizeBottomRightButton()
 
-  if (window.mousePressed(Left) or
-      window.mousePressed(Middle) or
-      window.mousePressed(Right)) and
-      window.isHoveredIncludingChildren:
-    window.bringToTop()
+    if (window.mousePressed(Left) or
+        window.mousePressed(Middle) or
+        window.mousePressed(Right)) and
+        window.isHoveredIncludingChildren:
+      window.bringToTop()
 
 # Const for now but should probably be in a theme.
 const borderThickness = 1.0

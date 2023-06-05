@@ -57,4 +57,6 @@ proc addButton*(widget: Widget, id: string, mouseButton = MouseButton.Left): But
   button.press = button.mousePressed(mouseButton)
   button.release = button.mouseReleased(mouseButton)
 
+  button.update()
+
   button

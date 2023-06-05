@@ -250,6 +250,8 @@ proc addWindow*(widget: Widget, id: string): Window =
   window.draw:
     window.defaultDraw()
 
+  window.update()
+
   window
 
 proc addHeader*(window: Window): Widget =

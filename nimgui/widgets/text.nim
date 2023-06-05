@@ -62,4 +62,6 @@ proc addText*(widget: Widget, id: string): Text =
   text.draw:
     text.defaultDraw()
 
+  text.update()
+
   text

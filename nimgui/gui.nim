@@ -167,19 +167,18 @@ proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
     result.id = id
     widget.children[id] = result
 
-  result.parent = widget
-
   if not result.accessedThisFrame:
-    widget.childDrawOrder.add(result)
-    result.accessedThisFrame = true
+    result.parent = widget
     result.initLayout()
+    result.isFreelyPositionable = widget.nextChildIsFreelyPositionable
 
-  result.isFreelyPositionable = widget.nextChildIsFreelyPositionable
+    if not widget.nextChildIsFreelyPositionable:
+      widget.autoPlaceChild(result)
 
-  if not widget.nextChildIsFreelyPositionable:
-    widget.autoPlaceChild(result)
+    widget.nextChildIsFreelyPositionable = false
+    widget.childDrawOrder.add(result)
 
-  widget.nextChildIsFreelyPositionable = false
+    result.accessedThisFrame = true
 
 proc bringToTop*(widget: Widget) =
   let parent = widget.parent

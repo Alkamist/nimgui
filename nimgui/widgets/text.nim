@@ -38,7 +38,7 @@ proc update*(text: Text) =
 
   vg.textAlign(text.alignX, text.alignY)
 
-  text.glyphs = vg.getGlyphs(text.drawPosition, text.data)
+  text.glyphs = vg.getGlyphs(vec2(0, 0), text.data)
 
 proc defaultDraw*(text: Text) =
   let vg = text.vg
@@ -61,7 +61,5 @@ proc addText*(widget: Widget, id: string): Text =
 
   text.draw:
     text.defaultDraw()
-
-  text.size = widget.size
 
   text

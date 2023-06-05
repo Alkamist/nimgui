@@ -211,8 +211,11 @@ proc update*(window: Window) =
   window.addResizeBottomLeftButton()
   window.addResizeBottomRightButton()
 
-  # if window.mousePressed(Left) and window.isHoveredIncludingChildren:
-  #   window.bringToTop()
+  if (window.mousePressed(Left) or
+      window.mousePressed(Middle) or
+      window.mousePressed(Right)) and
+      window.isHoveredIncludingChildren:
+    window.bringToTop()
 
 # Const for now but should probably be in a theme.
 const borderThickness = 1.0

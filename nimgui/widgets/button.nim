@@ -51,9 +51,6 @@ proc update*(button: Button) =
 proc addButton*(widget: Widget, id: string, mouseButton = MouseButton.Left): Button =
   let button = widget.addWidget(id, Button)
 
-  if button.init:
-    button.size = vec2(96, 32)
-
   button.draw:
     button.defaultDraw()
 

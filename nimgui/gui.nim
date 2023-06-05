@@ -25,6 +25,14 @@ type
     drawProc*: proc(widget: Widget)
     cursorStyle*: CursorStyle
     accessedThisFrame*: bool
+    layoutPosition*: Vec2
+    childSize*: Vec2
+    childSpacing*: Vec2
+    lastChildPosition*: Vec2
+    lastChildSize*: Vec2
+    firstAutoPlacedChild*: bool
+    nextSameRow*: bool
+    nextFreePosition*: bool
 
   Gui* = ref object of Widget
     osWindow*: OsWindow
@@ -93,6 +101,59 @@ proc releaseMouse*(widget: Widget) = widget.gui.mouseCapture = nil
 proc mouseIsInside*(widget: Widget): bool =
   rect2(vec2(0, 0), widget.size).contains(widget.mousePosition)
 
+proc sameRow*(widget: Widget) =
+  widget.nextSameRow = true
+
+proc freePosition*(widget: Widget) =
+  widget.nextFreePosition = true
+
+proc nextChildPosition*(widget: Widget): Vec2 =
+  if widget.firstAutoPlacedChild:
+    return widget.layoutPosition
+
+  if widget.nextSameRow:
+    result.x = widget.lastChildPosition.x + widget.lastChildSize.x + widget.childSpacing.x
+    result.y = widget.lastChildPosition.y
+  else:
+    result.x = widget.layoutPosition.x
+    result.y = widget.lastChildPosition.y + widget.lastChildSize.y + widget.childSpacing.y
+
+iterator grid*(widget: Widget, columns, rows: int): int =
+  if rows > 0 and columns > 0:
+    let gridSize = widget.childSize
+    let layoutPositionBeforeGrid = widget.layoutPosition
+
+    widget.layoutPosition = widget.nextChildPosition
+
+    let colsRows = vec2(float(columns), float(rows))
+    let spacings = widget.childSpacing * (colsRows - 1.0)
+
+    widget.childSize = (gridSize - spacings) / colsRows
+
+    for row in 0 ..< rows:
+      for column in 0 ..< columns:
+        yield row * columns + column
+        if column < columns - 1:
+          widget.sameRow()
+
+    widget.layoutPosition = layoutPositionBeforeGrid
+    widget.childSize = gridSize
+
+proc initLayout(widget: Widget) =
+  widget.firstAutoPlacedChild = true
+
+proc autoPlaceChild(widget, child: Widget) =
+  child.size = widget.childSize
+  child.position = widget.nextChildPosition
+  widget.lastChildPosition = child.position
+  widget.lastChildSize = child.size
+
+  if widget.nextSameRow:
+    widget.nextSameRow = false
+
+  if widget.firstAutoPlacedChild:
+    widget.firstAutoPlacedChild = false
+
 proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
   if widget.children.hasKey(id):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
@@ -109,8 +170,13 @@ proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
 
   if not result.accessedThisFrame:
     widget.childDrawOrder.add(result)
+    result.accessedThisFrame = true
+    result.initLayout()
 
-  result.accessedThisFrame = true
+  if not widget.nextFreePosition:
+    widget.autoPlaceChild(result)
+
+  widget.nextFreePosition = false
 
 proc bringToTop*(widget: Widget) =
   let parent = widget.parent
@@ -245,6 +311,7 @@ proc processFrame*(gui: Gui) =
   gui.time = cpuTime()
   gui.isHoveredIncludingChildren = gui.osWindow.isHovered
   gui.isHovered = gui.isHoveredIncludingChildren
+  gui.initLayout()
 
   let (pixelWidth, pixelHeight) = gui.osWindow.size
   gui.vg.beginFrame(pixelWidth, pixelHeight, gui.contentScale)
@@ -258,7 +325,6 @@ proc processFrame*(gui: Gui) =
 
   gui.vg.endFrame()
 
-  gui.childDrawOrder.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)

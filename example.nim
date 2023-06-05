@@ -14,7 +14,7 @@ proc highlightOnHoverHook(widget: Widget) =
     if widget.parent != nil and widget.isHovered and not widget.passInput:
       let gfx = widget.vg
       gfx.beginPath()
-      gfx.rect(vec2(0, 0), widget.size)
+      gfx.rect(vec2(0.5, 0.5), widget.size)
       gfx.strokeColor = rgb(0, 255, 0)
       gfx.stroke()
 

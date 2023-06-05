@@ -168,7 +168,6 @@ proc addWidget*(widget: Widget, id: string, T: typedesc): T {.discardable.} =
     widget.children[id] = result
 
   result.parent = widget
-  result.drawProc = nil
 
   if not result.accessedThisFrame:
     widget.childDrawOrder.add(result)
@@ -229,14 +228,29 @@ proc updateHovers(widget: Widget) =
 
       child.updateHovers()
 
+proc pixelAlign(value, contentScale: float): float =
+  round(value * contentScale) / contentScale
+
+proc pixelAlign(position: Vec2, contentScale: float): Vec2 =
+  vec2(
+    position.x.pixelAlign(contentScale),
+    position.y.pixelAlign(contentScale),
+  )
+
 proc drawWidget(widget: Widget) =
   let vg = widget.vg
 
   if widget.isHovered and not widget.passInput:
     widget.gui.activeCursorStyle = widget.cursorStyle
 
+  let scale = widget.gui.contentScale
+
+  # Pixel align the widget's size for the draw call so it is crisp.
+  let size = widget.size
+  widget.size = size.pixelAlign(scale)
+
   vg.saveState()
-  vg.translate(widget.globalPosition)
+  vg.translate(widget.globalPosition.pixelAlign(scale))
   if widget.drawProc != nil:
     widget.drawProc(widget)
   vg.restoreState()
@@ -244,6 +258,10 @@ proc drawWidget(widget: Widget) =
   for child in widget.childDrawOrder:
     child.drawWidget()
 
+  # Set the size back to normal.
+  widget.size = size
+
+  widget.drawProc = nil
   widget.childDrawOrder.setLen(0)
   widget.accessedThisFrame = false
 
@@ -329,7 +347,6 @@ proc processFrame*(gui: Gui) =
 
   gui.vg.endFrame()
 
-  gui.drawProc = nil
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)

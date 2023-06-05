@@ -1,7 +1,5 @@
 {.experimental: "overloadableEnums".}
 
-import std/times
-# import std/strformat
 import nimgui
 
 let gui = Gui.new()
@@ -26,7 +24,7 @@ var frames = 0
 
 gui.onFrame:
   frames += 1
-  let fpsCount = float(frames) / cpuTime()
+  let fpsCount = float(frames) / gui.time
 
   gui.childSpacing = vec2(5, 5)
   gui.layoutPosition = vec2(50, 50)
@@ -49,7 +47,6 @@ gui.onFrame:
   gui.freePosition()
 
   let fps = gui.addText("Fps")
-  fps.update()
   fps.alignX = Left
   fps.alignY = Baseline
   fps.data = $fpsCount

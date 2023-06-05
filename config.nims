@@ -1,5 +1,4 @@
 when defined(emscripten):
-  # --define:useMalloc
   --os:linux
   --cpu:wasm32
   --cc:clang

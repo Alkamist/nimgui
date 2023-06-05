@@ -2,7 +2,6 @@
 {.experimental: "overloadableEnums".}
 
 import std/tables
-import std/times
 import std/algorithm
 import ./math; export math
 import oswindow; export oswindow
@@ -307,9 +306,6 @@ proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
 
-  result.time = cpuTime()
-  result.timePrevious = result.time
-
   result.id = "gui"
   result.gui = result
 
@@ -328,8 +324,8 @@ proc new*(_: typedesc[Gui]): Gui =
 
   result.attachToOsWindow()
 
-proc update*(gui: Gui) =
-  gui.time = cpuTime()
+proc update(gui: Gui) =
+  gui.time = gui.osWindow.time
   gui.isHoveredIncludingChildren = gui.osWindow.isHovered
   gui.isHovered = gui.isHoveredIncludingChildren
   gui.initLayout()
@@ -345,6 +341,9 @@ proc update*(gui: Gui) =
   gui.drawWidget()
 
   gui.vg.endFrame()
+
+  if gui.isHoveredIncludingChildren:
+    gui.osWindow.setCursorStyle(gui.activeCursorStyle)
 
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
@@ -392,8 +391,6 @@ proc attachToOsWindow(gui: Gui) =
   window.onFrame = proc(window: OsWindow) =
     let gui = cast[Gui](window.userData)
     gui.update()
-    if window.isHovered:
-      window.setCursorStyle(gui.activeCursorStyle)
     window.swapBuffers()
 
   window.onResize = proc(window: OsWindow, width, height: int) =

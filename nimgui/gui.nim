@@ -328,7 +328,7 @@ proc new*(_: typedesc[Gui]): Gui =
 
   result.attachToOsWindow()
 
-proc processFrame*(gui: Gui) =
+proc update*(gui: Gui) =
   gui.time = cpuTime()
   gui.isHoveredIncludingChildren = gui.osWindow.isHovered
   gui.isHovered = gui.isHoveredIncludingChildren
@@ -355,13 +355,14 @@ proc processFrame*(gui: Gui) =
   gui.globalMousePositionPrevious = gui.globalMousePosition
   gui.timePrevious = gui.time
 
-template run*(g: Gui, code: untyped): untyped =
-  g.onFrameProc = proc(argGui: Gui) =
+template onFrame*(gui: Gui, code: untyped): untyped =
+  gui.onFrameProc = proc(argGui: Gui) =
     {.hint[XDeclaredButNotUsed]: off.}
-    let gui {.inject.} = argGui
+    let `gui` {.inject.} = argGui
     code
 
-  g.osWindow.run()
+proc run*(gui: Gui) =
+  gui.osWindow.run()
 
 
 # =================================================================================
@@ -390,7 +391,7 @@ proc attachToOsWindow(gui: Gui) =
 
   window.onFrame = proc(window: OsWindow) =
     let gui = cast[Gui](window.userData)
-    gui.processFrame()
+    gui.update()
     if window.isHovered:
       window.setCursorStyle(gui.activeCursorStyle)
     window.swapBuffers()

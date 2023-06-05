@@ -15,6 +15,7 @@ proc highlightOnHoverHook(widget: Widget) =
       let gfx = widget.vg
       gfx.beginPath()
       gfx.rect(vec2(0.5, 0.5), widget.size)
+      gfx.strokeWidth = 1
       gfx.strokeColor = rgb(0, 255, 0)
       gfx.stroke()
 
@@ -23,7 +24,7 @@ proc highlightOnHoverHook(widget: Widget) =
 
 var frames = 0
 
-gui.run:
+gui.onFrame:
   frames += 1
   let fpsCount = float(frames) / cpuTime()
 
@@ -58,3 +59,5 @@ gui.run:
   let window1 = gui.addWindow("Window1")
 
   gui.highlightOnHoverHook()
+
+gui.run()

@@ -3,7 +3,7 @@
 import ../gui
 
 type
-  Button* = ref object of Widget
+  Button* = ref object of GuiNode
     isDown*: bool
     press*: bool
     release*: bool
@@ -48,15 +48,13 @@ proc update*(button: Button) =
   button.press = false
   button.release = false
 
-proc addButton*(widget: Widget, id: string, mouseButton = MouseButton.Left): Button =
-  let button = widget.addWidget(id, Button)
+proc addButton*(container: GuiContainer, id: string, mouseButton = MouseButton.Left): Button {.discardable.} =
+  let button = container.addNode(id, Button)
 
   button.draw:
     button.defaultDraw()
 
   button.press = button.mousePressed(mouseButton)
   button.release = button.mouseReleased(mouseButton)
-
-  button.update()
 
   button

@@ -3,7 +3,7 @@
 import ../gui
 
 type
-  Text* = ref object of Widget
+  Text* = ref object of GuiNode
     data*: string
     glyphs*: seq[Glyph]
     font*: string
@@ -48,8 +48,8 @@ proc defaultDraw*(text: Text) =
   vg.fontSize = text.fontSize
   vg.text(text.drawPosition, text.data)
 
-proc addText*(widget: Widget, id: string): Text =
-  let text = widget.addWidget(id, Text)
+proc addText*(container: GuiContainer, id: string): Text {.discardable.} =
+  let text = container.addNode(id, Text)
 
   if text.init:
     text.passInput = true
@@ -61,7 +61,5 @@ proc addText*(widget: Widget, id: string): Text =
 
   text.draw:
     text.defaultDraw()
-
-  text.update()
 
   text

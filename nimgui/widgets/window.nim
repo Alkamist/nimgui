@@ -5,7 +5,7 @@ import ./button
 import ./frame
 
 type
-  Window* = ref object of Widget
+  Window* = ref object of GuiContainer
     headerHeight*: float
     resizeHitSize*: float
     minSize*: Vec2
@@ -15,12 +15,12 @@ type
     sizeWhenGrabbed: Vec2
 
 proc updateGrabState(window: Window) =
-  window.globalMousePositionWhenGrabbed = window.gui.globalMousePosition
+  window.globalMousePositionWhenGrabbed = window.root.globalMousePosition
   window.positionWhenGrabbed = window.position
   window.sizeWhenGrabbed = window.size
 
 proc calculateGrabDelta(window: Window): Vec2 =
-  window.gui.globalMousePosition - window.globalMousePositionWhenGrabbed
+  window.root.globalMousePosition - window.globalMousePositionWhenGrabbed
 
 proc move(window: Window) =
   let grabDelta = window.calculateGrabDelta()
@@ -59,7 +59,7 @@ proc resizeBottom(window: Window) =
     window.height -= correction
 
 proc addMoveResizeButton(window: Window, id: string, style: CursorStyle): Button =
-  let button = window.addWidget(id, Button)
+  let button = window.addNode(id, Button)
 
   if button.init:
     button.cursorStyle = style
@@ -201,22 +201,21 @@ proc addResizeBottomRightButton(window: Window) =
     window.resizeRight()
 
 proc update*(window: Window) =
-  if window.isFreelyPositionable:
-    window.addMoveButton()
-    window.addResizeLeftButton()
-    window.addResizeRightButton()
-    window.addResizeTopButton()
-    window.addResizeBottomButton()
-    window.addResizeTopLeftButton()
-    window.addResizeTopRightButton()
-    window.addResizeBottomLeftButton()
-    window.addResizeBottomRightButton()
+  window.addMoveButton()
+  window.addResizeLeftButton()
+  window.addResizeRightButton()
+  window.addResizeTopButton()
+  window.addResizeBottomButton()
+  window.addResizeTopLeftButton()
+  window.addResizeTopRightButton()
+  window.addResizeBottomLeftButton()
+  window.addResizeBottomRightButton()
 
-    if (window.mousePressed(Left) or
-        window.mousePressed(Middle) or
-        window.mousePressed(Right)) and
-        window.isHoveredIncludingChildren:
-      window.bringToTop()
+  if (window.mousePressed(Left) or
+      window.mousePressed(Middle) or
+      window.mousePressed(Right)) and
+      window.isHoveredIncludingChildren:
+    window.bringToTop()
 
 # Const for now but should probably be in a theme.
 const borderThickness = 1.0
@@ -238,8 +237,8 @@ proc defaultDraw*(window: Window) =
     headerBorderColor = rgb(30, 31, 34),
   )
 
-proc addWindow*(widget: Widget, id: string): Window =
-  let window = widget.addWidget(id, Window)
+proc addWindow*(container: GuiContainer, id: string): Window {.discardable.} =
+  let window = container.addNode(id, Window)
 
   if window.init:
     window.resizeHitSize = 5.0
@@ -250,12 +249,10 @@ proc addWindow*(widget: Widget, id: string): Window =
   window.draw:
     window.defaultDraw()
 
-  window.update()
-
   window
 
-proc addHeader*(window: Window): Widget =
-  let header = window.addWidget("Header", Widget)
+proc addHeader*(window: Window): GuiContainer {.discardable.} =
+  let header = window.addNode("Header", GuiContainer)
   if header.init:
     header.passInput = true
 
@@ -267,8 +264,8 @@ proc addHeader*(window: Window): Widget =
 
   header
 
-proc addBody*(window: Window): Widget =
-  let body = window.addWidget("Body", Widget)
+proc addBody*(window: Window): GuiContainer {.discardable.} =
+  let body = window.addNode("Body", GuiContainer)
   if body.init:
     body.passInput = true
 

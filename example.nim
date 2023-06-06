@@ -2,59 +2,46 @@
 
 import nimgui
 
-let gui = Gui.new()
+let root = GuiRoot.new()
 
 const consolaData = readFile("consola.ttf")
-gui.vg.addFont("consola", consolaData)
+root.vg.addFont("consola", consolaData)
 
-proc highlightOnHoverHook(widget: Widget) =
-  widget.drawHook:
-    if widget.parent != nil and widget.isHovered and not widget.passInput:
-      let gfx = widget.vg
-      gfx.beginPath()
-      gfx.rect(vec2(0.5, 0.5), widget.size)
-      gfx.strokeWidth = 1
-      gfx.strokeColor = rgb(0, 255, 0)
-      gfx.stroke()
-
-  for child in widget.childDrawOrder:
-    child.highlightOnHoverHook()
+proc highlightOnHoverHook(node: GuiNode) =
+  node.drawHook:
+    if node.isHovered and not node.passInput:
+      let vg = node.vg
+      vg.beginPath()
+      vg.rect(vec2(0.5, 0.5), node.size - vec2(1.0, 1.0))
+      vg.strokeWidth = 1
+      vg.strokeColor = rgb(0, 255, 0)
+      vg.stroke()
+  if node of GuiContainer:
+    for child in GuiContainer(node).activeNodes:
+      child.highlightOnHoverHook()
 
 var frames = 0
 
-gui.onFrame:
+let padding = vec2(5, 5)
+
+root.onFrame:
   frames += 1
-  let fpsCount = float(frames) / gui.time
 
-  gui.childSpacing = vec2(5, 5)
-  gui.layoutPosition = vec2(50, 50)
+  let b1 = root.addButton("Button1")
+  b1.position = vec2(50, 50)
+  b1.size = vec2(96, 32)
+  b1.update()
 
-  gui.childSize = vec2(300, 100)
+  let w1 = root.addWindow("Window1")
+  w1.update()
 
-  let b1 = gui.addButton("Button1")
-
-  gui.sameRow()
-
-  for i in gui.grid(4, 4):
-    let button = gui.addButton("GridButton" & $i)
-
-    let text = button.addText("Text")
-    text.size = button.size
-    text.data = $i
-
-  let b2 = gui.addButton("Button2")
-
-  gui.freePosition()
-
-  let fps = gui.addText("Fps")
+  let fps = root.addText("Fps")
+  fps.size = vec2(200, 18)
   fps.alignX = Left
   fps.alignY = Baseline
-  fps.data = $fpsCount
+  fps.data = $(float(frames) / root.time)
+  fps.update()
 
-  gui.freePosition()
+  root.highlightOnHoverHook()
 
-  let window1 = gui.addWindow("Window1")
-
-  gui.highlightOnHoverHook()
-
-gui.run()
+root.run()

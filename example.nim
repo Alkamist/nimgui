@@ -9,31 +9,41 @@ root.vg.addFont("consola", consolaData)
 
 proc highlightOnHoverHook(node: GuiNode) =
   node.drawHook:
-    if node.isHovered and not node.passInput:
+    if not node.isRoot and node.isHovered and not node.passInput:
       let vg = node.vg
       vg.beginPath()
       vg.rect(vec2(0.5, 0.5), node.size - vec2(1.0, 1.0))
       vg.strokeWidth = 1
       vg.strokeColor = rgb(0, 255, 0)
       vg.stroke()
-  if node of GuiContainer:
-    for child in GuiContainer(node).activeNodes:
-      child.highlightOnHoverHook()
+  for child in node.activeChildren:
+    child.highlightOnHoverHook()
 
 var frames = 0
-
-let padding = vec2(5, 5)
 
 root.onFrame:
   frames += 1
 
-  let b1 = root.addButton("Button1")
-  b1.position = vec2(50, 50)
-  b1.size = vec2(96, 32)
-  b1.update()
+  let buttonGrid = root.addNode("ButtonGrid")
+  buttonGrid.position = vec2(100, 50)
+  buttonGrid.size = vec2(400, 400)
+  buttonGrid.layoutGrid(
+    4, 4,
+    spacing = vec2(5, 5),
+    padding = vec2(5, 5),
+  )
 
-  let w1 = root.addWindow("Window1")
-  w1.update()
+  for i in 0 ..< 16:
+    let iteration = $i
+
+    let button = buttonGrid.addButton("GridButton" & iteration)
+    button.update()
+
+    let text = button.addText("Text")
+    text.size = button.size
+    text.alignX = Center
+    text.alignY = Center
+    text.data = iteration
 
   let fps = root.addText("Fps")
   fps.size = vec2(200, 18)
@@ -41,6 +51,9 @@ root.onFrame:
   fps.alignY = Baseline
   fps.data = $(float(frames) / root.time)
   fps.update()
+
+  let window = root.addWindow("Window1")
+  window.update()
 
   root.highlightOnHoverHook()
 

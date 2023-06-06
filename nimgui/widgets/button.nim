@@ -48,8 +48,8 @@ proc update*(button: Button) =
   button.press = false
   button.release = false
 
-proc addButton*(container: GuiContainer, id: string, mouseButton = MouseButton.Left): Button {.discardable.} =
-  let button = container.addNode(id, Button)
+proc addButton*(node: GuiNode, id: string, mouseButton = MouseButton.Left): Button {.discardable.} =
+  let button = node.addNode(id, Button)
 
   button.draw:
     button.defaultDraw()

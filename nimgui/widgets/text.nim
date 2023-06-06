@@ -48,8 +48,8 @@ proc defaultDraw*(text: Text) =
   vg.fontSize = text.fontSize
   vg.text(text.drawPosition, text.data)
 
-proc addText*(container: GuiContainer, id: string): Text {.discardable.} =
-  let text = container.addNode(id, Text)
+proc addText*(node: GuiNode, id: string): Text {.discardable.} =
+  let text = node.addNode(id, Text)
 
   if text.init:
     text.passInput = true

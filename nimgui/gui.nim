@@ -8,9 +8,15 @@ import oswindow; export oswindow
 import vectorgraphics; export vectorgraphics
 
 type
+  GuiLayout = tuple
+    position: Vec2
+    size: Vec2
+
   GuiNode* = ref object of RootObj
     root* {.cursor.}: GuiRoot
-    container* {.cursor.}: GuiContainer
+    parent* {.cursor.}: GuiNode
+    children*: Table[string, GuiNode]
+    activeChildren*: seq[GuiNode]
 
     id*: string
     zIndex*: int
@@ -22,14 +28,14 @@ type
 
     init*: bool
     isHovered*: bool
+    isHoveredIncludingChildren*: bool
     firstAccessThisFrame*: bool
 
-  GuiContainer* = ref object of GuiNode
-    nodes*: Table[string, GuiNode]
-    activeNodes*: seq[GuiNode]
-    isHoveredIncludingChildren*: bool
+    layoutSpacing*: Vec2
+    layoutPadding*: Vec2
+    layoutQueue*: seq[GuiLayout]
 
-  GuiRoot* = ref object of GuiContainer
+  GuiRoot* = ref object of GuiNode
     osWindow*: OsWindow
     vg*: VectorGraphics
     mouseCapture*: GuiNode
@@ -55,7 +61,7 @@ type
 # =================================================================================
 
 
-proc isRoot*(node: GuiNode): bool = node.container == nil
+proc isRoot*(node: GuiNode): bool = node.parent == nil
 
 template x*(node: GuiNode): untyped = node.position.x
 template `x=`*(node: GuiNode, value: untyped): untyped = node.position.x = value
@@ -86,44 +92,43 @@ proc anyKeyReleased*(node: GuiNode): bool = node.root.anyKeyReleased
 proc globalMousePosition*(node: GuiNode): Vec2 = node.root.globalMousePosition
 
 proc globalPosition*(node: GuiNode): Vec2 =
-  let container = node.container
-  if container == nil:
+  let parent = node.parent
+  if parent == nil:
     node.position
   else:
-    container.globalPosition + node.position
+    parent.globalPosition + node.position
 
 proc mousePosition*(node: GuiNode): Vec2 = node.globalMousePosition - node.globalPosition
 proc captureMouse*(node: GuiNode) = node.root.mouseCapture = node
 proc releaseMouse*(node: GuiNode) = node.root.mouseCapture = nil
 
 proc mouseIsInside*(node: GuiNode): bool =
-  rect2(vec2(0, 0), node.size).contains(node.mousePosition)
+  let m = node.mousePosition
+  let size = node.size
+  m.x >= 0 and m.x <= size.x and
+  m.y >= 0 and m.y <= size.y
 
-# proc grid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
-#   let n = vec2(float(columns), float(rows))
-#   let spacings = spacing * (n - 1.0)
-#   let gridPosition = padding
-#   let gridSize = node.size - padding * 2.0
-#   let childSize = (gridSize - spacings) / n
-#   let cellSize = gridSize / n
-
-#   for row in 0 ..< rows:
-#     for column in 0 ..< columns:
-#       let i = row * columns + column
-#       if i >= node.activeNodes.len:
-#         return
-
-#       let child = node.activeNodes[i]
-#       child.size = childSize
-#       child.position = gridPosition + vec2(float(column), float(row)) * cellSize
+proc layoutGrid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
+  let n = vec2(float(columns), float(rows))
+  let spacings = spacing * (n - 1.0)
+  let gridPosition = padding
+  let gridSize = node.size - padding * 2.0
+  let childSize = (gridSize - spacings) / n
+  let cellSize = gridSize / n
+  for row in 0 ..< rows:
+    for column in 0 ..< columns:
+      node.layoutQueue.insert((
+        gridPosition + vec2(float(column), float(row)) * cellSize,
+        childSize,
+      ), 0)
 
 proc bringToTop*(node: GuiNode) =
-  let container = node.container
-  if container == nil:
+  let parent = node.parent
+  if parent == nil:
     return
 
   var topZIndex = low(int)
-  for id, child in container.nodes:
+  for id, child in parent.children:
     if child.zIndex >= topZIndex:
       topZIndex = child.zIndex
 
@@ -156,15 +161,13 @@ proc drawNode(node: GuiNode) =
     node.drawProc(node)
   vg.restoreState()
 
-  if node of GuiContainer:
-    let container = GuiContainer(node)
-    for child in container.activeNodes:
-      child.drawNode()
-    container.activeNodes.setLen(0)
+  for child in node.activeChildren:
+    child.drawNode()
 
   # Set the size back to normal.
   node.size = size
   node.drawProc = nil
+  node.activeChildren.setLen(0)
   node.firstAccessThisFrame = true
 
 template draw*(node: GuiNode, code: untyped): untyped =
@@ -186,73 +189,71 @@ template drawHook*(node: GuiNode, code: untyped): untyped =
         previousDrawProc(widgetBase)
       code
 
+proc applyLayout(parent, child: GuiNode) =
+  if parent.layoutQueue.len > 0:
+    let layout = parent.layoutQueue.pop()
+    child.position = layout.position
+    child.size = layout.size
 
-# =================================================================================
-# GuiContainer
-# =================================================================================
-
-
-proc addNode*(container: GuiContainer, id: string, T: typedesc = GuiNode): T {.discardable.} =
-  if container.nodes.hasKey(id):
+proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T {.discardable.} =
+  if parent.children.hasKey(id):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    result = T(container.nodes[id])
+    result = T(parent.children[id])
     result.init = false
   else:
     result = T()
-    result.root = container.root
-    result.container = container
+    result.root = parent.root
+    result.parent = parent
     result.id = id
     result.init = true
     result.firstAccessThisFrame = true
-    container.nodes[id] = result
+    parent.children[id] = result
 
   if result.firstAccessThisFrame:
-    container.activeNodes.add(result)
+    parent.activeChildren.add(result)
+    parent.applyLayout(result)
     result.firstAccessThisFrame = false
 
-proc sortActiveNodesByZIndex(container: GuiContainer) =
-  container.activeNodes.sort do (x, y: GuiNode) -> int:
+proc sortActiveNodesByZIndex(node: GuiNode) =
+  node.activeChildren.sort do (x, y: GuiNode) -> int:
     cmp(x.zIndex, y.zIndex)
 
 proc updateMouseCaptureHovers(capture: GuiNode) =
-  if capture.container != nil:
-    capture.container.isHoveredIncludingChildren = true
-    capture.container.updateMouseCaptureHovers()
+  if capture.parent != nil:
+    capture.parent.isHoveredIncludingChildren = true
+    capture.parent.updateMouseCaptureHovers()
 
-proc clearHovers(container: GuiContainer) =
-  container.isHovered = false
-  container.isHoveredIncludingChildren = false
-  for node in container.activeNodes:
-    node.isHovered = false
-    if node of GuiContainer:
-      GuiContainer(node).clearHovers()
+proc clearHovers(node: GuiNode) =
+  node.isHovered = false
+  node.isHoveredIncludingChildren = false
+  for child in node.activeChildren:
+    child.isHovered = false
+    child.clearHovers()
 
-proc updateHovers(container: GuiContainer) =
-  let root = container.root
+proc updateHovers(node: GuiNode) =
+  let root = node.root
   let mouseCapture = root.mouseCapture
   if mouseCapture != nil:
-    container.clearHovers()
+    node.clearHovers()
     mouseCapture.isHovered = true
-    if mouseCapture of GuiContainer:
-      GuiContainer(mouseCapture).isHoveredIncludingChildren = true
+    mouseCapture.isHoveredIncludingChildren = true
     root.mouseCapture.updateMouseCaptureHovers()
 
   else:
     var inputConsumed = false
-    for node in container.activeNodes.reversed():
-      node.isHovered =
+    for child in node.activeChildren.reversed():
+      child.isHovered =
         (not inputConsumed) and
-        container.isHoveredIncludingChildren and
-        node.mouseIsInside
+        node.isHoveredIncludingChildren and
+        child.mouseIsInside
 
-      if node.isHovered and not node.passInput:
+      child.isHoveredIncludingChildren = node.isHovered
+
+      if child.isHovered and not child.passInput:
         inputConsumed = true
-        container.isHovered = false
+        node.isHovered = false
 
-      if node of GuiContainer:
-        let nodeAsContainer = GuiContainer(node)
-        nodeAsContainer.isHoveredIncludingChildren = nodeAsContainer.isHovered
-        nodeAsContainer.updateHovers()
+      child.updateHovers()
 
 
 # =================================================================================

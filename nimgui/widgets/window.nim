@@ -5,7 +5,7 @@ import ./button
 import ./frame
 
 type
-  Window* = ref object of GuiContainer
+  Window* = ref object of GuiNode
     headerHeight*: float
     resizeHitSize*: float
     minSize*: Vec2
@@ -237,8 +237,8 @@ proc defaultDraw*(window: Window) =
     headerBorderColor = rgb(30, 31, 34),
   )
 
-proc addWindow*(container: GuiContainer, id: string): Window {.discardable.} =
-  let window = container.addNode(id, Window)
+proc addWindow*(node: GuiNode, id: string): Window {.discardable.} =
+  let window = node.addNode(id, Window)
 
   if window.init:
     window.resizeHitSize = 5.0
@@ -251,8 +251,8 @@ proc addWindow*(container: GuiContainer, id: string): Window {.discardable.} =
 
   window
 
-proc addHeader*(window: Window): GuiContainer {.discardable.} =
-  let header = window.addNode("Header", GuiContainer)
+proc addHeader*(window: Window): GuiNode {.discardable.} =
+  let header = window.addNode("Header")
   if header.init:
     header.passInput = true
 
@@ -264,8 +264,8 @@ proc addHeader*(window: Window): GuiContainer {.discardable.} =
 
   header
 
-proc addBody*(window: Window): GuiContainer {.discardable.} =
-  let body = window.addNode("Body", GuiContainer)
+proc addBody*(window: Window): GuiNode {.discardable.} =
+  let body = window.addNode("Body")
   if body.init:
     body.passInput = true
 

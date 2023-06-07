@@ -213,7 +213,7 @@ proc applyLayout(parent, child: GuiNode) =
     child.position = layout.position
     child.size = layout.size
 
-proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T {.discardable.} =
+proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T =
   if parent.children.hasKey(id):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
     result = T(parent.children[id])
@@ -355,62 +355,68 @@ proc run*(root: GuiRoot) =
 
 
 # =================================================================================
+# Helpers
+# =================================================================================
+
+
+proc makeDiscardable*[T](x: T): T {.discardable.} = x
+
+template createVariant*(T: typedesc, name, behavior: untyped): untyped =
+  proc `name`*(node: GuiNode, id: string): T {.discardable.} =
+    let self {.inject.} = node.addNode(id, T)
+    self.update()
+    behavior
+    self
+
+  template `name`*(node: GuiNode, id: string, code: untyped): T =
+    var child: T
+
+    if true:
+      {.hint[XDeclaredButNotUsed]: off.}
+      child = node.addNode(id, T)
+      let self {.inject.} = child
+      self.update()
+      behavior
+      code
+
+    child.makeDiscardable
+
+
+# =================================================================================
 # Layout
 # =================================================================================
 
 
-proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
-  GuiAnchor(x: x, y: y)
+# proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
+#   GuiAnchor(x: x, y: y)
 
-proc queueLayout*(node: GuiNode, layout: GuiLayout) =
-  node.childLayoutQueue.insert(layout, 0)
+# proc queueLayout*(node: GuiNode, layout: GuiLayout) =
+#   node.childLayoutQueue.insert(layout, 0)
 
-proc queueGrid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
-  if columns < 1 or rows < 1:
-    return
+# proc queueGrid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
+#   if columns < 1 or rows < 1:
+#     return
 
-  # Seems way more complicated than it should be
-  # but it seems to work. I don't know what I'm doing.
-  let n = vec2(float(columns), float(rows))
-  let spacings = spacing * (n - 1.0)
-  let gridPosition = padding
-  let gridSize = node.size - padding * 2.0
-  let childSize = (gridSize - spacings) / n
-  let cellSize = gridSize / n
-  for row in 0 ..< rows:
-    for column in 0 ..< columns:
-      let anchor = anchor(Left, Top)
-      let iteration = vec2(float(column), float(row))
-      let multiplier = iteration / vec2(float(columns), float(rows))
-      let position = gridPosition + iteration * cellSize + multiplier * spacing
-      let size = childSize
-      node.queueLayout(GuiLayout(
-        anchor: anchor,
-        position: position,
-        size: size,
-      ))
-
-# proc queueAbove*(node: GuiNode, distance: float) =
-#   let lastChild = node.lastChild
-#   if lastChild != nil:
-#     let y = lastChild.topLeftPosition.y
-#     node.queueLayout(GuiLayout(
-#       anchor: (none GuiAnchorX, some GuiAnchorY.Bottom),
-#       position: (none float, some y - distance),
-#       size: (none float, none float)
-#     ))
-
-# proc queueBelow*(node: GuiNode, distance: float) =
-#   let lastChild = node.lastChild
-#   if lastChild != nil:
-#     let y = lastChild.topLeftPosition.y
-#     let height = lastChild.height
-#     node.queueLayout(GuiLayout(
-#       anchor: (none GuiAnchorX, some GuiAnchorY.Top),
-#       position: (none float, some y + height + distance),
-#       size: (none float, none float)
-#     ))
-
+#   # Seems way more complicated than it should be
+#   # but it seems to work. I don't know what I'm doing.
+#   let n = vec2(float(columns), float(rows))
+#   let spacings = spacing * (n - 1.0)
+#   let gridPosition = padding
+#   let gridSize = node.size - padding * 2.0
+#   let childSize = (gridSize - spacings) / n
+#   let cellSize = gridSize / n
+#   for row in 0 ..< rows:
+#     for column in 0 ..< columns:
+#       let anchor = anchor(Left, Top)
+#       let iteration = vec2(float(column), float(row))
+#       let multiplier = iteration / vec2(float(columns), float(rows))
+#       let position = gridPosition + iteration * cellSize + multiplier * spacing
+#       let size = childSize
+#       node.queueLayout(GuiLayout(
+#         anchor: anchor,
+#         position: position,
+#         size: size,
+#       ))
 
 
 # =================================================================================

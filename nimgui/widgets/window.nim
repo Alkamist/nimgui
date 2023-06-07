@@ -59,7 +59,7 @@ proc resizeBottom(window: Window) =
     window.height -= correction
 
 proc addMoveResizeButton(window: Window, id: string, style: CursorStyle): Button =
-  let button = window.addNode(id, Button)
+  let button = window.addButton(id)
 
   if button.init:
     button.cursorStyle = style
@@ -76,8 +76,6 @@ proc addMoveButton(window: Window) =
   button.position = vec2(0, 0)
   button.size = vec2(window.width, window.headerHeight)
 
-  button.update()
-
   if button.pressed:
     window.updateGrabState()
 
@@ -89,8 +87,6 @@ proc addResizeLeftButton(window: Window) =
 
   button.position = vec2(0, window.resizeHitSize)
   button.size = vec2(window.resizeHitSize, window.height - window.resizeHitSize * 2.0)
-
-  button.update()
 
   if button.pressed:
     window.updateGrabState()
@@ -104,8 +100,6 @@ proc addResizeRightButton(window: Window) =
   button.position = vec2(window.width - window.resizeHitSize, window.resizeHitSize)
   button.size = vec2(window.resizeHitSize, window.height - window.resizeHitSize * 2.0)
 
-  button.update()
-
   if button.pressed:
     window.updateGrabState()
 
@@ -117,8 +111,6 @@ proc addResizeTopButton(window: Window) =
 
   button.position = vec2(window.resizeHitSize * 2.0, 0)
   button.size = vec2(window.width - window.resizeHitSize * 4.0, window.resizeHitSize)
-
-  button.update()
 
   if button.pressed:
     window.updateGrabState()
@@ -132,8 +124,6 @@ proc addResizeBottomButton(window: Window) =
   button.position = vec2(window.resizeHitSize * 2.0, window.height - window.resizeHitSize)
   button.size = vec2(window.width - window.resizeHitSize * 4.0, window.resizeHitSize)
 
-  button.update()
-
   if button.pressed:
     window.updateGrabState()
 
@@ -145,8 +135,6 @@ proc addResizeTopLeftButton(window: Window) =
 
   button.position = vec2(0, 0)
   button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
-
-  button.update()
 
   if button.pressed:
     window.updateGrabState()
@@ -161,8 +149,6 @@ proc addResizeTopRightButton(window: Window) =
   button.position = vec2(window.width - window.resizeHitSize * 2.0, 0)
   button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
 
-  button.update()
-
   if button.pressed:
     window.updateGrabState()
 
@@ -176,8 +162,6 @@ proc addResizeBottomLeftButton(window: Window) =
   button.position = vec2(0, window.height - window.resizeHitSize)
   button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
 
-  button.update()
-
   if button.pressed:
     window.updateGrabState()
 
@@ -190,8 +174,6 @@ proc addResizeBottomRightButton(window: Window) =
 
   button.position = vec2(window.width - window.resizeHitSize * 2.0, window.height - window.resizeHitSize)
   button.size = vec2(window.resizeHitSize * 2.0, window.resizeHitSize)
-
-  button.update()
 
   if button.pressed:
     window.updateGrabState()
@@ -220,7 +202,7 @@ proc update*(window: Window) =
 # Const for now but should probably be in a theme.
 const borderThickness = 1.0
 const cornerRadius = 4.0
-const roundingInset = (1.0 - sin(45.0.degToRad)) * cornerRadius
+# const roundingInset = (1.0 - sin(45.0.degToRad)) * cornerRadius
 
 proc defaultDraw*(window: Window) =
   let gfx = window.vg
@@ -237,45 +219,41 @@ proc defaultDraw*(window: Window) =
     headerBorderColor = rgb(30, 31, 34),
   )
 
-proc addWindow*(node: GuiNode, id: string): Window {.discardable.} =
-  let window = node.addNode(id, Window)
+Window.createVariant(addWindow):
+  self.draw:
+    self.defaultDraw()
 
-  if window.init:
-    window.resizeHitSize = 5.0
-    window.headerHeight = 22.0
-    window.size = vec2(300, 200)
-    window.minSize = vec2(200, window.headerHeight * 2.0)
+  if self.init:
+    self.resizeHitSize = 5.0
+    self.headerHeight = 22.0
+    self.size = vec2(300, 200)
+    self.minSize = vec2(200, self.headerHeight * 2.0)
 
-  window.draw:
-    window.defaultDraw()
+# proc addHeader*(window: Window): GuiNode {.discardable.} =
+#   let header = window.addNode("Header")
+#   if header.init:
+#     header.passInput = true
 
-  window
+#   header.position = vec2(borderThickness, borderThickness)
+#   header.size = vec2(
+#     window.width - 2.0 * borderThickness,
+#     window.headerHeight - borderThickness,
+#   )
 
-proc addHeader*(window: Window): GuiNode {.discardable.} =
-  let header = window.addNode("Header")
-  if header.init:
-    header.passInput = true
+#   header
 
-  header.position = vec2(borderThickness, borderThickness)
-  header.size = vec2(
-    window.width - 2.0 * borderThickness,
-    window.headerHeight - borderThickness,
-  )
+# proc addBody*(window: Window): GuiNode {.discardable.} =
+#   let body = window.addNode("Body")
+#   if body.init:
+#     body.passInput = true
 
-  header
+#   body.position = vec2(
+#     borderThickness + roundingInset,
+#     window.headerHeight + borderThickness,
+#   )
+#   body.size = vec2(
+#     window.width - 2.0 * (borderThickness + roundingInset),
+#     window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
+#   )
 
-proc addBody*(window: Window): GuiNode {.discardable.} =
-  let body = window.addNode("Body")
-  if body.init:
-    body.passInput = true
-
-  body.position = vec2(
-    borderThickness + roundingInset,
-    window.headerHeight + borderThickness,
-  )
-  body.size = vec2(
-    window.width - 2.0 * (borderThickness + roundingInset),
-    window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
-  )
-
-  body
+#   body

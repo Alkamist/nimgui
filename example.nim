@@ -24,40 +24,20 @@ var frames = 0
 root.onFrame:
   frames += 1
 
-  let grid = root.addNode("ButtonGrid")
-  grid.position = vec2(100, 50)
-  grid.size = vec2(400, 400)
-  grid.queueGrid(
-    4, 4,
-    spacing = vec2(5, 5),
-    padding = vec2(5, 5),
-  )
+  root.addButton("Button1"):
+    self.anchor.x = Center
+    self.x = root.width * 0.5
+    self.size = vec2(96, 32)
+    if self.pressed:
+      echo "1"
 
-  for i in 0 ..< 16:
-    let iteration = $i
+  root.addText("Fps"):
+    self.size = vec2(200, 18)
+    self.alignX = Left
+    self.alignY = Baseline
+    self.data = $(float(frames) / root.time)
 
-    let button = grid.addButton("GridButton" & iteration)
-    button.update()
-
-    let text = button.addText("Text")
-    text.size = button.size
-    text.alignX = Center
-    text.alignY = Center
-    text.data = iteration
-
-  let button = root.addButton("Button")
-  button.size = vec2(grid.width, 50)
-  button.update()
-
-  let fps = root.addText("Fps")
-  fps.size = vec2(200, 18)
-  fps.alignX = Left
-  fps.alignY = Baseline
-  fps.data = $(float(frames) / root.time)
-  fps.update()
-
-  let window = root.addWindow("Window1")
-  window.update()
+  root.addWindow("Window1")
 
   root.highlightOnHoverHook()
 

@@ -45,16 +45,9 @@ proc update*(button: Button) =
     if button.isHovered:
       button.clicked = true
 
-  button.press = false
-  button.release = false
+Button.createVariant(addButton):
+  self.draw:
+    self.defaultDraw()
 
-proc addButton*(node: GuiNode, id: string, mouseButton = MouseButton.Left): Button {.discardable.} =
-  let button = node.addNode(id, Button)
-
-  button.draw:
-    button.defaultDraw()
-
-  button.press = button.mousePressed(mouseButton)
-  button.release = button.mouseReleased(mouseButton)
-
-  button
+  self.press = self.mousePressed(Left)
+  self.release = self.mouseReleased(Left)

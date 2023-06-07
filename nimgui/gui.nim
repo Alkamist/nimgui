@@ -124,9 +124,16 @@ proc globalTopLeftPosition*(node: GuiNode): Vec2 =
   else:
     parent.globalTopLeftPosition + node.topLeftPosition
 
-proc mousePosition*(node: GuiNode): Vec2 = node.globalMousePosition - node.globalTopLeftPosition
-proc captureMouse*(node: GuiNode) = node.root.mouseCapture = node
-proc releaseMouse*(node: GuiNode) = node.root.mouseCapture = nil
+proc mousePosition*(node: GuiNode): Vec2 =
+  node.globalMousePosition - node.globalTopLeftPosition
+
+proc captureMouse*(node: GuiNode) =
+  if not node.passInput:
+    node.root.mouseCapture = node
+
+proc releaseMouse*(node: GuiNode) =
+  if not node.passInput:
+    node.root.mouseCapture = nil
 
 proc previous*(node: GuiNode): GuiNode =
   if node.activeChildren.len > 1:
@@ -308,9 +315,14 @@ proc update(root: GuiRoot) =
   root.timePrevious = root.time
   root.time = root.osWindow.time
 
+  let mouseCapture = root.mouseCapture
+
   var inputConsumed = false
   for node in root.drawOrder.reversed:
-    node.isHovered = node.mouseIsInside and not inputConsumed
+    if mouseCapture == nil:
+      node.isHovered = node.mouseIsInside and not inputConsumed
+    else:
+      node.isHovered = node == mouseCapture
 
     if node.isHovered:
       node.isHoveredIncludingChildren = true

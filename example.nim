@@ -9,8 +9,8 @@ root.vg.addFont("consola", consolaData)
 
 proc highlightOnHoverHook(node: GuiNode) =
   node.drawHook:
-    # if node.isHovered:
-    if node.isHoveredIncludingChildren:
+    if node.isHovered:
+    # if node.isHoveredIncludingChildren:
       let vg = node.vg
       vg.beginPath()
       vg.rect(vec2(0.5, 0.5), node.size - vec2(1.0, 1.0))

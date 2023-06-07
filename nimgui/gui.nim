@@ -8,9 +8,24 @@ import oswindow; export oswindow
 import vectorgraphics; export vectorgraphics
 
 type
-  GuiLayout = tuple
-    position: Vec2
-    size: Vec2
+  GuiAnchorX* = enum
+    Left
+    Center
+    Right
+
+  GuiAnchorY* = enum
+    Top
+    Center
+    Bottom
+
+  GuiAnchor* = object
+    x*: GuiAnchorX
+    y*: GuiAnchorY
+
+  GuiLayout* = object
+    anchor*: GuiAnchor
+    position*: Vec2
+    size*: Vec2
 
   GuiNode* = ref object of RootObj
     root* {.cursor.}: GuiRoot
@@ -23,6 +38,7 @@ type
     passInput*: bool
     position*: Vec2
     size*: Vec2
+    anchor*: GuiAnchor
     drawProc*: proc(node: GuiNode)
     cursorStyle*: CursorStyle
 
@@ -31,9 +47,7 @@ type
     isHoveredIncludingChildren*: bool
     firstAccessThisFrame*: bool
 
-    layoutSpacing*: Vec2
-    layoutPadding*: Vec2
-    layoutQueue*: seq[GuiLayout]
+    childLayoutQueue*: seq[GuiLayout]
 
   GuiRoot* = ref object of GuiNode
     osWindow*: OsWindow
@@ -89,38 +103,40 @@ proc keyReleased*(node: GuiNode, key: KeyboardKey): bool = node.root.keyReleased
 proc anyKeyPressed*(node: GuiNode): bool = node.root.anyKeyPressed
 proc anyKeyReleased*(node: GuiNode): bool = node.root.anyKeyReleased
 
+proc topLeftPosition*(node: GuiNode): Vec2 =
+  let anchor = node.anchor
+  let left = case anchor.x:
+    of Left: node.x
+    of Center: node.x - node.width * 0.5
+    of Right: node.x - node.width
+  let top = case anchor.y:
+    of Top: node.y
+    of Center: node.y - node.height * 0.5
+    of Bottom: node.y - node.height
+  vec2(left, top)
+
 proc globalMousePosition*(node: GuiNode): Vec2 = node.root.globalMousePosition
 
-proc globalPosition*(node: GuiNode): Vec2 =
+proc globalTopLeftPosition*(node: GuiNode): Vec2 =
   let parent = node.parent
   if parent == nil:
     node.position
   else:
-    parent.globalPosition + node.position
+    parent.globalTopLeftPosition + node.topLeftPosition
 
-proc mousePosition*(node: GuiNode): Vec2 = node.globalMousePosition - node.globalPosition
+proc mousePosition*(node: GuiNode): Vec2 = node.globalMousePosition - node.globalTopLeftPosition
 proc captureMouse*(node: GuiNode) = node.root.mouseCapture = node
 proc releaseMouse*(node: GuiNode) = node.root.mouseCapture = nil
+
+proc lastChild*(node: GuiNode): GuiNode =
+  if node.activeChildren.len > 0:
+    return node.activeChildren[^1]
 
 proc mouseIsInside*(node: GuiNode): bool =
   let m = node.mousePosition
   let size = node.size
   m.x >= 0 and m.x <= size.x and
   m.y >= 0 and m.y <= size.y
-
-proc layoutGrid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
-  let n = vec2(float(columns), float(rows))
-  let spacings = spacing * (n - 1.0)
-  let gridPosition = padding
-  let gridSize = node.size - padding * 2.0
-  let childSize = (gridSize - spacings) / n
-  let cellSize = gridSize / n
-  for row in 0 ..< rows:
-    for column in 0 ..< columns:
-      node.layoutQueue.insert((
-        gridPosition + vec2(float(column), float(row)) * cellSize,
-        childSize,
-      ), 0)
 
 proc bringToTop*(node: GuiNode) =
   let parent = node.parent
@@ -156,7 +172,7 @@ proc drawNode(node: GuiNode) =
   node.size = size.pixelAlign(scale)
 
   vg.saveState()
-  vg.translate(node.globalPosition.pixelAlign(scale))
+  vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
   if node.drawProc != nil:
     node.drawProc(node)
   vg.restoreState()
@@ -168,6 +184,7 @@ proc drawNode(node: GuiNode) =
   node.size = size
   node.drawProc = nil
   node.activeChildren.setLen(0)
+  node.childLayoutQueue.setLen(0)
   node.firstAccessThisFrame = true
 
 template draw*(node: GuiNode, code: untyped): untyped =
@@ -190,8 +207,9 @@ template drawHook*(node: GuiNode, code: untyped): untyped =
       code
 
 proc applyLayout(parent, child: GuiNode) =
-  if parent.layoutQueue.len > 0:
-    let layout = parent.layoutQueue.pop()
+  if parent.childLayoutQueue.len > 0:
+    let layout = parent.childLayoutQueue.pop()
+    child.anchor = layout.anchor
     child.position = layout.position
     child.size = layout.size
 
@@ -334,6 +352,65 @@ template onFrame*(root: GuiRoot, code: untyped): untyped =
 
 proc run*(root: GuiRoot) =
   root.osWindow.run()
+
+
+# =================================================================================
+# Layout
+# =================================================================================
+
+
+proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
+  GuiAnchor(x: x, y: y)
+
+proc queueLayout*(node: GuiNode, layout: GuiLayout) =
+  node.childLayoutQueue.insert(layout, 0)
+
+proc queueGrid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
+  if columns < 1 or rows < 1:
+    return
+
+  # Seems way more complicated than it should be
+  # but it seems to work. I don't know what I'm doing.
+  let n = vec2(float(columns), float(rows))
+  let spacings = spacing * (n - 1.0)
+  let gridPosition = padding
+  let gridSize = node.size - padding * 2.0
+  let childSize = (gridSize - spacings) / n
+  let cellSize = gridSize / n
+  for row in 0 ..< rows:
+    for column in 0 ..< columns:
+      let anchor = anchor(Left, Top)
+      let iteration = vec2(float(column), float(row))
+      let multiplier = iteration / vec2(float(columns), float(rows))
+      let position = gridPosition + iteration * cellSize + multiplier * spacing
+      let size = childSize
+      node.queueLayout(GuiLayout(
+        anchor: anchor,
+        position: position,
+        size: size,
+      ))
+
+# proc queueAbove*(node: GuiNode, distance: float) =
+#   let lastChild = node.lastChild
+#   if lastChild != nil:
+#     let y = lastChild.topLeftPosition.y
+#     node.queueLayout(GuiLayout(
+#       anchor: (none GuiAnchorX, some GuiAnchorY.Bottom),
+#       position: (none float, some y - distance),
+#       size: (none float, none float)
+#     ))
+
+# proc queueBelow*(node: GuiNode, distance: float) =
+#   let lastChild = node.lastChild
+#   if lastChild != nil:
+#     let y = lastChild.topLeftPosition.y
+#     let height = lastChild.height
+#     node.queueLayout(GuiLayout(
+#       anchor: (none GuiAnchorX, some GuiAnchorY.Top),
+#       position: (none float, some y + height + distance),
+#       size: (none float, none float)
+#     ))
+
 
 
 # =================================================================================

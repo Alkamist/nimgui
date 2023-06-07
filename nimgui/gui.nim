@@ -219,7 +219,6 @@ proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T =
 
   if result.firstAccessThisFrame:
     parent.activeChildren.add(result)
-    result.firstAccessThisFrame = false
 
 proc sortActiveNodesByZIndex(node: GuiNode) =
   node.activeChildren.sort do (x, y: GuiNode) -> int:
@@ -356,6 +355,7 @@ template createVariant*(ParentT, ChildT: typedesc, name, behavior: untyped): unt
     when compiles(self.update()):
       self.update()
     behavior
+    self.firstAccessThisFrame = false
     self
 
   template `name`*(node: ParentT, id: string, code: untyped): ChildT =
@@ -369,6 +369,7 @@ template createVariant*(ParentT, ChildT: typedesc, name, behavior: untyped): unt
         self.update()
       behavior
       code
+      self.firstAccessThisFrame = false
 
     child.makeDiscardable
 
@@ -378,6 +379,7 @@ template createVariantWithId*(id: string, ParentT, ChildT: typedesc, name, behav
     when compiles(self.update()):
       self.update()
     behavior
+    self.firstAccessThisFrame = false
     self
 
   template `name`*(node: ParentT, code: untyped): ChildT =
@@ -391,6 +393,7 @@ template createVariantWithId*(id: string, ParentT, ChildT: typedesc, name, behav
         self.update()
       behavior
       code
+      self.firstAccessThisFrame = false
 
     child.makeDiscardable
 

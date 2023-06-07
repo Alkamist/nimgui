@@ -9,7 +9,8 @@ root.vg.addFont("consola", consolaData)
 
 proc highlightOnHoverHook(node: GuiNode) =
   node.drawHook:
-    if node.isHovered:
+    # if node.isHovered:
+    if node.isHoveredIncludingChildren:
       let vg = node.vg
       vg.beginPath()
       vg.rect(vec2(0.5, 0.5), node.size - vec2(1.0, 1.0))
@@ -50,13 +51,14 @@ root.onFrame:
   let window = root.addWindow("Window1")
 
   let button2 = window.addButton("Button2")
+  button2.zIndex = -1
   button2.position = vec2(200, 200)
   button2.size = vec2(96, 32)
 
-  # let fps = root.addText("Fps")
-  # fps.textAlignment = textAlignment(Left, Top)
-  # fps.size = vec2(200, fps.lineHeight)
-  # fps.data = $(float(frames) / root.time)
+  let fps = root.addText("Fps")
+  fps.textAlignment = textAlignment(Left, Top)
+  fps.size = vec2(200, fps.lineHeight)
+  fps.data = $(float(frames) / root.time)
 
   root.highlightOnHoverHook()
 

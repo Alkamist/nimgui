@@ -242,18 +242,30 @@ proc new*(_: typedesc[GuiRoot]): GuiRoot =
   result.attachToOsWindow()
 
 proc calculateDrawOrder(node: GuiNode): seq[GuiNode] =
-  result.add(node)
+  var drawOrder = newSeq[GuiNode](node.activeChildren.len + 1)
 
-  var childDrawOrder = node.activeChildren
-  childDrawOrder.sort do (x, y: GuiNode) -> int:
+  drawOrder[0] = node
+  for i in 0 ..< node.activeChildren.len:
+    drawOrder[i + 1] = node.activeChildren[i]
+
+  drawOrder.sort do (x, y: GuiNode) -> int:
     cmp(x.zIndex, y.zIndex)
 
-  for child in childDrawOrder:
-    for childChild in child.calculateDrawOrder():
-      result.add(childChild)
+  for n in drawOrder:
+    if n == node:
+      result.add(node)
+    else:
+      for child in n.calculateDrawOrder():
+        result.add(child)
 
 proc updateDrawOrder(root: GuiRoot) =
   root.drawOrder = root.calculateDrawOrder()
+
+proc updateParentIsHoveredIncludingChildren(node: GuiNode) =
+  let parent = node.parent
+  if parent != nil:
+    parent.isHoveredIncludingChildren = true
+    parent.updateParentIsHoveredIncludingChildren()
 
 proc update(root: GuiRoot) =
   let vg = root.vg
@@ -306,14 +318,14 @@ proc update(root: GuiRoot) =
         inputConsumed = true
         node.root.activeCursorStyle = node.cursorStyle
 
-    if node.isHoveredIncludingChildren and node.parent != nil:
-      node.parent.isHoveredIncludingChildren = true
+    if node.isHoveredIncludingChildren:
+      node.updateParentIsHoveredIncludingChildren()
 
     node.drawProc = nil
     node.activeChildren.setLen(0)
     node.accessCount = 0
 
-  if root.isHoveredIncludingChildren:
+  if root.mouseIsInside:
     root.osWindow.setCursorStyle(root.activeCursorStyle)
 
   root.mousePresses.setLen(0)

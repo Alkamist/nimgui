@@ -3,7 +3,7 @@
 import ../gui
 
 type
-  Button* = ref object of GuiNode
+  GuiButton* = ref object of GuiNode
     isDown*: bool
     press*: bool
     release*: bool
@@ -12,7 +12,7 @@ type
     clicked*: bool
     wasDown: bool
 
-proc defaultDraw*(button: Button) =
+proc defaultDraw*(button: GuiButton) =
   let vg = button.vg
 
   template drawBody(color: Color): untyped =
@@ -27,7 +27,7 @@ proc defaultDraw*(button: Button) =
   elif button.isHovered:
     drawBody(rgba(255, 255, 255, 8))
 
-proc update*(button: Button) =
+proc update*(button: GuiButton) =
   button.wasDown = button.isDown
   button.pressed = false
   button.released = false
@@ -45,9 +45,10 @@ proc update*(button: Button) =
     if button.isHovered:
       button.clicked = true
 
-Button.createVariant(addButton):
+createVariant(GuiNode, GuiButton, addButton):
   self.draw:
     self.defaultDraw()
 
-  self.press = self.mousePressed(Left)
-  self.release = self.mouseReleased(Left)
+  if self.firstAccessThisFrame:
+    self.press = self.mousePressed(Left)
+    self.release = self.mouseReleased(Left)

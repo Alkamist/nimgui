@@ -350,21 +350,45 @@ proc run*(root: GuiRoot) =
 
 proc makeDiscardable*[T](x: T): T {.discardable.} = x
 
-template createVariant*(T: typedesc, name, behavior: untyped): untyped =
-  proc `name`*(node: GuiNode, id: string): T {.discardable.} =
-    let self {.inject.} = node.addNode(id, T)
-    self.update()
+template createVariant*(ParentT, ChildT: typedesc, name, behavior: untyped): untyped =
+  proc `name`*(node: ParentT, id: string): ChildT {.discardable.} =
+    let self {.inject.} = node.addNode(id, ChildT)
+    when compiles(self.update()):
+      self.update()
     behavior
     self
 
-  template `name`*(node: GuiNode, id: string, code: untyped): T =
-    var child: T
+  template `name`*(node: ParentT, id: string, code: untyped): ChildT =
+    var child: ChildT
 
     if true:
       {.hint[XDeclaredButNotUsed]: off.}
-      child = node.addNode(id, T)
+      child = node.addNode(id, ChildT)
       let self {.inject.} = child
+      when compiles(self.update()):
+        self.update()
+      behavior
+      code
+
+    child.makeDiscardable
+
+template createVariantWithId*(id: string, ParentT, ChildT: typedesc, name, behavior: untyped): untyped =
+  proc `name`*(node: ParentT): ChildT {.discardable.} =
+    let self {.inject.} = node.addNode(id, ChildT)
+    when compiles(self.update()):
       self.update()
+    behavior
+    self
+
+  template `name`*(node: ParentT, code: untyped): ChildT =
+    var child: ChildT
+
+    if true:
+      {.hint[XDeclaredButNotUsed]: off.}
+      child = node.addNode(id, ChildT)
+      let self {.inject.} = child
+      when compiles(self.update()):
+        self.update()
       behavior
       code
 

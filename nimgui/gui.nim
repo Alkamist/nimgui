@@ -45,7 +45,7 @@ type
     init*: bool
     isHovered*: bool
     isHoveredIncludingChildren*: bool
-    firstAccessThisFrame*: bool
+    accessCount*: int
 
   GuiRoot* = ref object of GuiNode
     osWindow*: OsWindow
@@ -66,6 +66,8 @@ type
     textInput*: string
     onFrameProc*: proc(root: GuiRoot)
     activeCursorStyle: CursorStyle
+    mouseHits*: seq[GuiNode]
+    drawOrder*: seq[GuiNode]
 
 
 # =================================================================================
@@ -131,10 +133,13 @@ proc previous*(node: GuiNode): GuiNode =
     return node.activeChildren[^2]
 
 proc mouseIsInside*(node: GuiNode): bool =
-  let m = node.mousePosition
-  let size = node.size
-  m.x >= 0 and m.x <= size.x and
-  m.y >= 0 and m.y <= size.y
+  if node.isRoot:
+    node.root.osWindow.isHovered
+  else:
+    let m = node.mousePosition
+    let size = node.size
+    m.x >= 0 and m.x <= size.x and
+    m.y >= 0 and m.y <= size.y
 
 proc bringToTop*(node: GuiNode) =
   let parent = node.parent
@@ -156,33 +161,6 @@ proc pixelAlign(position: Vec2, contentScale: float): Vec2 =
     position.x.pixelAlign(contentScale),
     position.y.pixelAlign(contentScale),
   )
-
-proc drawNode(node: GuiNode) =
-  let vg = node.vg
-
-  if node.isHovered and not node.passInput:
-    node.root.activeCursorStyle = node.cursorStyle
-
-  let scale = node.root.contentScale
-
-  # Pixel align the node's size for the draw call so it is crisp.
-  let size = node.size
-  node.size = size.pixelAlign(scale)
-
-  vg.saveState()
-  vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
-  if node.drawProc != nil:
-    node.drawProc(node)
-  vg.restoreState()
-
-  for child in node.activeChildren:
-    child.drawNode()
-
-  # Set the size back to normal.
-  node.size = size
-  node.drawProc = nil
-  node.activeChildren.setLen(0)
-  node.firstAccessThisFrame = true
 
 template draw*(node: GuiNode, code: untyped): untyped =
   if true:
@@ -214,52 +192,12 @@ proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T =
     result.parent = parent
     result.id = id
     result.init = true
-    result.firstAccessThisFrame = true
     parent.children[id] = result
 
-  if result.firstAccessThisFrame:
+  result.accessCount += 1
+
+  if result.accessCount == 1:
     parent.activeChildren.add(result)
-
-proc sortActiveNodesByZIndex(node: GuiNode) =
-  node.activeChildren.sort do (x, y: GuiNode) -> int:
-    cmp(x.zIndex, y.zIndex)
-
-proc updateMouseCaptureHovers(capture: GuiNode) =
-  if capture.parent != nil:
-    capture.parent.isHoveredIncludingChildren = true
-    capture.parent.updateMouseCaptureHovers()
-
-proc clearHovers(node: GuiNode) =
-  node.isHovered = false
-  node.isHoveredIncludingChildren = false
-  for child in node.activeChildren:
-    child.isHovered = false
-    child.clearHovers()
-
-proc updateHovers(node: GuiNode) =
-  let root = node.root
-  let mouseCapture = root.mouseCapture
-  if mouseCapture != nil:
-    node.clearHovers()
-    mouseCapture.isHovered = true
-    mouseCapture.isHoveredIncludingChildren = true
-    root.mouseCapture.updateMouseCaptureHovers()
-
-  else:
-    var inputConsumed = false
-    for child in node.activeChildren.reversed():
-      child.isHovered =
-        (not inputConsumed) and
-        node.isHoveredIncludingChildren and
-        child.mouseIsInside
-
-      child.isHoveredIncludingChildren = node.isHovered
-
-      if child.isHovered and not child.passInput:
-        inputConsumed = true
-        node.isHovered = false
-
-      child.updateHovers()
 
 
 # =================================================================================
@@ -303,22 +241,77 @@ proc new*(_: typedesc[GuiRoot]): GuiRoot =
 
   result.attachToOsWindow()
 
+proc calculateDrawOrder(node: GuiNode): seq[GuiNode] =
+  result.add(node)
+
+  var childDrawOrder = node.activeChildren
+  childDrawOrder.sort do (x, y: GuiNode) -> int:
+    cmp(x.zIndex, y.zIndex)
+
+  for child in childDrawOrder:
+    for childChild in child.calculateDrawOrder():
+      result.add(childChild)
+
+proc updateDrawOrder(root: GuiRoot) =
+  root.drawOrder = root.calculateDrawOrder()
+
 proc update(root: GuiRoot) =
-  root.time = root.osWindow.time
-  root.isHoveredIncludingChildren = root.osWindow.isHovered
-  root.isHovered = root.isHoveredIncludingChildren
+  let vg = root.vg
 
   let (pixelWidth, pixelHeight) = root.osWindow.size
   root.vg.beginFrame(pixelWidth, pixelHeight, root.contentScale)
 
+  # Run the gui logic.
   if root.onFrameProc != nil:
     root.onFrameProc(root)
 
-  root.sortActiveNodesByZIndex()
-  root.updateHovers()
-  root.drawNode()
+  # Recursively unpack the nodes active this frame into
+  # a flat buffer that is sorted by draw order.
+  root.updateDrawOrder()
 
-  root.vg.endFrame()
+  # Draw each node in order.
+  for node in root.drawOrder:
+    let scale = node.root.contentScale
+
+    # Pixel align the node's size for the draw call so it is crisp.
+    let size = node.size
+    node.size = size.pixelAlign(scale)
+
+    vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
+
+    if node.drawProc != nil:
+      node.drawProc(node)
+
+    vg.resetTransform()
+
+    # Set the size back to normal.
+    node.size = size
+
+    # Clear this state here so it can be set later.
+    node.isHoveredIncludingChildren = false
+
+  vg.endFrame()
+
+  # Prepare the root and other nodes for the next frame
+  root.timePrevious = root.time
+  root.time = root.osWindow.time
+
+  var inputConsumed = false
+  for node in root.drawOrder.reversed:
+    node.isHovered = node.mouseIsInside and not inputConsumed
+
+    if node.isHovered:
+      node.isHoveredIncludingChildren = true
+      if not node.passInput:
+        inputConsumed = true
+        node.root.activeCursorStyle = node.cursorStyle
+
+    if node.isHoveredIncludingChildren and node.parent != nil:
+      node.parent.isHoveredIncludingChildren = true
+
+    node.drawProc = nil
+    node.activeChildren.setLen(0)
+    node.accessCount = 0
 
   if root.isHoveredIncludingChildren:
     root.osWindow.setCursorStyle(root.activeCursorStyle)
@@ -330,7 +323,6 @@ proc update(root: GuiRoot) =
   root.textInput.setLen(0)
   root.mouseWheel = vec2(0, 0)
   root.globalMousePositionPrevious = root.globalMousePosition
-  root.timePrevious = root.time
 
 template onFrame*(root: GuiRoot, code: untyped): untyped =
   root.onFrameProc = proc(argGui: GuiRoot) =
@@ -343,62 +335,6 @@ proc run*(root: GuiRoot) =
 
 
 # =================================================================================
-# Helpers
-# =================================================================================
-
-
-proc makeDiscardable*[T](x: T): T {.discardable.} = x
-
-template createVariant*(ParentT, ChildT: typedesc, name, behavior: untyped): untyped =
-  proc `name`*(node: ParentT, id: string): ChildT {.discardable.} =
-    let self {.inject.} = node.addNode(id, ChildT)
-    when compiles(self.update()):
-      self.update()
-    behavior
-    self.firstAccessThisFrame = false
-    self
-
-  template `name`*(node: ParentT, id: string, code: untyped): ChildT =
-    var child: ChildT
-
-    if true:
-      {.hint[XDeclaredButNotUsed]: off.}
-      child = node.addNode(id, ChildT)
-      let self {.inject.} = child
-      when compiles(self.update()):
-        self.update()
-      behavior
-      code
-      self.firstAccessThisFrame = false
-
-    child.makeDiscardable
-
-template createVariantWithId*(id: string, ParentT, ChildT: typedesc, name, behavior: untyped): untyped =
-  proc `name`*(node: ParentT): ChildT {.discardable.} =
-    let self {.inject.} = node.addNode(id, ChildT)
-    when compiles(self.update()):
-      self.update()
-    behavior
-    self.firstAccessThisFrame = false
-    self
-
-  template `name`*(node: ParentT, code: untyped): ChildT =
-    var child: ChildT
-
-    if true:
-      {.hint[XDeclaredButNotUsed]: off.}
-      child = node.addNode(id, ChildT)
-      let self {.inject.} = child
-      when compiles(self.update()):
-        self.update()
-      behavior
-      code
-      self.firstAccessThisFrame = false
-
-    child.makeDiscardable
-
-
-# =================================================================================
 # Placement
 # =================================================================================
 
@@ -406,7 +342,7 @@ template createVariantWithId*(id: string, ParentT, ChildT: typedesc, name, behav
 proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
   GuiAnchor(x: x, y: y)
 
-iterator gridPlacement*(columns, rows: int, size, spacing: Vec2, padding = vec2(0, 0)): tuple[i: int, placement: GuiPlacement] =
+iterator grid*(columns, rows: int, size, spacing: Vec2, padding = vec2(0, 0)): tuple[i: int, placement: GuiPlacement] =
   if columns > 0 and rows > 0:
     let n = vec2(float(columns), float(rows))
     let spacings = spacing * (n - 1.0)

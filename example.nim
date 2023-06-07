@@ -9,7 +9,7 @@ root.vg.addFont("consola", consolaData)
 
 proc highlightOnHoverHook(node: GuiNode) =
   node.drawHook:
-    if not node.isRoot and node.isHovered and not node.passInput:
+    if node.isHovered:
       let vg = node.vg
       vg.beginPath()
       vg.rect(vec2(0.5, 0.5), node.size - vec2(1.0, 1.0))
@@ -24,27 +24,39 @@ var frames = 0
 root.onFrame:
   frames += 1
 
-  # root.addButton("Button1"):
-  #   self.anchor.x = Center
-  #   self.x = root.width * 0.5
-  #   self.size = vec2(96, 32)
-  #   if self.pressed:
-  #     echo "1"
+  let button1 = root.addButton("Button1")
+
+  button1.anchor = anchor(Center, Center)
+  button1.position = vec2(root.width * 0.5, root.height * 0.5)
+  button1.size = vec2(96, 32)
+
+  if button1.pressed:
+    echo "1"
 
   # root.addButton("Button2"):
   #   self.placement = root.previous.placement
   #   self.y += self.height + 5
 
-  # for i, placement in gridPlacement(4, 4, vec2(500, 500), vec2(5, 5), vec2(10, 10)):
+  # for i, placement in grid(4, 4, vec2(500, 500), vec2(5, 5), vec2(10, 10)):
   #   root.addButton("GridButton" & $i):
   #     self.placement = placement
-  #     self.position += vec2(100, 100)
+  #     self.position += vec2(50, 50)
 
-  root.addWindow("Window1"):
-    self.addBody:
-      self.addText("Fps"):
-        self.size = self.parent.size
-        self.data = $(float(frames) / root.time)
+  #     let button = self
+  #     self.addText("Text"):
+  #       self.size = button.size
+  #       self.data = $i
+
+  let window = root.addWindow("Window1")
+
+  let button2 = window.addButton("Button2")
+  button2.position = vec2(200, 200)
+  button2.size = vec2(96, 32)
+
+  # let fps = root.addText("Fps")
+  # fps.textAlignment = textAlignment(Left, Top)
+  # fps.size = vec2(200, fps.lineHeight)
+  # fps.data = $(float(frames) / root.time)
 
   root.highlightOnHoverHook()
 

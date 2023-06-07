@@ -47,13 +47,18 @@ proc defaultDraw*(text: GuiText) =
   vg.fontSize = text.fontSize
   vg.text(text.drawPosition, text.data)
 
-createVariant(GuiNode, GuiText, addText):
-  self.draw:
-    self.defaultDraw()
+proc addText*(node: GuiNode, id: string): GuiText {.discardable.} =
+  let text = node.addNode(id, GuiText)
+  text.update()
 
-  if self.init:
-    self.passInput = true
-    self.font = "consola"
-    self.fontSize = 13
-    self.textAlignment = textAlignment(Center, Center)
-    self.color = rgb(242, 243, 245)
+  text.draw:
+    text.defaultDraw()
+
+  if text.init:
+    text.passInput = true
+    text.font = "consola"
+    text.fontSize = 13
+    text.textAlignment = textAlignment(Center, Center)
+    text.color = rgb(242, 243, 245)
+
+  text

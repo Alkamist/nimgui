@@ -228,40 +228,45 @@ proc defaultDraw*(window: GuiWindow) =
     headerBorderColor = rgb(30, 31, 34),
   )
 
-createVariant(GuiNode, GuiWindow, addWindow):
-  self.draw:
-    self.defaultDraw()
+proc addWindow*(node: GuiNode, id: string): GuiWindow {.discardable.} =
+  let window = node.addNode(id, GuiWindow)
+  window.update()
 
-  if self.init:
-    self.resizeHitSize = 5.0
-    self.headerHeight = 22.0
-    self.size = vec2(300, 200)
-    self.minSize = vec2(200, self.headerHeight * 2.0)
+  window.draw:
+    window.defaultDraw()
 
-createVariantWithId("Header", GuiWindow, GuiNode, addHeader):
-  let window = GuiWindow(self.parent)
+  if window.init:
+    window.resizeHitSize = 5.0
+    window.headerHeight = 22.0
+    window.size = vec2(300, 200)
+    window.minSize = vec2(200, window.headerHeight * 2.0)
 
-  if self.init:
-    self.passInput = true
+  window
 
-  if self.firstAccessThisFrame:
-    self.anchor = anchor(Center, Top)
-    self.position = vec2(window.width * 0.5, borderThickness)
-    self.size = vec2(
-      window.width - 2.0 * borderThickness,
-      window.headerHeight - borderThickness,
-    )
+# createVariantWithId("WindowHeader", GuiWindow, GuiNode, addHeader):
+#   let window = GuiWindow(self.parent)
 
-createVariantWithId("Body", GuiWindow, GuiNode, addBody):
-  let window = GuiWindow(self.parent)
+#   if self.init:
+#     self.passInput = true
 
-  if self.init:
-    self.passInput = true
+#   if self.firstAccessThisFrame:
+#     self.anchor = anchor(Center, Top)
+#     self.position = vec2(window.width * 0.5, borderThickness)
+#     self.size = vec2(
+#       window.width - 2.0 * borderThickness,
+#       window.headerHeight - borderThickness,
+#     )
 
-  if self.firstAccessThisFrame:
-    self.anchor = anchor(Center, Bottom)
-    self.position = vec2(window.width * 0.5, window.height - borderThickness)
-    self.size = vec2(
-      window.width - 2.0 * (borderThickness + roundingInset),
-      window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
-    )
+# createVariantWithId("WindowBody", GuiWindow, GuiNode, addBody):
+#   let window = GuiWindow(self.parent)
+
+#   if self.init:
+#     self.passInput = true
+
+#   if self.firstAccessThisFrame:
+#     self.anchor = anchor(Center, Bottom)
+#     self.position = vec2(window.width * 0.5, window.height - borderThickness - roundingInset)
+#     self.size = vec2(
+#       window.width - 2.0 * (borderThickness + roundingInset),
+#       window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
+#     )

@@ -31,6 +31,15 @@ root.onFrame:
     if self.pressed:
       echo "1"
 
+  root.addButton("Button2"):
+    self.placement = root.previous.placement
+    self.y += self.height + 5
+
+  for i, placement in gridPlacement(4, 4, vec2(500, 500), vec2(5, 5), vec2(10, 10)):
+    root.addButton("GridButton" & $i):
+      self.placement = placement
+      self.position += vec2(100, 100)
+
   root.addText("Fps"):
     self.size = vec2(200, 18)
     self.alignX = Left

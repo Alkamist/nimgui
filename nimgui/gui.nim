@@ -22,7 +22,7 @@ type
     x*: GuiAnchorX
     y*: GuiAnchorY
 
-  GuiLayout* = object
+  GuiPlacement* = object
     anchor*: GuiAnchor
     position*: Vec2
     size*: Vec2
@@ -46,8 +46,6 @@ type
     isHovered*: bool
     isHoveredIncludingChildren*: bool
     firstAccessThisFrame*: bool
-
-    childLayoutQueue*: seq[GuiLayout]
 
   GuiRoot* = ref object of GuiNode
     osWindow*: OsWindow
@@ -128,9 +126,9 @@ proc mousePosition*(node: GuiNode): Vec2 = node.globalMousePosition - node.globa
 proc captureMouse*(node: GuiNode) = node.root.mouseCapture = node
 proc releaseMouse*(node: GuiNode) = node.root.mouseCapture = nil
 
-proc lastChild*(node: GuiNode): GuiNode =
-  if node.activeChildren.len > 0:
-    return node.activeChildren[^1]
+proc previous*(node: GuiNode): GuiNode =
+  if node.activeChildren.len > 1:
+    return node.activeChildren[^2]
 
 proc mouseIsInside*(node: GuiNode): bool =
   let m = node.mousePosition
@@ -184,7 +182,6 @@ proc drawNode(node: GuiNode) =
   node.size = size
   node.drawProc = nil
   node.activeChildren.setLen(0)
-  node.childLayoutQueue.setLen(0)
   node.firstAccessThisFrame = true
 
 template draw*(node: GuiNode, code: untyped): untyped =
@@ -206,13 +203,6 @@ template drawHook*(node: GuiNode, code: untyped): untyped =
         previousDrawProc(widgetBase)
       code
 
-proc applyLayout(parent, child: GuiNode) =
-  if parent.childLayoutQueue.len > 0:
-    let layout = parent.childLayoutQueue.pop()
-    child.anchor = layout.anchor
-    child.position = layout.position
-    child.size = layout.size
-
 proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T =
   if parent.children.hasKey(id):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
@@ -229,7 +219,6 @@ proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T =
 
   if result.firstAccessThisFrame:
     parent.activeChildren.add(result)
-    parent.applyLayout(result)
     result.firstAccessThisFrame = false
 
 proc sortActiveNodesByZIndex(node: GuiNode) =
@@ -383,40 +372,43 @@ template createVariant*(T: typedesc, name, behavior: untyped): untyped =
 
 
 # =================================================================================
-# Layout
+# Placement
 # =================================================================================
 
 
-# proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
-#   GuiAnchor(x: x, y: y)
+proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
+  GuiAnchor(x: x, y: y)
 
-# proc queueLayout*(node: GuiNode, layout: GuiLayout) =
-#   node.childLayoutQueue.insert(layout, 0)
+iterator gridPlacement*(columns, rows: int, size, spacing: Vec2, padding = vec2(0, 0)): tuple[i: int, placement: GuiPlacement] =
+  if columns > 0 and rows > 0:
+    let n = vec2(float(columns), float(rows))
+    let spacings = spacing * (n - 1.0)
+    let gridPosition = padding
+    let gridSize = size - padding * 2.0
+    let childSize = (gridSize - spacings) / n
+    let cellSize = gridSize / n
+    for row in 0 ..< rows:
+      for column in 0 ..< columns:
+        let i = row * columns + column
+        let colRow = vec2(float(column), float(row))
+        let multiplier = colRow / vec2(float(columns), float(rows))
+        yield (i, GuiPlacement(
+          anchor: anchor(Left, Top),
+          position: gridPosition + colRow * cellSize + multiplier * spacing,
+          size: childSize,
+        ))
 
-# proc queueGrid*(node: GuiNode, columns, rows: int, spacing, padding = vec2(0, 0)) =
-#   if columns < 1 or rows < 1:
-#     return
+proc placement*(node: GuiNode): GuiPlacement =
+  GuiPlacement(
+    anchor: node.anchor,
+    position: node.position,
+    size: node.size,
+  )
 
-#   # Seems way more complicated than it should be
-#   # but it seems to work. I don't know what I'm doing.
-#   let n = vec2(float(columns), float(rows))
-#   let spacings = spacing * (n - 1.0)
-#   let gridPosition = padding
-#   let gridSize = node.size - padding * 2.0
-#   let childSize = (gridSize - spacings) / n
-#   let cellSize = gridSize / n
-#   for row in 0 ..< rows:
-#     for column in 0 ..< columns:
-#       let anchor = anchor(Left, Top)
-#       let iteration = vec2(float(column), float(row))
-#       let multiplier = iteration / vec2(float(columns), float(rows))
-#       let position = gridPosition + iteration * cellSize + multiplier * spacing
-#       let size = childSize
-#       node.queueLayout(GuiLayout(
-#         anchor: anchor,
-#         position: position,
-#         size: size,
-#       ))
+proc `placement=`*(node: GuiNode, value: GuiPlacement) =
+  node.anchor = value.anchor
+  node.position = value.position
+  node.size = value.size
 
 
 # =================================================================================

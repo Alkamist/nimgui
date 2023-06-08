@@ -34,25 +34,16 @@ root.onFrame:
   if button1.pressed:
     echo "1"
 
-  # for i, placement in grid(4, 4, vec2(500, 500), vec2(5, 5), vec2(10, 10)):
-  #   root.addButton("GridButton" & $i):
-  #     self.placement = placement
-  #     self.position += vec2(50, 50)
-
-  #     let button = self
-  #     self.addText("Text"):
-  #       self.size = button.size
-  #       self.data = $i
-
   let window = root.addWindow("Window1")
+  let windowBody = window.body
+
   window.minSize = vec2(50, 50)
-  let windowBody = window.addBody()
 
   let childWindow = windowBody.addWindow("ChildWindow")
-  let childWindowBody = childWindow.addBody()
+  let childWindowBody = childWindow.body
 
-  let button2 = childWindowBody.addButton("Button2")
-  # button2.zIndex = -1
+  let button2 = childWindow.addButton("BackgroundButton")
+  button2.zIndex = -1
   button2.ignoreClipping = true
   button2.position = vec2(200, 200)
   button2.size = vec2(96, 32)

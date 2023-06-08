@@ -240,14 +240,14 @@ proc addWindow*(node: GuiNode, id: string): GuiWindow {.discardable.} =
 
   window
 
-proc addHeader*(window: GuiWindow): GuiNode {.discardable.} =
+proc header*(window: GuiWindow): GuiNode =
   let header = window.addNode("WindowHeader")
 
   if header.init:
     header.passInput = true
     header.clipChildren = true
 
-  if header.accessCount == 1:
+  if header.firstAccessThisFrame:
     header.anchor = anchor(Center, Top)
     header.position = vec2(window.width * 0.5, borderThickness)
     header.size = vec2(
@@ -257,14 +257,14 @@ proc addHeader*(window: GuiWindow): GuiNode {.discardable.} =
 
   header
 
-proc addBody*(window: GuiWindow): GuiNode {.discardable.} =
+proc body*(window: GuiWindow): GuiNode =
   let body = window.addNode("WindowBody")
 
   if body.init:
     body.passInput = true
     body.clipChildren = true
 
-  if body.accessCount == 1:
+  if body.firstAccessThisFrame:
     body.anchor = anchor(Center, Bottom)
     body.position = vec2(window.width * 0.5, window.height - borderThickness - roundingInset)
     body.size = vec2(

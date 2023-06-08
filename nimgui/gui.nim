@@ -35,6 +35,7 @@ type
 
     id*: string
     zIndex*: int
+    drawZIndex*: int
     passInput*: bool
     clipChildren*: bool
     ignoreClipping*: bool
@@ -106,6 +107,9 @@ proc keyPressed*(node: GuiNode, key: KeyboardKey): bool = node.root.keyPressed(k
 proc keyReleased*(node: GuiNode, key: KeyboardKey): bool = node.root.keyReleased(key)
 proc anyKeyPressed*(node: GuiNode): bool = node.root.anyKeyPressed
 proc anyKeyReleased*(node: GuiNode): bool = node.root.anyKeyReleased
+
+proc firstAccessThisFrame*(node: GuiNode): bool =
+  node.accessCount == 1
 
 proc topLeftPosition*(node: GuiNode): Vec2 =
   let anchor = node.anchor
@@ -205,7 +209,7 @@ proc addNode*(parent: GuiNode, id: string, T: typedesc = GuiNode): T =
 
   result.accessCount += 1
 
-  if result.accessCount == 1:
+  if result.firstAccessThisFrame:
     parent.activeChildren.add(result)
 
 
@@ -251,23 +255,32 @@ proc new*(_: typedesc[GuiRoot]): GuiRoot =
   result.attachToOsWindow()
 
 proc calculateDrawOrderAndUpdateClipRects(node: GuiNode): seq[GuiNode] =
-  result.add(node)
+  var drawOrder = newSeq[GuiNode](node.activeChildren.len + 1)
 
-  var drawOrder = node.activeChildren
+  drawOrder[0] = node
+  for i in 0 ..< node.activeChildren.len:
+    drawOrder[i + 1] = node.activeChildren[i]
+
   drawOrder.sort do (x, y: GuiNode) -> int:
-    cmp(x.zIndex, y.zIndex)
+    if x == y.parent:
+      cmp(x.drawZIndex, y.zIndex)
+    else:
+      cmp(x.zIndex, y.zIndex)
 
   let nodeGlobalRect = rect2(node.globalTopLeftPosition, node.size)
   let clipChildren = node.clipChildren
 
   for child in drawOrder:
-    if clipChildren and not child.ignoreClipping:
-      child.clipRect = node.clipRect.intersect(nodeGlobalRect)
+    if child == node:
+      result.add(node)
     else:
-      child.clipRect = node.clipRect
+      if clipChildren and not child.ignoreClipping:
+        child.clipRect = node.clipRect.intersect(nodeGlobalRect)
+      else:
+        child.clipRect = node.clipRect
 
-    for unpacked in child.calculateDrawOrderAndUpdateClipRects():
-      result.add(unpacked)
+      for unpacked in child.calculateDrawOrderAndUpdateClipRects():
+        result.add(unpacked)
 
 proc updateDrawOrderAndClipRects(root: GuiRoot) =
   root.drawOrder = root.calculateDrawOrderAndUpdateClipRects()
@@ -347,7 +360,7 @@ proc update(root: GuiRoot) =
     node.activeChildren.setLen(0)
     node.accessCount = 0
 
-  if root.mouseIsInside:
+  if root.osWindow.isHovered:
     root.osWindow.setCursorStyle(root.activeCursorStyle)
 
   root.mousePresses.setLen(0)

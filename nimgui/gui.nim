@@ -49,6 +49,8 @@ type
     isHoveredIncludingChildren*: bool
     accessCount*: int
 
+    clipRect: Rect2
+
   GuiRoot* = ref object of GuiNode
     osWindow*: OsWindow
     vg*: VectorGraphics
@@ -117,7 +119,8 @@ proc topLeftPosition*(node: GuiNode): Vec2 =
     of Bottom: node.y - node.height
   vec2(left, top)
 
-proc globalMousePosition*(node: GuiNode): Vec2 = node.root.globalMousePosition
+proc globalMousePosition*(node: GuiNode): Vec2 =
+  node.root.globalMousePosition
 
 proc globalTopLeftPosition*(node: GuiNode): Vec2 =
   let parent = node.parent
@@ -141,24 +144,11 @@ proc previous*(node: GuiNode): GuiNode =
   if node.activeChildren.len > 1:
     return node.activeChildren[^2]
 
-proc shouldClip*(node: GuiNode): bool =
-  let parent = node.parent
-  parent != nil and parent.clipChildren and not node.ignoreClipping
-
 proc mouseIsInside*(node: GuiNode): bool =
-  let parent = node.parent
-  if parent == nil:
-    node.root.osWindow.isHovered
-  else:
-    let m = node.mousePosition
-    let size = node.size
-    let isInside =
-      m.x >= 0 and m.x <= size.x and
-      m.y >= 0 and m.y <= size.y
-    if node.shouldClip:
-      isInside and parent.mouseIsInside
-    else:
-      isInside
+  let m = node.mousePosition
+  let size = node.size
+  m.x >= 0 and m.x <= size.x and
+  m.y >= 0 and m.y <= size.y
 
 proc bringToTop*(node: GuiNode) =
   let parent = node.parent
@@ -260,31 +250,33 @@ proc new*(_: typedesc[GuiRoot]): GuiRoot =
 
   result.attachToOsWindow()
 
-proc calculateDrawOrder(node: GuiNode): seq[GuiNode] =
-  var drawOrder = newSeq[GuiNode](node.activeChildren.len + 1)
+proc calculateDrawOrderAndUpdateClipRects(node: GuiNode): seq[GuiNode] =
+  result.add(node)
 
-  drawOrder[0] = node
-  for i in 0 ..< node.activeChildren.len:
-    drawOrder[i + 1] = node.activeChildren[i]
-
+  var drawOrder = node.activeChildren
   drawOrder.sort do (x, y: GuiNode) -> int:
     cmp(x.zIndex, y.zIndex)
 
-  for n in drawOrder:
-    if n == node:
-      result.add(node)
+  let nodeGlobalRect = rect2(node.globalTopLeftPosition, node.size)
+  let clipChildren = node.clipChildren
+
+  for child in drawOrder:
+    if clipChildren and not child.ignoreClipping:
+      child.clipRect = node.clipRect.intersect(nodeGlobalRect)
     else:
-      for child in n.calculateDrawOrder():
-        result.add(child)
+      child.clipRect = node.clipRect
 
-proc updateDrawOrder(root: GuiRoot) =
-  root.drawOrder = root.calculateDrawOrder()
+    for unpacked in child.calculateDrawOrderAndUpdateClipRects():
+      result.add(unpacked)
 
-proc updateParentIsHoveredIncludingChildren(node: GuiNode) =
+proc updateDrawOrderAndClipRects(root: GuiRoot) =
+  root.drawOrder = root.calculateDrawOrderAndUpdateClipRects()
+
+proc informParentsThatNodeIsHovered(node: GuiNode) =
   let parent = node.parent
   if parent != nil:
     parent.isHoveredIncludingChildren = true
-    parent.updateParentIsHoveredIncludingChildren()
+    parent.informParentsThatNodeIsHovered()
 
 proc update(root: GuiRoot) =
   let vg = root.vg
@@ -297,8 +289,9 @@ proc update(root: GuiRoot) =
     root.onFrameProc(root)
 
   # Recursively unpack the nodes active this frame into
-  # a flat buffer that is sorted by draw order.
-  root.updateDrawOrder()
+  # a flat buffer that is sorted by draw order
+  root.clipRect = rect2(root.position, root.size)
+  root.updateDrawOrderAndClipRects()
 
   # Draw each node in order.
   for node in root.drawOrder:
@@ -308,10 +301,7 @@ proc update(root: GuiRoot) =
     let size = node.size
     node.size = size.pixelAlign(scale)
 
-    if node.shouldClip:
-      let parent = node.parent
-      vg.clip(parent.globalTopLeftPosition, parent.size.pixelAlign(scale))
-
+    vg.clip(node.clipRect.position, node.clipRect.size.pixelAlign(scale))
     vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
 
     if node.drawProc != nil:
@@ -323,7 +313,7 @@ proc update(root: GuiRoot) =
     # Set the size back to normal.
     node.size = size
 
-    # Clear this state here so it can be set later.
+    # Clear this state here because it's convenient.
     node.isHoveredIncludingChildren = false
 
   vg.endFrame()
@@ -333,22 +323,25 @@ proc update(root: GuiRoot) =
   root.time = root.osWindow.time
 
   let mouseCapture = root.mouseCapture
+  let globalMousePosition = root.globalMousePosition
 
   var inputConsumed = false
   for node in root.drawOrder.reversed:
     if mouseCapture == nil:
-      node.isHovered = not inputConsumed and node.mouseIsInside
+      node.isHovered =
+        not inputConsumed and
+        node.clipRect.contains(globalMousePosition) and
+        node.mouseIsInside
     else:
       node.isHovered = node == mouseCapture
 
+    if node.isHovered and not node.passInput:
+      inputConsumed = true
+      node.root.activeCursorStyle = node.cursorStyle
+
     if node.isHovered:
       node.isHoveredIncludingChildren = true
-      if not node.passInput:
-        inputConsumed = true
-        node.root.activeCursorStyle = node.cursorStyle
-
-    if node.isHoveredIncludingChildren:
-      node.updateParentIsHoveredIncludingChildren()
+      node.informParentsThatNodeIsHovered()
 
     node.drawProc = nil
     node.activeChildren.setLen(0)

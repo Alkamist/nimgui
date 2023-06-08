@@ -49,16 +49,24 @@ root.onFrame:
   #       self.data = $i
 
   let window = root.addWindow("Window1")
+  window.minSize = vec2(50, 50)
+  let windowBody = window.addBody()
+  let windowHeader = window.addHeader()
 
   let button2 = window.addButton("Button2")
   button2.zIndex = -1
+  button2.ignoreClipping = true
   button2.position = vec2(200, 200)
   button2.size = vec2(96, 32)
 
-  let fps = root.addText("Fps")
-  fps.textAlignment = textAlignment(Left, Top)
-  fps.size = vec2(200, fps.lineHeight)
-  fps.data = $(float(frames) / root.time)
+  let button3 = windowBody.addButton("Button3")
+  button3.position = vec2(100, 200)
+  button3.size = vec2(96, 32)
+
+  let fps = windowHeader.addText("Fps")
+  fps.textAlignment = textAlignment(Center, Center)
+  fps.size = windowHeader.size
+  fps.data = "Fps: " & $(float(frames) / root.time)
 
   root.highlightOnHoverHook()
 

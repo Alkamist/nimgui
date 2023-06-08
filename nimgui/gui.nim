@@ -36,6 +36,8 @@ type
     id*: string
     zIndex*: int
     passInput*: bool
+    clipChildren*: bool
+    ignoreClipping*: bool
     position*: Vec2
     size*: Vec2
     anchor*: GuiAnchor
@@ -139,14 +141,24 @@ proc previous*(node: GuiNode): GuiNode =
   if node.activeChildren.len > 1:
     return node.activeChildren[^2]
 
+proc shouldClip*(node: GuiNode): bool =
+  let parent = node.parent
+  parent != nil and parent.clipChildren and not node.ignoreClipping
+
 proc mouseIsInside*(node: GuiNode): bool =
-  if node.isRoot:
+  let parent = node.parent
+  if parent == nil:
     node.root.osWindow.isHovered
   else:
     let m = node.mousePosition
     let size = node.size
-    m.x >= 0 and m.x <= size.x and
-    m.y >= 0 and m.y <= size.y
+    let isInside =
+      m.x >= 0 and m.x <= size.x and
+      m.y >= 0 and m.y <= size.y
+    if node.shouldClip:
+      isInside and parent.mouseIsInside
+    else:
+      isInside
 
 proc bringToTop*(node: GuiNode) =
   let parent = node.parent
@@ -296,11 +308,16 @@ proc update(root: GuiRoot) =
     let size = node.size
     node.size = size.pixelAlign(scale)
 
+    if node.shouldClip:
+      let parent = node.parent
+      vg.clip(parent.globalTopLeftPosition, parent.size.pixelAlign(scale))
+
     vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
 
     if node.drawProc != nil:
       node.drawProc(node)
 
+    vg.resetClip()
     vg.resetTransform()
 
     # Set the size back to normal.
@@ -311,7 +328,7 @@ proc update(root: GuiRoot) =
 
   vg.endFrame()
 
-  # Prepare the root and other nodes for the next frame
+  # Prepare the root and other nodes for the next frame.
   root.timePrevious = root.time
   root.time = root.osWindow.time
 
@@ -320,7 +337,7 @@ proc update(root: GuiRoot) =
   var inputConsumed = false
   for node in root.drawOrder.reversed:
     if mouseCapture == nil:
-      node.isHovered = node.mouseIsInside and not inputConsumed
+      node.isHovered = not inputConsumed and node.mouseIsInside
     else:
       node.isHovered = node == mouseCapture
 

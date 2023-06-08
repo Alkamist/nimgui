@@ -60,14 +60,11 @@ proc resizeBottom(window: GuiWindow) =
 
 proc addMoveResizeButton(window: GuiWindow, id: string, style: CursorStyle): GuiButton =
   let button = window.addButton(id)
-
-  if button.init:
-    button.cursorStyle = style
-
+  button.cursorStyle = style
+  button.zIndex = 1
   button.drawProc = nil
   button.press = button.mousePressed(Left)
   button.release = button.mouseReleased(Left)
-
   button
 
 proc addMoveButton(window: GuiWindow) =
@@ -243,30 +240,36 @@ proc addWindow*(node: GuiNode, id: string): GuiWindow {.discardable.} =
 
   window
 
-# createVariantWithId("WindowHeader", GuiWindow, GuiNode, addHeader):
-#   let window = GuiWindow(self.parent)
+proc addHeader*(window: GuiWindow): GuiNode {.discardable.} =
+  let header = window.addNode("WindowHeader")
 
-#   if self.init:
-#     self.passInput = true
+  if header.init:
+    header.passInput = true
+    header.clipChildren = true
 
-#   if self.firstAccessThisFrame:
-#     self.anchor = anchor(Center, Top)
-#     self.position = vec2(window.width * 0.5, borderThickness)
-#     self.size = vec2(
-#       window.width - 2.0 * borderThickness,
-#       window.headerHeight - borderThickness,
-#     )
+  if header.accessCount == 1:
+    header.anchor = anchor(Center, Top)
+    header.position = vec2(window.width * 0.5, borderThickness)
+    header.size = vec2(
+      window.width - 2.0 * borderThickness,
+      window.headerHeight - borderThickness,
+    )
 
-# createVariantWithId("WindowBody", GuiWindow, GuiNode, addBody):
-#   let window = GuiWindow(self.parent)
+  header
 
-#   if self.init:
-#     self.passInput = true
+proc addBody*(window: GuiWindow): GuiNode {.discardable.} =
+  let body = window.addNode("WindowBody")
 
-#   if self.firstAccessThisFrame:
-#     self.anchor = anchor(Center, Bottom)
-#     self.position = vec2(window.width * 0.5, window.height - borderThickness - roundingInset)
-#     self.size = vec2(
-#       window.width - 2.0 * (borderThickness + roundingInset),
-#       window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
-#     )
+  if body.init:
+    body.passInput = true
+    body.clipChildren = true
+
+  if body.accessCount == 1:
+    body.anchor = anchor(Center, Bottom)
+    body.position = vec2(window.width * 0.5, window.height - borderThickness - roundingInset)
+    body.size = vec2(
+      window.width - 2.0 * (borderThickness + roundingInset),
+      window.height - window.headerHeight - roundingInset - 2.0 * borderThickness,
+    )
+
+  body

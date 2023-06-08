@@ -37,7 +37,7 @@ window.onFrame = proc(window: OsWindow) =
   vg.fillColor = rgb(255, 255, 255)
   vg.font = "consola"
   vg.fontSize = 13.0
-  vg.textAlign(Left, Top)
+  vg.textAlignment = textAlignment(Left, Top)
   vg.text(vec2(0, 0), $(float(frames) / cpuTime()))
 
   vg.endFrame()

@@ -31,14 +31,14 @@ type
     root* {.cursor.}: GuiRoot
     parent* {.cursor.}: GuiNode
     children*: Table[string, GuiNode]
-    activeChildren*: seq[GuiNode]
+    activeChildren*: seq[GuiNode] # The children that were accessed this frame.
 
     id*: string
-    zIndex*: int
-    drawZIndex*: int
+    zIndex*: int # Relative to siblings.
+    drawZIndex*: int # Relative to children.
     passInput*: bool
     clipChildren*: bool
-    ignoreClipping*: bool
+    ignoreClipping*: bool # Ignore clipping of the immediate parent.
     position*: Vec2
     size*: Vec2
     anchor*: GuiAnchor
@@ -48,9 +48,10 @@ type
     init*: bool
     isHovered*: bool
     isHoveredIncludingChildren*: bool
-    accessCount*: int
+    isVisible*: bool
+    accessCount*: int # This is per frame, for per frame initialization.
 
-    clipRect: Rect2
+    clipRect: Rect2 # Resolved at the end of the frame to update isHovered.
 
   GuiRoot* = ref object of GuiNode
     osWindow*: OsWindow
@@ -71,8 +72,7 @@ type
     textInput*: string
     onFrameProc*: proc(root: GuiRoot)
     activeCursorStyle: CursorStyle
-    mouseHits*: seq[GuiNode]
-    drawOrder*: seq[GuiNode]
+    drawOrder: seq[GuiNode]
 
 
 # =================================================================================
@@ -309,22 +309,26 @@ proc update(root: GuiRoot) =
   # Draw each node in order.
   for node in root.drawOrder:
     let scale = node.root.contentScale
+    let clipRect = rect2(node.clipRect.position.pixelAlign(scale), node.clipRect.size.pixelAlign(scale))
 
-    # Pixel align the node's size for the draw call so it is crisp.
-    let size = node.size
-    node.size = size.pixelAlign(scale)
+    node.isVisible = clipRect.contains(rect2(node.globalTopLeftPosition, node.size))
 
-    vg.clip(node.clipRect.position, node.clipRect.size.pixelAlign(scale))
-    vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
+    if node.isVisible:
+      # Pixel align the node's size for the draw call so it is crisp.
+      let size = node.size
+      node.size = size.pixelAlign(scale)
 
-    if node.drawProc != nil:
-      node.drawProc(node)
+      vg.clip(clipRect.position, clipRect.size.pixelAlign(scale))
+      vg.translate(node.globalTopLeftPosition.pixelAlign(scale))
 
-    vg.resetClip()
-    vg.resetTransform()
+      if node.drawProc != nil:
+        node.drawProc(node)
 
-    # Set the size back to normal.
-    node.size = size
+      vg.resetClip()
+      vg.resetTransform()
+
+      # Set the size back to normal.
+      node.size = size
 
     # Clear this state here because it's convenient.
     node.isHoveredIncludingChildren = false
@@ -388,25 +392,6 @@ proc run*(root: GuiRoot) =
 
 proc anchor*(x: GuiAnchorX, y: GuiAnchorY): GuiAnchor =
   GuiAnchor(x: x, y: y)
-
-iterator grid*(columns, rows: int, size, spacing: Vec2, padding = vec2(0, 0)): tuple[i: int, placement: GuiPlacement] =
-  if columns > 0 and rows > 0:
-    let n = vec2(float(columns), float(rows))
-    let spacings = spacing * (n - 1.0)
-    let gridPosition = padding
-    let gridSize = size - padding * 2.0
-    let childSize = (gridSize - spacings) / n
-    let cellSize = gridSize / n
-    for row in 0 ..< rows:
-      for column in 0 ..< columns:
-        let i = row * columns + column
-        let colRow = vec2(float(column), float(row))
-        let multiplier = colRow / vec2(float(columns), float(rows))
-        yield (i, GuiPlacement(
-          anchor: anchor(Left, Top),
-          position: gridPosition + colRow * cellSize + multiplier * spacing,
-          size: childSize,
-        ))
 
 proc placement*(node: GuiNode): GuiPlacement =
   GuiPlacement(

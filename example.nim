@@ -1,62 +1,70 @@
 {.experimental: "overloadableEnums".}
 
 import nimgui
+import oswindow
+import vectorgraphics
 
-let root = GuiRoot.new()
+proc outlineRect(vg: VectorGraphics, rect: Rect2, color: Color) =
+  vg.beginPath()
+  vg.rect(rect.position + vec2(0.5, 0.5), rect.size - vec2(1.0, 1.0))
+  vg.strokeColor = color
+  vg.stroke()
 
+let window = OsWindow.new()
+window.show()
+
+let vg = VectorGraphics.new()
 const consolaData = readFile("consola.ttf")
-root.vg.addFont("consola", consolaData)
+vg.addFont("consola", consolaData)
 
-proc highlightOnHoverHook(node: GuiNode) =
-  node.drawHook:
-    if node.isHovered and not node.passInput:
-    # if node.isHoveredIncludingChildren:
-      let vg = node.vg
-      vg.beginPath()
-      vg.rect(vec2(0.5, 0.5), node.size - vec2(1.0, 1.0))
-      vg.strokeWidth = 1
-      vg.strokeColor = rgb(0, 255, 0)
-      vg.stroke()
-  for child in node.activeChildren:
-    child.highlightOnHoverHook()
+var boundingRect = rect2(50, 50, 500, 500)
+
+let gui = Gui()
 
 var frames = 0
 
-root.onFrame:
+window.onFrame = proc(window: OsWindow) =
   frames += 1
 
-  let button1 = root.addButton("Button1")
+  let (pixelWidth, pixelHeight) = window.size
+  vg.beginFrame(pixelWidth, pixelHeight, 1.0)
 
-  button1.anchor = anchor(Center, Center)
-  button1.position = vec2(root.width * 0.5, root.height * 0.5)
-  button1.size = vec2(96, 32)
+  vg.outlineRect(boundingRect, rgb(255, 0, 255))
 
-  if button1.pressed:
-    echo "1"
+  gui.pushLayout(boundingRect, vec2(0, 0))
 
-  let window = root.addWindow("Window1")
-  let windowBody = window.body
+  gui.row([200.0, -1.0], -1.0)
 
-  window.minSize = vec2(50, 50)
+  gui.column:
+    gui.row([10.0, 20.0, -1.0], 30.0)
 
-  let childWindow = windowBody.addWindow("ChildWindow")
-  let childWindowBody = childWindow.body
+    for i in 0 ..< 5:
+      vg.outlineRect(gui.nextRect, rgb(0, 255, 0))
 
-  let button2 = childWindow.addButton("BackgroundButton")
-  button2.zIndex = -1
-  button2.ignoreClipping = true
-  button2.position = vec2(200, 200)
-  button2.size = vec2(96, 32)
+    gui.setNextRect(rect2(200, 200, 300, 300), Relative)
+    vg.outlineRect(gui.nextRect, rgb(255, 0, 0))
 
-  let button3 = childWindowBody.addButton("Button3")
-  button3.position = vec2(0, 100)
-  button3.size = vec2(50, 50)
+    gui.setNextRect(rect2(200, 200, 300, 300), Absolute)
+    vg.outlineRect(gui.nextRect, rgb(255, 255, 255))
 
-  let fps = root.addText("Fps")
-  fps.textAlignment = textAlignment(Left, Top)
-  fps.size = vec2(0, fps.lineHeight)
-  fps.data = "Fps: " & $(float(frames) / root.time)
+    vg.outlineRect(gui.nextRect, rgb(0, 255, 0))
 
-  root.highlightOnHoverHook()
+  gui.column:
+    gui.row([100.0, -1.0], 90.0)
 
-root.run()
+    for i in 0 ..< 5:
+      vg.outlineRect(gui.nextRect, rgb(0, 0, 255))
+
+  # vg.outlineRect(rect2(boundingRect.position, gui.currentLayout.max - boundingRect.position), rgb(255, 0, 255))
+  discard gui.layoutStack.pop()
+
+  vg.fillColor = rgb(255, 255, 255)
+  vg.font = "consola"
+  vg.fontSize = 13.0
+  vg.textAlignment = textAlignment(Left, Top)
+  vg.text(vec2(0, 0), $(float(frames) / window.time))
+
+  vg.endFrame()
+  window.swapBuffers()
+
+window.run()

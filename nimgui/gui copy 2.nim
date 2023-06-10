@@ -22,27 +22,131 @@ type
     Relative
     Absolute
 
-  GuiFreelyPositionedRect2 = object
-    positioning*: GuiPositioning
-    rect*: Rect2
+  FreelyPositionedRect2 = object
+    positioning: GuiPositioning
+    rect: Rect2
 
-  GuiLayout* = object
-    body*: Rect2
-    max*: Vec2
-    nextPosition*: Vec2
-    rowSize*: Vec2
-    widths*: seq[float]
-    indexInRow*: int
-    nextRow*: float
-    indent*: float
-    freelyPositionedRect*: Option[GuiFreelyPositionedRect2]
+  GuiLayout = object
+    body: Rect2
+    max: Vec2
+    nextPosition: Vec2
+    rowSize: Vec2
+    widths: seq[float]
+    indexInRow: int
+    nextRow: float
+    indent: float
+    freelyPositionedRect: Option[FreelyPositionedRect2]
 
   GuiContainer* = ref object of GuiState
     vg*: VectorGraphics
     rect*: Rect2
     scroll*: Vec2
     zIndex*: int
+    layoutStack: seq[GuiLayout]
 
+template position*(container: GuiContainer): untyped = container.rect.position
+template `position=`*(container: GuiContainer, value: untyped): untyped = container.rect.position = value
+template size*(container: GuiContainer): untyped = container.rect.size
+template `size=`*(container: GuiContainer, value: untyped): untyped = container.rect.size = value
+
+proc currentLayout(container: GuiContainer): ptr GuiLayout =
+  addr(container.layoutStack[container.layoutStack.len - 1])
+
+proc newRow(container: GuiContainer, height: float) =
+  let layout = container.currentLayout
+  layout.nextPosition.x = layout.indent
+  layout.nextPosition.y = layout.nextRow
+  layout.rowSize.y = height
+  layout.indexInRow = 0
+
+proc row(container: GuiContainer, widths: openArray[float], height: float) =
+  let layout = container.currentLayout
+  layout.widths.setLen(widths.len)
+  for i in 0 ..< widths.len:
+    layout.widths[i] = widths[i]
+  container.newRow(height)
+
+proc getNextRect(container: GuiContainer): Rect2 =
+  let layout = container.currentLayout
+
+  if layout.freelyPositionedRect.isSome:
+    let freelyPositionedRect = layout.freelyPositionedRect.get
+    layout.freelyPositionedRect = none(FreelyPositionedRect2)
+
+    result = freelyPositionedRect.rect
+
+    if freelyPositionedRect.positioning == Relative:
+      result.x += layout.body.x
+      result.y += layout.body.y
+
+  else:
+    if layout.indexInRow == layout.widths.len:
+      container.newRow(layout.rowSize.y)
+
+    result.position = layout.nextPosition
+
+    result.width =
+      if layout.widths.len > 0:
+        layout.widths[layout.indexInRow]
+      else:
+        layout.rowSize.x
+
+    result.height = layout.rowSize.y
+
+    if result.width == 0:
+      result.width = themeItemSize.x
+
+    if result.height == 0:
+      result.height = themeItemSize.y
+
+    if result.width < 0:
+      result.width += layout.body.width - result.x + 1
+
+    if result.height < 0:
+      result.height += layout.body.height - result.y + 1
+
+    layout.indexInRow += 1
+
+    layout.nextPosition.x += result.width + themeSpacing
+    layout.nextRow = max(layout.nextRow, result.y + result.height + themeSpacing)
+
+    result.x += layout.body.x
+    result.y += layout.body.y
+
+  layout.max.x = max(layout.max.x, result.x + result.width)
+  layout.max.y = max(layout.max.y, result.y + result.height)
+
+proc pushLayout(container: GuiContainer, body: Rect2, scroll: Vec2) =
+  container.layoutStack.add GuiLayout(
+    body: rect2(
+      body.x - scroll.x, body.y - scroll.y,
+      body.width, body.height,
+    ),
+    max: vec2(low(float), low(float)),
+  )
+  container.row([0.0], 0.0)
+
+proc popLayout(container: GuiContainer) =
+  discard container.layoutStack.pop()
+
+proc beginColumn(container: GuiContainer) =
+  container.pushLayout(container.getNextRect(), vec2(0, 0))
+
+proc endColumn(container: GuiContainer) =
+  let b = container.layoutStack.pop()
+  let a = container.currentLayout
+  a.rowSize.x = max(a.rowSize.x, b.rowSize.x + b.body.x - a.body.x)
+  a.nextRow = max(a.nextRow, b.nextRow + b.body.y - a.body.y)
+  a.max.x = max(a.max.x, b.max.x)
+  a.max.y = max(a.max.y, b.max.y)
+
+proc setNextRect(container: GuiContainer, rect: Rect2, positioning = GuiPositioning.Relative) =
+  container.currentLayout.freelyPositionedRect = some(FreelyPositionedRect2(
+    positioning: positioning,
+    rect: rect,
+  ))
+
+type
   Gui* = ref object
     size*: Vec2
     scale*: float
@@ -64,19 +168,13 @@ type
     lastZIndex*: int
 
     idStack: seq[GuiId]
-    layoutStack: seq[GuiLayout]
-    containerStack: seq[GuiContainer]
     activeContainers: seq[GuiContainer]
+    containerStack: seq[GuiContainer]
     retainedState: Table[GuiId, GuiState]
     vgCtx: VectorGraphicsContext
 
     timePrevious: float
     globalMousePositionPrevious: Vec2
-
-template position*(container: GuiContainer): untyped = container.rect.position
-template `position=`*(container: GuiContainer, value: untyped): untyped = container.rect.position = value
-template size*(container: GuiContainer): untyped = container.rect.size
-template `size=`*(container: GuiContainer, value: untyped): untyped = container.rect.size = value
 
 proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.globalMousePositionPrevious
 proc deltaTime*(gui: Gui): float = gui.time - gui.timePrevious
@@ -131,104 +229,30 @@ proc getState*(gui: Gui, str: string, T: typedesc): T =
 proc currentContainer*(gui: Gui): GuiContainer =
   gui.containerStack[gui.containerStack.len - 1]
 
-proc currentLayout*(gui: Gui): ptr GuiLayout =
-  addr(gui.layoutStack[gui.layoutStack.len - 1])
-
-proc newRow(gui: Gui, height: float) =
-  let layout = gui.currentLayout
-  layout.nextPosition.x = layout.indent
-  layout.nextPosition.y = layout.nextRow
-  layout.rowSize.y = height
-  layout.indexInRow = 0
+proc newRow*(gui: Gui, height: float) =
+  gui.currentContainer.newRow(height)
 
 proc row*(gui: Gui, widths: openArray[float], height: float) =
-  let layout = gui.currentLayout
-  layout.widths.setLen(widths.len)
-  for i in 0 ..< widths.len:
-    layout.widths[i] = widths[i]
-  gui.newRow(height)
+  gui.currentContainer.row(widths, height)
 
 proc getNextRect*(gui: Gui): Rect2 =
-  let layout = gui.currentLayout
-
-  if layout.freelyPositionedRect.isSome:
-    let freelyPositionedRect = layout.freelyPositionedRect.get
-    layout.freelyPositionedRect = none(GuiFreelyPositionedRect2)
-
-    result = freelyPositionedRect.rect
-
-    if freelyPositionedRect.positioning == Relative:
-      result.x += layout.body.x
-      result.y += layout.body.y
-
-  else:
-    if layout.indexInRow == layout.widths.len:
-      gui.newRow(layout.rowSize.y)
-
-    result.position = layout.nextPosition
-
-    result.width =
-      if layout.widths.len > 0:
-        layout.widths[layout.indexInRow]
-      else:
-        layout.rowSize.x
-
-    result.height = layout.rowSize.y
-
-    if result.width == 0:
-      result.width = themeItemSize.x
-
-    if result.height == 0:
-      result.height = themeItemSize.y
-
-    if result.width < 0:
-      result.width += layout.body.width - result.x + 1
-
-    if result.height < 0:
-      result.height += layout.body.height - result.y + 1
-
-    layout.indexInRow += 1
-
-    layout.nextPosition.x += result.width + themeSpacing
-    layout.nextRow = max(layout.nextRow, result.y + result.height + themeSpacing)
-
-    result.x += layout.body.x
-    result.y += layout.body.y
-
-  layout.max.x = max(layout.max.x, result.x + result.width)
-  layout.max.y = max(layout.max.y, result.y + result.height)
-
+  result = gui.currentContainer.getNextRect()
   gui.currentRect = result
 
 proc pushLayout*(gui: Gui, body: Rect2, scroll: Vec2) =
-  gui.layoutStack.add GuiLayout(
-    body: rect2(
-      body.x - scroll.x, body.y - scroll.y,
-      body.width, body.height,
-    ),
-    max: vec2(low(float), low(float)),
-  )
-  gui.row([0.0], 0.0)
+  gui.currentContainer.pushLayout(body, scroll)
 
 proc popLayout*(gui: Gui) =
-  discard gui.layoutStack.pop()
+  gui.currentContainer.popLayout()
 
 proc beginColumn*(gui: Gui) =
-  gui.pushLayout(gui.getNextRect(), vec2(0, 0))
+  gui.currentContainer.beginColumn()
 
 proc endColumn*(gui: Gui) =
-  let b = gui.layoutStack.pop()
-  let a = gui.currentLayout
-  a.rowSize.x = max(a.rowSize.x, b.rowSize.x + b.body.x - a.body.x)
-  a.nextRow = max(a.nextRow, b.nextRow + b.body.y - a.body.y)
-  a.max.x = max(a.max.x, b.max.x)
-  a.max.y = max(a.max.y, b.max.y)
+  gui.currentContainer.endColumn()
 
 proc setNextRect*(gui: Gui, rect: Rect2, positioning = GuiPositioning.Relative) =
-  gui.currentLayout.freelyPositionedRect = some(GuiFreelyPositionedRect2(
-    positioning: positioning,
-    rect: rect,
-  ))
+  gui.currentContainer.setNextRect(rect, positioning)
 
 proc pushContainer*(gui: Gui, container: GuiContainer) =
   gui.containerStack.add(container)
@@ -266,7 +290,6 @@ proc endFrame*(gui: Gui) =
   gui.popId()
 
   assert(gui.idStack.len == 0)
-  assert(gui.layoutStack.len == 0)
   assert(gui.containerStack.len == 0)
 
   gui.activeContainers.sort do (x, y: GuiContainer) -> int:

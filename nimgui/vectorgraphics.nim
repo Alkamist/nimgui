@@ -136,7 +136,7 @@ proc clip*(vg: VectorGraphics, rect: Rect2) =
   vg.clip(rect.position, rect.size)
 
 
-proc `translation=`*(vg: VectorGraphics, value: Vec2) =
+proc translate*(vg: VectorGraphics, value: Vec2) =
   vg.commands.add(DrawCommand(kind: Translate, translate: TranslateCommand(x: value.x, y: value.y)))
 
 proc `fillColor=`*(vg: VectorGraphics, color: Color) =

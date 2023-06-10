@@ -22,12 +22,12 @@ type
     Relative
     Absolute
 
-  GuiFreelyPositionedRect2 = object
+  FreelyPositionedRect2* = object
     positioning*: GuiPositioning
-    rect*: Rect2
+    bounds*: Rect2
 
   GuiLayout* = object
-    body*: Rect2
+    bounds*: Rect2
     max*: Vec2
     nextPosition*: Vec2
     rowSize*: Vec2
@@ -35,19 +35,21 @@ type
     indexInRow*: int
     nextRow*: float
     indent*: float
-    freelyPositionedRect*: Option[GuiFreelyPositionedRect2]
+    freeBox*: Option[FreelyPositionedRect2]
 
   GuiContainer* = ref object of GuiState
     vg*: VectorGraphics
-    rect*: Rect2
+    bounds*: Rect2
     scroll*: Vec2
     zIndex*: int
+    currentMouseOver*: GuiId
+    finalMouseOver*: GuiId
 
   Gui* = ref object
     size*: Vec2
     scale*: float
     time*: float
-    globalMousePosition*: Vec2
+    mousePosition*: Vec2
     mouseWheel*: Vec2
     mousePresses*: seq[MouseButton]
     mouseReleases*: seq[MouseButton]
@@ -58,10 +60,11 @@ type
     textInput*: string
 
     hover*: GuiId
+    hoverContainer*: GuiId
     focus*: GuiId
     currentId*: GuiId
-    currentRect*: Rect2
-    lastZIndex*: int
+    currentBounds*: Rect2
+    highestZIndex*: int
 
     idStack: seq[GuiId]
     layoutStack: seq[GuiLayout]
@@ -71,14 +74,22 @@ type
     vgCtx: VectorGraphicsContext
 
     timePrevious: float
-    globalMousePositionPrevious: Vec2
+    mousePositionPrevious: Vec2
 
-template position*(container: GuiContainer): untyped = container.rect.position
-template `position=`*(container: GuiContainer, value: untyped): untyped = container.rect.position = value
-template size*(container: GuiContainer): untyped = container.rect.size
-template `size=`*(container: GuiContainer, value: untyped): untyped = container.rect.size = value
+template position*(container: GuiContainer): untyped = container.bounds.position
+template `position=`*(container: GuiContainer, value: untyped): untyped = container.bounds.position = value
+template size*(container: GuiContainer): untyped = container.bounds.size
+template `size=`*(container: GuiContainer, value: untyped): untyped = container.bounds.size = value
+template x*(container: GuiContainer): untyped = container.position.x
+template `x=`*(container: GuiContainer, value: untyped): untyped = container.position.x = value
+template y*(container: GuiContainer): untyped = container.position.y
+template `y=`*(container: GuiContainer, value: untyped): untyped = container.position.y = value
+template width*(container: GuiContainer): untyped = container.size.x
+template `width=`*(container: GuiContainer, value: untyped): untyped = container.size.x = value
+template height*(container: GuiContainer): untyped = container.size.y
+template `height=`*(container: GuiContainer, value: untyped): untyped = container.size.y = value
 
-proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.globalMousePositionPrevious
+proc mouseDelta*(gui: Gui): Vec2 = gui.mousePosition - gui.mousePositionPrevious
 proc deltaTime*(gui: Gui): float = gui.time - gui.timePrevious
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
 proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
@@ -92,6 +103,9 @@ proc keyPressed*(gui: Gui, key: KeyboardKey): bool = key in gui.keyPresses
 proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
+
+proc currentContainer*(gui: Gui): GuiContainer =
+  gui.containerStack[gui.containerStack.len - 1]
 
 proc getId*[T: not GuiId](gui: Gui, x: T): GuiId =
   if gui.idStack.len > 0:
@@ -110,8 +124,8 @@ proc popId*(gui: Gui) =
   discard gui.idStack.pop()
 
 proc bringToFront*(gui: Gui, container: GuiContainer) =
-  gui.lastZIndex += 1
-  container.zIndex = gui.lastZIndex
+  gui.highestZIndex += 1
+  container.zIndex = gui.highestZIndex
 
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   if gui.retainedState.hasKey(id):
@@ -127,9 +141,6 @@ proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
 
 proc getState*(gui: Gui, str: string, T: typedesc): T =
   gui.getState(gui.getId(str), T)
-
-proc currentContainer*(gui: Gui): GuiContainer =
-  gui.containerStack[gui.containerStack.len - 1]
 
 proc currentLayout*(gui: Gui): ptr GuiLayout =
   addr(gui.layoutStack[gui.layoutStack.len - 1])
@@ -148,18 +159,18 @@ proc row*(gui: Gui, widths: openArray[float], height: float) =
     layout.widths[i] = widths[i]
   gui.newRow(height)
 
-proc getNextRect*(gui: Gui): Rect2 =
+proc getNextBounds*(gui: Gui): Rect2 =
   let layout = gui.currentLayout
 
-  if layout.freelyPositionedRect.isSome:
-    let freelyPositionedRect = layout.freelyPositionedRect.get
-    layout.freelyPositionedRect = none(GuiFreelyPositionedRect2)
+  if layout.freeBox.isSome:
+    let freeBox = layout.freeBox.get
+    layout.freeBox = none(FreelyPositionedRect2)
 
-    result = freelyPositionedRect.rect
+    result = freeBox.bounds
 
-    if freelyPositionedRect.positioning == Relative:
-      result.x += layout.body.x
-      result.y += layout.body.y
+    if freeBox.positioning == Relative:
+      result.x += layout.bounds.x
+      result.y += layout.bounds.y
 
   else:
     if layout.indexInRow == layout.widths.len:
@@ -182,29 +193,29 @@ proc getNextRect*(gui: Gui): Rect2 =
       result.height = themeItemSize.y
 
     if result.width < 0:
-      result.width += layout.body.width - result.x + 1
+      result.width += layout.bounds.width - result.x + 1
 
     if result.height < 0:
-      result.height += layout.body.height - result.y + 1
+      result.height += layout.bounds.height - result.y + 1
 
     layout.indexInRow += 1
 
     layout.nextPosition.x += result.width + themeSpacing
     layout.nextRow = max(layout.nextRow, result.y + result.height + themeSpacing)
 
-    result.x += layout.body.x
-    result.y += layout.body.y
+    result.x += layout.bounds.x
+    result.y += layout.bounds.y
 
   layout.max.x = max(layout.max.x, result.x + result.width)
   layout.max.y = max(layout.max.y, result.y + result.height)
 
-  gui.currentRect = result
+  gui.currentBounds = result
 
-proc pushLayout*(gui: Gui, body: Rect2, scroll: Vec2) =
+proc pushLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
   gui.layoutStack.add GuiLayout(
-    body: rect2(
-      body.x - scroll.x, body.y - scroll.y,
-      body.width, body.height,
+    bounds: rect2(
+      bounds.x - scroll.x, bounds.y - scroll.y,
+      bounds.width, bounds.height,
     ),
     max: vec2(low(float), low(float)),
   )
@@ -214,33 +225,34 @@ proc popLayout*(gui: Gui) =
   discard gui.layoutStack.pop()
 
 proc beginColumn*(gui: Gui) =
-  gui.pushLayout(gui.getNextRect(), vec2(0, 0))
+  gui.pushLayout(gui.getNextBounds(), vec2(0, 0))
 
 proc endColumn*(gui: Gui) =
   let b = gui.layoutStack.pop()
   let a = gui.currentLayout
-  a.rowSize.x = max(a.rowSize.x, b.rowSize.x + b.body.x - a.body.x)
-  a.nextRow = max(a.nextRow, b.nextRow + b.body.y - a.body.y)
+  a.rowSize.x = max(a.rowSize.x, b.rowSize.x + b.bounds.x - a.bounds.x)
+  a.nextRow = max(a.nextRow, b.nextRow + b.bounds.y - a.bounds.y)
   a.max.x = max(a.max.x, b.max.x)
   a.max.y = max(a.max.y, b.max.y)
 
-proc setNextRect*(gui: Gui, rect: Rect2, positioning = GuiPositioning.Relative) =
-  gui.currentLayout.freelyPositionedRect = some(GuiFreelyPositionedRect2(
+proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relative) =
+  gui.currentLayout.freeBox = some(FreelyPositionedRect2(
     positioning: positioning,
-    rect: rect,
+    bounds: bounds,
   ))
 
 proc pushContainer*(gui: Gui, container: GuiContainer) =
   gui.containerStack.add(container)
   gui.activeContainers.add(container)
-  gui.pushLayout(container.rect, container.scroll)
+  gui.pushLayout(container.bounds, container.scroll)
+  gui.pushId(container.id)
 
 proc popContainer*(gui: Gui) =
+  let container = gui.currentContainer
+  container.finalMouseOver = container.currentMouseOver
+  gui.popId()
   gui.popLayout()
   discard gui.containerStack.pop()
-
-proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition - gui.currentContainer.rect.position
 
 proc vg*(gui: Gui): VectorGraphics =
   gui.currentContainer.vg
@@ -257,7 +269,7 @@ proc beginFrame*(gui: Gui, time: float) =
 
   let mainId = gui.getId("MainContainer")
   let mainContainer = gui.getState(mainId, GuiContainer)
-  mainContainer.rect = rect2(vec2(0, 0), gui.size)
+  mainContainer.bounds = rect2(vec2(0, 0), gui.size)
   gui.pushId(mainId)
   gui.pushContainer(mainContainer)
 
@@ -274,6 +286,8 @@ proc endFrame*(gui: Gui) =
 
   for container in gui.activeContainers:
     gui.vgCtx.renderVectorGraphics(container.vg)
+    if container.bounds.contains(gui.mousePosition):
+      gui.hoverContainer = container.id
 
   gui.activeContainers.setLen(0)
 
@@ -283,117 +297,26 @@ proc endFrame*(gui: Gui) =
   gui.keyReleases.setLen(0)
   gui.textInput.setLen(0)
   gui.mouseWheel = vec2(0, 0)
-  gui.globalMousePositionPrevious = gui.globalMousePosition
+  gui.mousePositionPrevious = gui.mousePosition
 
   gui.vgCtx.endFrame()
 
-proc updateHoverAndFocus*(gui: Gui, id: GuiId, rect: Rect2) =
-  let mouseOver = rect.contains(gui.globalMousePosition)
-  let mouseDown = gui.mouseDown(Left) or gui.mouseDown(Middle) or gui.mouseDown(Right)
+proc updateHoverAndFocus*(gui: Gui, id: GuiId, bounds: Rect2) =
+  let container = gui.currentContainer
+  let mouseOver = bounds.contains(gui.mousePosition) and gui.hoverContainer == container.id
+  let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
 
-  if gui.hover == id and not mouseOver:
+  if mouseOver:
+    container.currentMouseOver = id
+
+  if container.finalMouseOver == id:
+    gui.hover = id
+
+  if not mouseOver and gui.hover == id:
     gui.hover = 0
 
-  if mouseDown:
-    if gui.hover == id:
-      gui.focus = id
-  else:
-    if mouseOver:
-      gui.hover = id
-    else:
-      gui.focus = 0
+  if mousePressed and gui.hover == id:
+    gui.focus = id
 
-type
-  GuiButton* = ref object of GuiState
-    isDown*: bool
-    pressed*: bool
-    released*: bool
-    clicked*: bool
-    wasDown: bool
-
-proc buttonBehavior*(gui: Gui, id: GuiId, rect: Rect2, press, release: bool): GuiButton =
-  gui.updateHoverAndFocus(id, rect)
-
-  let button = gui.getState(id, GuiButton)
-
-  button.wasDown = button.isDown
-  button.pressed = false
-  button.released = false
-  button.clicked = false
-
-  if gui.focus == id and not button.isDown and press:
-    button.isDown = true
-    button.pressed = true
-
-  if button.isDown and release:
-    button.isDown = false
-    button.released = true
-    if gui.hover == id:
-      button.clicked = true
-
-  button
-
-proc invisibleButton*(gui: Gui, str: string, rect: Rect2, mb = MouseButton.Left): GuiButton =
-  gui.buttonBehavior(gui.getId(str), rect, gui.mousePressed(mb), gui.mouseReleased(mb))
-
-proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiButton =
-  let rect = gui.getNextRect()
-  let button = gui.invisibleButton(label, rect, mb)
-
-  let vg = gui.vg
-
-  template drawBody(color: Color): untyped =
-    vg.beginPath()
-    vg.roundedRect(rect.position, rect.size, 3.0)
-    vg.fillColor = color
-    vg.fill()
-
-  drawBody(rgb(31, 32, 34))
-  if button.isDown:
-    drawBody(rgba(0, 0, 0, 8))
-  elif gui.hover == gui.currentId:
-    drawBody(rgba(255, 255, 255, 8))
-
-  button
-
-type
-  GuiWindow* = ref object of GuiContainer
-    isOpen*: bool
-    globalMousePositionWhenGrabbed: Vec2
-    positionWhenGrabbed: Vec2
-    sizeWhenGrabbed: Vec2
-
-proc beginWindow*(gui: Gui, title: string, initialRect: Rect2): GuiWindow =
-  let id = gui.getId(title)
-
-  let window = gui.getState(id, GuiWindow)
-  if window.init:
-    window.isOpen = true
-    window.rect = initialRect
-
-  gui.pushId(id)
-
-  let moveButton = gui.invisibleButton("WindowMoveButton", window.rect)
-
-  if moveButton.pressed:
-    window.globalMousePositionWhenGrabbed = gui.globalMousePosition
-    window.positionWhenGrabbed = window.position
-    window.sizeWhenGrabbed = window.size
-
-  if moveButton.isDown:
-    let grabDelta = gui.globalMousePosition - window.globalMousePositionWhenGrabbed
-    window.position = window.positionWhenGrabbed + grabDelta
-
-  let vg = gui.vg
-  vg.beginPath()
-  vg.rect(window.rect)
-  vg.fillColor = rgb(255, 0, 0)
-  vg.fill()
-
-  gui.pushContainer(window)
-
-  window
-
-proc endWindow*(gui: Gui) =
-  gui.popContainer()
-  gui.popId()
+  if mousePressed and not mouseOver and gui.focus == id:
+    gui.focus = 0

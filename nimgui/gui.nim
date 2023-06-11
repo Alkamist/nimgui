@@ -21,6 +21,7 @@ type
     zIndex: int
     layoutStack: seq[GuiLayout]
     finalMouseOver: GuiId
+    controlActivated: bool
 
   Gui* = ref object
     size*: Vec2
@@ -46,6 +47,7 @@ type
     currentBounds*: Rect2
     highestZIndex*: int
     cursorStyle*: CursorStyle
+    layerActivated*: GuiId
 
     retainedState: Table[GuiId, GuiState]
 
@@ -57,11 +59,11 @@ type
 
     vgCtx: VectorGraphicsContext
 
-    timePrevious: float
-    globalMousePositionPrevious: Vec2
+    previousTime: float
+    previousGlobalMousePosition: Vec2
 
-proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.globalMousePositionPrevious
-proc deltaTime*(gui: Gui): float = gui.time - gui.timePrevious
+proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
+proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
 proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
 proc mouseMoved*(gui: Gui): bool = gui.mouseDelta != vec2(0, 0)
@@ -190,7 +192,7 @@ proc new*(_: typedesc[Gui]): Gui =
 proc beginFrame*(gui: Gui, time: float) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
 
-  gui.timePrevious = gui.time
+  gui.previousTime = gui.time
   gui.time = time
   gui.cursorStyle = Arrow
 
@@ -205,12 +207,18 @@ proc endFrame*(gui: Gui) =
   gui.activeLayers.sort do (x, y: GuiLayer) -> int:
     cmp(x.zIndex, y.zIndex)
 
+  gui.layerActivated = 0
+
   for layer in gui.activeLayers:
     gui.vgCtx.renderVectorGraphics(layer.vg, layer.offset)
+
+    if layer.controlActivated:
+      gui.layerActivated = layer.id
 
     if layer.finalMouseOver != 0:
       gui.finalMouseOver = layer.finalMouseOver
 
+    layer.controlActivated = false
     layer.finalMouseOver = 0
 
   let highestZIndex = gui.activeLayers[gui.activeLayers.len - 1].zIndex
@@ -225,7 +233,7 @@ proc endFrame*(gui: Gui) =
   gui.keyReleases.setLen(0)
   gui.textInput.setLen(0)
   gui.mouseWheel = vec2(0, 0)
-  gui.globalMousePositionPrevious = gui.globalMousePosition
+  gui.previousGlobalMousePosition = gui.globalMousePosition
 
   gui.vgCtx.endFrame()
 
@@ -253,6 +261,7 @@ proc updateControl*(gui: Gui, id: GuiId, mouseOver: bool) =
 
   # Set mouse capture.
   if mousePressed and gui.hover == id:
+    layer.controlActivated = true
     gui.mouseCapture = id
 
   if mouseReleased:

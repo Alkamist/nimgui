@@ -240,6 +240,13 @@ proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
 proc bringToFront*(gui: Gui, window: GuiWindow) =
   window.zIndex = gui.highestZIndex + 1
 
+proc bodyButton(window: GuiWindow, gui: Gui) =
+  let id = gui.getId("BodyButton")
+  discard gui.invisibleButton(id, rect2(
+    vec2(0, 0),
+    vec2(window.width, window.height)
+  ))
+
 proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): GuiWindow =
   let windowId = gui.getId(title)
 
@@ -255,9 +262,10 @@ proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): 
   gui.beginIdSpace(windowId)
   gui.beginLayer("Window", window.position, vec2(0, 0), window.zIndex)
 
-  # let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
-  # if mousePressed and gui.mouseOverLayer == gui.currentLayer.id:
-  #   gui.bringToFront(window)
+  if gui.layerActivated == gui.currentLayer.id:
+    gui.bringToFront(window)
+
+  window.bodyButton(gui)
 
   let vg = gui.vg
   vg.beginPath()

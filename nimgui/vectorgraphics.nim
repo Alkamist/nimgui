@@ -170,7 +170,10 @@ proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, scale: float) =
 proc endFrame*(ctx: VectorGraphicsContext) =
   nvgEndFrame(ctx.nvgCtx)
 
-proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics) =
+proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics, offset: Vec2) =
+  nvgSave(ctx.nvgCtx)
+  nvgTranslate(ctx.nvgCtx, offset.x, offset.y)
+
   for command in vg.commands:
     case command.kind:
     of BeginPath: nvgBeginPath(ctx.nvgCtx)
@@ -195,4 +198,7 @@ proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics) =
     of Translate:
       let c = command.translate
       nvgTranslate(ctx.nvgCtx, c.x, c.y)
+
+  nvgRestore(ctx.nvgCtx)
+
   vg.commands.setLen(0)

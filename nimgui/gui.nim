@@ -44,12 +44,14 @@ type
     zIndex*: int
     currentMouseOver*: GuiId
     finalMouseOver*: GuiId
+    mouseHit: bool
+    drawOffset: Vec2
 
   Gui* = ref object
     size*: Vec2
     scale*: float
     time*: float
-    mousePosition*: Vec2
+    globalMousePosition*: Vec2
     mouseWheel*: Vec2
     mousePresses*: seq[MouseButton]
     mouseReleases*: seq[MouseButton]
@@ -60,11 +62,13 @@ type
     textInput*: string
 
     hover*: GuiId
-    hoverContainer*: GuiId
     focus*: GuiId
+    mouseCapture*: GuiId
+    mouseOverContainer*: GuiId
     currentId*: GuiId
     currentBounds*: Rect2
     highestZIndex*: int
+    cursorStyle*: CursorStyle
 
     idStack: seq[GuiId]
     layoutStack: seq[GuiLayout]
@@ -74,7 +78,8 @@ type
     vgCtx: VectorGraphicsContext
 
     timePrevious: float
-    mousePositionPrevious: Vec2
+    globalMousePositionPrevious: Vec2
+    globalPositionOffset: Vec2
 
 template position*(container: GuiContainer): untyped = container.bounds.position
 template `position=`*(container: GuiContainer, value: untyped): untyped = container.bounds.position = value
@@ -89,7 +94,7 @@ template `width=`*(container: GuiContainer, value: untyped): untyped = container
 template height*(container: GuiContainer): untyped = container.size.y
 template `height=`*(container: GuiContainer, value: untyped): untyped = container.size.y = value
 
-proc mouseDelta*(gui: Gui): Vec2 = gui.mousePosition - gui.mousePositionPrevious
+proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.globalMousePositionPrevious
 proc deltaTime*(gui: Gui): float = gui.time - gui.timePrevious
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
 proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
@@ -114,13 +119,13 @@ proc getId*[T: not GuiId](gui: Gui, x: T): GuiId =
     result = hash(x)
   gui.currentId = result
 
-proc pushId*(gui: Gui, id: GuiId) =
+proc beginIdSpace*(gui: Gui, id: GuiId) =
   gui.idStack.add(id)
 
-proc pushId*(gui: Gui, str: string) =
-  gui.pushId(gui.getId(str))
+proc beginIdSpace*(gui: Gui, str: string) =
+  gui.beginIdSpace(gui.getId(str))
 
-proc popId*(gui: Gui) =
+proc endIdSpace*(gui: Gui) =
   discard gui.idStack.pop()
 
 proc bringToFront*(gui: Gui, container: GuiContainer) =
@@ -211,7 +216,7 @@ proc getNextBounds*(gui: Gui): Rect2 =
 
   gui.currentBounds = result
 
-proc pushLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
+proc beginLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
   gui.layoutStack.add GuiLayout(
     bounds: rect2(
       bounds.x - scroll.x, bounds.y - scroll.y,
@@ -221,11 +226,11 @@ proc pushLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
   )
   gui.row([0.0], 0.0)
 
-proc popLayout*(gui: Gui) =
+proc endLayout*(gui: Gui) =
   discard gui.layoutStack.pop()
 
 proc beginColumn*(gui: Gui) =
-  gui.pushLayout(gui.getNextBounds(), vec2(0, 0))
+  gui.beginLayout(gui.getNextBounds(), vec2(0, 0))
 
 proc endColumn*(gui: Gui) =
   let b = gui.layoutStack.pop()
@@ -241,17 +246,29 @@ proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relati
     bounds: bounds,
   ))
 
-proc pushContainer*(gui: Gui, container: GuiContainer) =
+proc mousePosition*(gui: Gui): Vec2 =
+  gui.globalMousePosition - gui.globalPositionOffset
+
+proc beginContainer*(gui: Gui, container: GuiContainer) =
+  container.mouseHit = container.bounds.contains(gui.mousePosition)
+
   gui.containerStack.add(container)
   gui.activeContainers.add(container)
-  gui.pushLayout(container.bounds, container.scroll)
-  gui.pushId(container.id)
 
-proc popContainer*(gui: Gui) =
+  gui.beginLayout(rect2(vec2(0, 0), container.size), container.scroll)
+  gui.beginIdSpace(container.id)
+
+  gui.globalPositionOffset += container.position
+  container.drawOffset = gui.globalPositionOffset
+
+proc endContainer*(gui: Gui) =
   let container = gui.currentContainer
   container.finalMouseOver = container.currentMouseOver
-  gui.popId()
-  gui.popLayout()
+  gui.globalPositionOffset -= container.position
+
+  gui.endIdSpace()
+  gui.endLayout()
+
   discard gui.containerStack.pop()
 
 proc vg*(gui: Gui): VectorGraphics =
@@ -266,16 +283,15 @@ proc beginFrame*(gui: Gui, time: float) =
 
   gui.timePrevious = gui.time
   gui.time = time
+  gui.globalPositionOffset = vec2(0, 0)
+  gui.cursorStyle = Arrow
 
-  let mainId = gui.getId("MainContainer")
-  let mainContainer = gui.getState(mainId, GuiContainer)
+  let mainContainer = gui.getState("MainContainer", GuiContainer)
   mainContainer.bounds = rect2(vec2(0, 0), gui.size)
-  gui.pushId(mainId)
-  gui.pushContainer(mainContainer)
+  gui.beginContainer(mainContainer)
 
 proc endFrame*(gui: Gui) =
-  gui.popContainer()
-  gui.popId()
+  gui.endContainer()
 
   assert(gui.idStack.len == 0)
   assert(gui.layoutStack.len == 0)
@@ -285,9 +301,9 @@ proc endFrame*(gui: Gui) =
     cmp(x.zIndex, y.zIndex)
 
   for container in gui.activeContainers:
-    gui.vgCtx.renderVectorGraphics(container.vg)
-    if container.bounds.contains(gui.mousePosition):
-      gui.hoverContainer = container.id
+    gui.vgCtx.renderVectorGraphics(container.vg, container.drawOffset)
+    if container.mouseHit:
+      gui.mouseOverContainer = container.id
 
   gui.activeContainers.setLen(0)
 
@@ -297,26 +313,39 @@ proc endFrame*(gui: Gui) =
   gui.keyReleases.setLen(0)
   gui.textInput.setLen(0)
   gui.mouseWheel = vec2(0, 0)
-  gui.mousePositionPrevious = gui.mousePosition
+  gui.globalMousePositionPrevious = gui.globalMousePosition
 
   gui.vgCtx.endFrame()
 
-proc updateHoverAndFocus*(gui: Gui, id: GuiId, bounds: Rect2) =
+proc updateControl*(gui: Gui, id: GuiId, bounds: Rect2) =
   let container = gui.currentContainer
-  let mouseOver = bounds.contains(gui.mousePosition) and gui.hoverContainer == container.id
+  let mouseOver = bounds.contains(gui.mousePosition) and gui.mouseOverContainer == container.id
   let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
+  let mouseReleased = gui.mouseReleased(Left) or gui.mouseReleased(Middle) or gui.mouseReleased(Right)
 
   if mouseOver:
     container.currentMouseOver = id
 
-  if container.finalMouseOver == id:
+  # Set hover.
+  if gui.mouseCapture == 0 and mouseOver and container.finalMouseOver == id:
     gui.hover = id
-
-  if not mouseOver and gui.hover == id:
+  else:
     gui.hover = 0
 
-  if mousePressed and gui.hover == id:
+  # Set focus.
+  if gui.hover == id:
     gui.focus = id
 
   if mousePressed and not mouseOver and gui.focus == id:
     gui.focus = 0
+
+  # Set mouse capture.
+  if mousePressed and gui.hover == id:
+    gui.mouseCapture = id
+
+  if mouseReleased:
+    gui.mouseCapture = 0
+
+  if gui.mouseCapture == id:
+    gui.hover = id
+    gui.focus = id

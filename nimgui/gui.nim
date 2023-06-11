@@ -22,9 +22,7 @@ type
     finalMouseOver: GuiId
     mouseHit: bool
     bounds: Rect2
-    drawOffset: Vec2
     layoutStack: seq[GuiLayout]
-    retainedState: Table[GuiId, GuiState]
 
   Gui* = ref object
     size*: Vec2
@@ -52,7 +50,7 @@ type
     highestZIndex*: int
     cursorStyle*: CursorStyle
 
-    mainLayer: GuiLayer
+    retainedState: Table[GuiId, GuiState]
 
     idStack: seq[GuiId]
     layerStack: seq[GuiLayer]
@@ -62,8 +60,6 @@ type
 
     timePrevious: float
     globalMousePositionPrevious: Vec2
-    globalPositionOffset: Vec2
-    lastGlobalPositionOffset: Vec2
 
 proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.globalMousePositionPrevious
 proc deltaTime*(gui: Gui): float = gui.time - gui.timePrevious
@@ -79,9 +75,6 @@ proc keyPressed*(gui: Gui, key: KeyboardKey): bool = key in gui.keyPresses
 proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
-
-proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition - gui.globalPositionOffset
 
 proc getId*[T: not GuiId](gui: Gui, x: T): GuiId =
   if gui.idStack.len > 0:
@@ -105,19 +98,21 @@ proc currentIdSpace*(gui: Gui): GuiId =
 proc currentLayer*(gui: Gui): GuiLayer =
   gui.layerStack[gui.layerStack.len - 1]
 
+proc mousePosition*(gui: Gui): Vec2 =
+  gui.globalMousePosition - gui.currentLayer.bounds.position
+
 proc vg*(gui: Gui): VectorGraphics =
   gui.currentLayer.vg
 
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
-  let layer = gui.currentLayer
-  if layer.retainedState.hasKey(id):
-    result = T(layer.retainedState[id])
+  if gui.retainedState.hasKey(id):
+    result = T(gui.retainedState[id])
     result.init = false
   else:
     result = T()
     result.init = true
     result.id = id
-    layer.retainedState[id] = result
+    gui.retainedState[id] = result
 
 proc getState*(gui: Gui, str: string, T: typedesc): T =
   gui.getState(gui.getId(str), T)
@@ -166,32 +161,27 @@ proc endColumn*(gui: Gui) =
 proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relative) =
   gui.currentLayout.setNextBounds(bounds, positioning)
 
-proc beginLayer*(gui: Gui, id: GuiId, bounds: Rect2, scroll: Vec2, zIndex: int) =
+proc beginLayer*(gui: Gui, id: GuiId, bounds: Rect2, scroll = vec2(0, 0), zIndex = 0) =
   let layer = gui.getState(id, GuiLayer)
   if layer.init:
     layer.vg = VectorGraphics.new()
 
-  layer.mouseHit = bounds.contains(gui.mousePosition)
+  layer.mouseHit = bounds.contains(gui.globalMousePosition)
   layer.bounds = bounds
   layer.zIndex = zIndex
-  gui.globalPositionOffset += bounds.position
-  layer.drawOffset = gui.globalPositionOffset
 
   gui.layerStack.add(layer)
   gui.activeLayers.add(layer)
 
   gui.beginLayout(rect2(vec2(0, 0), bounds.size), scroll)
-  gui.beginIdSpace(layer.id)
 
-proc beginLayer*(gui: Gui, str: string, bounds: Rect2, scroll: Vec2, zIndex: int) =
+proc beginLayer*(gui: Gui, str: string, bounds: Rect2, scroll = vec2(0, 0), zIndex = 0) =
   gui.beginLayer(gui.getId(str), bounds, scroll, zIndex)
 
 proc endLayer*(gui: Gui) =
   let layer = gui.currentLayer
   layer.finalMouseOver = layer.currentMouseOver
-  gui.globalPositionOffset -= layer.bounds.position
 
-  gui.endIdSpace()
   gui.endLayout()
 
   assert(layer.layoutStack.len == 0)
@@ -201,10 +191,6 @@ proc endLayer*(gui: Gui) =
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
   result.vgCtx = VectorGraphicsContext.new()
-  result.mainLayer = GuiLayer(
-    init: true,
-    vg: VectorGraphics.new(),
-  )
   result.defaultItemSize = vec2(50, 50)
   result.itemSpacing = vec2(10, 20)
 
@@ -213,26 +199,12 @@ proc beginFrame*(gui: Gui, time: float) =
 
   gui.timePrevious = gui.time
   gui.time = time
-  gui.globalPositionOffset = vec2(0, 0)
   gui.cursorStyle = Arrow
 
-  gui.mainLayer.id = gui.getId("MainLayer")
-  gui.mainLayer.bounds = rect2(vec2(0, 0), gui.size)
-  gui.mainLayer.mouseHit = gui.mainLayer.bounds.contains(gui.mousePosition)
-
-  gui.layerStack.add(gui.mainLayer)
-  gui.activeLayers.add(gui.mainLayer)
-
-  gui.beginLayout(gui.mainLayer.bounds, vec2(0, 0))
-  gui.beginIdSpace(gui.mainLayer.id)
+  gui.beginLayer("MainLayer", rect2(vec2(0, 0), gui.size))
 
 proc endFrame*(gui: Gui) =
-  gui.mainLayer.finalMouseOver = gui.mainLayer.currentMouseOver
-
-  gui.endLayout()
-  gui.endIdSpace()
-
-  discard gui.layerStack.pop()
+  gui.endLayer()
 
   assert(gui.idStack.len == 0)
   assert(gui.layerStack.len == 0)
@@ -241,7 +213,7 @@ proc endFrame*(gui: Gui) =
     cmp(x.zIndex, y.zIndex)
 
   for layer in gui.activeLayers:
-    gui.vgCtx.renderVectorGraphics(layer.vg, layer.drawOffset)
+    gui.vgCtx.renderVectorGraphics(layer.vg, layer.bounds)
     if layer.mouseHit:
       gui.mouseOverLayer = layer.id
 

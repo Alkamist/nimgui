@@ -64,8 +64,9 @@ proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiButton =
 
 type
   GuiWindow* = ref object of GuiState
-    zIndex: int
     bounds*: Rect2
+    scroll*: Vec2
+    zIndex*: int
     isOpen*: bool
     minSize*: Vec2
     globalMousePositionWhenGrabbed: Vec2
@@ -248,14 +249,30 @@ proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): 
     window.minSize = vec2(300, windowHeaderHeight * 2.0)
     window.bounds = initialBounds
 
+  if not window.isOpen:
+    return
+
   gui.beginIdSpace(windowId)
+  gui.beginLayer("Window", window.bounds, vec2(0, 0), window.zIndex)
 
-  # let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
-  # if mousePressed and gui.mouseOverLayer == id:
-  #   gui.bringToFront(window)
+  let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
+  if mousePressed and gui.mouseOverLayer == gui.currentLayer.id:
+    gui.bringToFront(window)
 
-  gui.beginLayer("MoveResizeButtons", window.bounds, vec2(0, 0), window.zIndex + 1)
+  let vg = gui.vg
+  vg.beginPath()
+  vg.rect(vec2(0, 0), window.size)
+  vg.fillColor = color
+  vg.fill()
 
+  gui.beginLayout(rect2(vec2(0, 0), window.size).expand(-10.0), window.scroll)
+
+  window
+
+proc endWindow*(gui: Gui) =
+  gui.endLayout()
+
+  let window = gui.getState(gui.currentIdSpace, GuiWindow)
   window.moveButton(gui)
   window.resizeLeftButton(gui)
   window.resizeRightButton(gui)
@@ -266,21 +283,5 @@ proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): 
   window.resizeBottomLeftButton(gui)
   window.resizeBottomRightButton(gui)
 
-  gui.endLayer()
-
-  gui.beginLayer("Background", window.bounds, vec2(0, 0), window.zIndex)
-
-  let vg = gui.vg
-  vg.beginPath()
-  vg.rect(vec2(0, 0), window.size)
-  vg.fillColor = color
-  vg.fill()
-
-  gui.beginLayer("Body", rect2(vec2(0, 0), window.size).expand(-10.0), vec2(0, 0), window.zIndex)
-
-  window
-
-proc endWindow*(gui: Gui) =
-  gui.endLayer()
   gui.endLayer()
   gui.endIdSpace()

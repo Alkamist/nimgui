@@ -33,11 +33,11 @@ proc buttonBehavior*(gui: Gui, id: GuiId, bounds: Rect2, press, release: bool): 
 
 proc invisibleButton*(gui: Gui, id: GuiId, bounds: Rect2, mb = MouseButton.Left): GuiButton =
   result = gui.buttonBehavior(id, bounds, gui.mousePressed(mb), gui.mouseReleased(mb))
-  # let vg = gui.vg
-  # vg.beginPath()
-  # vg.rect(bounds)
-  # vg.strokeColor = rgb(0, 0, 255)
-  # vg.stroke()
+  let vg = gui.vg
+  vg.beginPath()
+  vg.rect(bounds)
+  vg.strokeColor = rgb(0, 0, 255)
+  vg.stroke()
 
 proc invisibleButton*(gui: Gui, str: string, bounds: Rect2, mb = MouseButton.Left): GuiButton =
   gui.invisibleButton(gui.getId(str), bounds, mb)
@@ -63,12 +63,27 @@ proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiButton =
   button
 
 type
-  GuiWindow* = ref object of GuiContainer
+  GuiWindow* = ref object of GuiState
+    zIndex: int
+    bounds*: Rect2
     isOpen*: bool
     minSize*: Vec2
-    globalMousePositionWhenGrabbed*: Vec2
-    positionWhenGrabbed*: Vec2
-    sizeWhenGrabbed*: Vec2
+    globalMousePositionWhenGrabbed: Vec2
+    positionWhenGrabbed: Vec2
+    sizeWhenGrabbed: Vec2
+
+template position*(window: GuiWindow): untyped = window.bounds.position
+template `position=`*(window: GuiWindow, value: untyped): untyped = window.bounds.position = value
+template size*(window: GuiWindow): untyped = window.bounds.size
+template `size=`*(window: GuiWindow, value: untyped): untyped = window.bounds.size = value
+template x*(window: GuiWindow): untyped = window.position.x
+template `x=`*(window: GuiWindow, value: untyped): untyped = window.position.x = value
+template y*(window: GuiWindow): untyped = window.position.y
+template `y=`*(window: GuiWindow, value: untyped): untyped = window.position.y = value
+template width*(window: GuiWindow): untyped = window.size.x
+template `width=`*(window: GuiWindow, value: untyped): untyped = window.size.x = value
+template height*(window: GuiWindow): untyped = window.size.y
+template `height=`*(window: GuiWindow, value: untyped): untyped = window.size.y = value
 
 const windowHeaderHeight = 22.0
 const windowResizeHitSize = 5.0
@@ -221,31 +236,26 @@ proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
     window.resizeRight(gui)
     window.resizeBottom(gui)
 
-proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): GuiWindow =
-  let id = gui.getId(title)
+proc bringToFront*(gui: Gui, window: GuiWindow) =
+  window.zIndex = gui.highestZIndex + 1
 
-  let window = gui.getState(id, GuiWindow)
+proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): GuiWindow =
+  let windowId = gui.getId(title)
+
+  let window = gui.getState(windowId, GuiWindow)
   if window.init:
     window.isOpen = true
     window.minSize = vec2(300, windowHeaderHeight * 2.0)
     window.bounds = initialBounds
 
-  gui.beginContainer(window)
+  gui.beginIdSpace(windowId)
 
-  let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
-  if mousePressed and gui.mouseOverContainer == id:
-    gui.bringToFront(window)
+  # let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
+  # if mousePressed and gui.mouseOverLayer == id:
+  #   gui.bringToFront(window)
 
-  let vg = gui.vg
-  vg.beginPath()
-  vg.rect(vec2(0, 0), window.size)
-  vg.fillColor = color
-  vg.fill()
+  gui.beginLayer("MoveResizeButtons", window.bounds, vec2(0, 0), window.zIndex + 1)
 
-  window
-
-proc endWindow*(gui: Gui) =
-  let window = GuiWindow(gui.currentContainer)
   window.moveButton(gui)
   window.resizeLeftButton(gui)
   window.resizeRightButton(gui)
@@ -256,4 +266,21 @@ proc endWindow*(gui: Gui) =
   window.resizeBottomLeftButton(gui)
   window.resizeBottomRightButton(gui)
 
-  gui.endContainer()
+  gui.endLayer()
+
+  gui.beginLayer("Background", window.bounds, vec2(0, 0), window.zIndex)
+
+  let vg = gui.vg
+  vg.beginPath()
+  vg.rect(vec2(0, 0), window.size)
+  vg.fillColor = color
+  vg.fill()
+
+  gui.beginLayer("Body", rect2(vec2(0, 0), window.size).expand(-10.0), vec2(0, 0), window.zIndex)
+
+  window
+
+proc endWindow*(gui: Gui) =
+  gui.endLayer()
+  gui.endLayer()
+  gui.endIdSpace()

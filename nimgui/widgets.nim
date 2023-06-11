@@ -10,7 +10,7 @@ type
     wasDown: bool
 
 proc buttonBehavior*(gui: Gui, id: GuiId, bounds: Rect2, press, release: bool): GuiButton =
-  gui.updateControl(id, bounds)
+  gui.updateControl(id, bounds.contains(gui.mousePosition))
 
   let button = gui.getState(id, GuiButton)
 
@@ -253,11 +253,11 @@ proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): 
     return
 
   gui.beginIdSpace(windowId)
-  gui.beginLayer("Window", window.bounds, vec2(0, 0), window.zIndex)
+  gui.beginLayer("Window", window.position, vec2(0, 0), window.zIndex)
 
-  let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
-  if mousePressed and gui.mouseOverLayer == gui.currentLayer.id:
-    gui.bringToFront(window)
+  # let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
+  # if mousePressed and gui.mouseOverLayer == gui.currentLayer.id:
+  #   gui.bringToFront(window)
 
   let vg = gui.vg
   vg.beginPath()

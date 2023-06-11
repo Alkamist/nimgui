@@ -17,12 +17,10 @@ type
 
   GuiLayer* = ref object of GuiState
     vg*: VectorGraphics
+    offset: Vec2
     zIndex: int
-    currentMouseOver: GuiId
-    finalMouseOver: GuiId
-    mouseHit: bool
-    bounds: Rect2
     layoutStack: seq[GuiLayout]
+    finalMouseOver: GuiId
 
   Gui* = ref object
     size*: Vec2
@@ -44,7 +42,6 @@ type
     hover*: GuiId
     focus*: GuiId
     mouseCapture*: GuiId
-    mouseOverLayer*: GuiId
     currentId*: GuiId
     currentBounds*: Rect2
     highestZIndex*: int
@@ -55,6 +52,8 @@ type
     idStack: seq[GuiId]
     layerStack: seq[GuiLayer]
     activeLayers: seq[GuiLayer]
+
+    finalMouseOver: GuiId
 
     vgCtx: VectorGraphicsContext
 
@@ -99,7 +98,7 @@ proc currentLayer*(gui: Gui): GuiLayer =
   gui.layerStack[gui.layerStack.len - 1]
 
 proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition - gui.currentLayer.bounds.position
+  gui.globalMousePosition - gui.currentLayer.offset
 
 proc vg*(gui: Gui): VectorGraphics =
   gui.currentLayer.vg
@@ -161,31 +160,25 @@ proc endColumn*(gui: Gui) =
 proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relative) =
   gui.currentLayout.setNextBounds(bounds, positioning)
 
-proc beginLayer*(gui: Gui, id: GuiId, bounds: Rect2, scroll = vec2(0, 0), zIndex = 0) =
+proc beginLayer*(gui: Gui, id: GuiId, offset, scroll = vec2(0, 0), zIndex = 0) =
   let layer = gui.getState(id, GuiLayer)
   if layer.init:
     layer.vg = VectorGraphics.new()
 
-  layer.mouseHit = bounds.contains(gui.globalMousePosition)
-  layer.bounds = bounds
+  layer.offset = offset
   layer.zIndex = zIndex
 
   gui.layerStack.add(layer)
   gui.activeLayers.add(layer)
 
-  gui.beginLayout(rect2(vec2(0, 0), bounds.size), scroll)
+  gui.beginLayout(rect2(vec2(0, 0), vec2(500, 500)), scroll)
 
-proc beginLayer*(gui: Gui, str: string, bounds: Rect2, scroll = vec2(0, 0), zIndex = 0) =
-  gui.beginLayer(gui.getId(str), bounds, scroll, zIndex)
+proc beginLayer*(gui: Gui, str: string, offset, scroll = vec2(0, 0), zIndex = 0) =
+  gui.beginLayer(gui.getId(str), offset, scroll, zIndex)
 
 proc endLayer*(gui: Gui) =
-  let layer = gui.currentLayer
-  layer.finalMouseOver = layer.currentMouseOver
-
   gui.endLayout()
-
-  assert(layer.layoutStack.len == 0)
-
+  assert(gui.currentLayer.layoutStack.len == 0)
   discard gui.layerStack.pop()
 
 proc new*(_: typedesc[Gui]): Gui =
@@ -201,7 +194,7 @@ proc beginFrame*(gui: Gui, time: float) =
   gui.time = time
   gui.cursorStyle = Arrow
 
-  gui.beginLayer("MainLayer", rect2(vec2(0, 0), gui.size))
+  gui.beginLayer("MainLayer", vec2(0, 0))
 
 proc endFrame*(gui: Gui) =
   gui.endLayer()
@@ -213,9 +206,12 @@ proc endFrame*(gui: Gui) =
     cmp(x.zIndex, y.zIndex)
 
   for layer in gui.activeLayers:
-    gui.vgCtx.renderVectorGraphics(layer.vg, layer.bounds)
-    if layer.mouseHit:
-      gui.mouseOverLayer = layer.id
+    gui.vgCtx.renderVectorGraphics(layer.vg, layer.offset)
+
+    if layer.finalMouseOver != 0:
+      gui.finalMouseOver = layer.finalMouseOver
+
+    layer.finalMouseOver = 0
 
   let highestZIndex = gui.activeLayers[gui.activeLayers.len - 1].zIndex
   if highestZIndex > gui.highestZIndex:
@@ -233,17 +229,17 @@ proc endFrame*(gui: Gui) =
 
   gui.vgCtx.endFrame()
 
-proc updateControl*(gui: Gui, id: GuiId, bounds: Rect2) =
+proc updateControl*(gui: Gui, id: GuiId, mouseOver: bool) =
   let layer = gui.currentLayer
-  let mouseOver = bounds.contains(gui.mousePosition) and gui.mouseOverLayer == layer.id
+
   let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
   let mouseReleased = gui.mouseReleased(Left) or gui.mouseReleased(Middle) or gui.mouseReleased(Right)
 
   if mouseOver:
-    layer.currentMouseOver = id
+    layer.finalMouseOver = id
 
   # Set hover.
-  if gui.mouseCapture == 0 and mouseOver and layer.finalMouseOver == id:
+  if gui.mouseCapture == 0 and mouseOver and gui.finalMouseOver == id:
     gui.hover = id
   else:
     gui.hover = 0

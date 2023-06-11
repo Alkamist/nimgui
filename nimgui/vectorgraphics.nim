@@ -170,10 +170,9 @@ proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, scale: float) =
 proc endFrame*(ctx: VectorGraphicsContext) =
   nvgEndFrame(ctx.nvgCtx)
 
-proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics, bounds: Rect2) =
+proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics, offset: Vec2) =
   nvgSave(ctx.nvgCtx)
-  nvgScissor(ctx.nvgCtx, bounds.x, bounds.y, bounds.width, bounds.height)
-  nvgTranslate(ctx.nvgCtx, bounds.x, bounds.y)
+  nvgTranslate(ctx.nvgCtx, offset.x, offset.y)
 
   for command in vg.commands:
     case command.kind:

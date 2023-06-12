@@ -97,6 +97,7 @@ type
     zIndex*: int
     isOpen*: bool
     minSize*: Vec2
+    stayOnTop*: bool
     mousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
@@ -108,7 +109,9 @@ const windowCornerRadius = 4.0
 const windowRoundingInset = (1.0 - sin(45.0.degToRad)) * windowCornerRadius
 
 proc bringToFront*(gui: Gui, window: GuiWindow) =
-  window.zIndex = gui.highestZIndex + 1
+  if not window.stayOnTop:
+    window.zIndex = gui.highestZIndex + 1
+    echo window.zIndex
 
 proc windowInteraction(gui: Gui): bool =
   gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
@@ -408,7 +411,7 @@ proc beginWindow*(gui: Gui, window: GuiWindow): GuiWindow =
   window.bounds = window.editBounds
 
   gui.pushId(window.id)
-  gui.pushZIndex(window.zIndex)
+  gui.pushZIndex(gui.currentZIndex + window.zIndex)
   gui.pushLayout(window.bounds)
 
   window.drawBackground(gui)
@@ -422,6 +425,7 @@ proc beginWindow*(gui: Gui, id: GuiId): GuiWindow =
   let initialBounds = gui.getNextBounds()
   if window.init:
     window.isOpen = true
+    window.stayOnTop = gui.currentZIndex == 0
     window.minSize = vec2(300, windowHeaderHeight * 2.0)
     window.editBounds = initialBounds
 
@@ -431,7 +435,7 @@ proc beginWindow*(gui: Gui, title: string): GuiWindow =
   gui.beginWindow(gui.getId(title))
 
 proc endWindow*(gui: Gui) =
-  let window = gui.getState(gui.currentStackId, GuiWindow)
+  let window = gui.getState(gui.stackId, GuiWindow)
   window.moveButton(gui)
   window.resizeLeftButton(gui)
   window.resizeRightButton(gui)

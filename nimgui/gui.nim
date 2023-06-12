@@ -88,11 +88,14 @@ proc pushId*(gui: Gui, str: string) =
 proc popId*(gui: Gui) =
   discard gui.idStack.pop()
 
-proc currentStackId*(gui: Gui): GuiId =
+proc stackId*(gui: Gui): GuiId =
   gui.idStack[gui.idStack.len - 1]
 
 proc currentZLayer*(gui: Gui): var GuiZLayer =
   gui.layerStack[gui.layerStack.len - 1]
+
+proc currentZIndex*(gui: Gui): int =
+  gui.currentZLayer.zIndex
 
 proc requestHover*(gui: Gui, id: GuiId) =
   gui.currentZLayer.finalHover = id
@@ -160,7 +163,8 @@ proc pushZIndex*(gui: Gui, zIndex: int) =
   ))
 
 proc popZIndex*(gui: Gui) =
-  gui.layers.add(gui.layerStack.pop())
+  let layer = gui.layerStack.pop()
+  gui.layers.add(layer)
 
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()

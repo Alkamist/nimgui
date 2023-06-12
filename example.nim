@@ -28,10 +28,16 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     if gui.button("Button").clicked:
       echo "2"
 
+    if gui.beginWindow("ChildWindow").isOpen:
+      gui.endWindow()
+
     gui.endWindow()
 
-  if gui.beginWindow("Window2").isOpen:
-    gui.endWindow()
+  # if gui.beginWindow("Window3").isOpen:
+  #   gui.endWindow()
+
+  # if gui.beginWindow("Window4").isOpen:
+  #   gui.endWindow()
 
   gui.endFrame()
 

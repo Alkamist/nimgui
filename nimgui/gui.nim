@@ -21,7 +21,8 @@ type
     zIndex: int
     layoutStack: seq[GuiLayout]
     finalMouseOver: GuiId
-    controlActivated: bool
+    controlEngaged: bool
+    controlHovered: bool
 
   Gui* = ref object
     size*: Vec2
@@ -47,7 +48,8 @@ type
     currentBounds*: Rect2
     highestZIndex*: int
     cursorStyle*: CursorStyle
-    layerActivated*: GuiId
+    layerEngaged*: GuiId
+    hoverLayer*: GuiId
 
     retainedState: Table[GuiId, GuiState]
 
@@ -207,18 +209,23 @@ proc endFrame*(gui: Gui) =
   gui.activeLayers.sort do (x, y: GuiLayer) -> int:
     cmp(x.zIndex, y.zIndex)
 
-  gui.layerActivated = 0
+  gui.layerEngaged = 0
+  gui.hoverLayer = 0
 
   for layer in gui.activeLayers:
     gui.vgCtx.renderVectorGraphics(layer.vg, layer.offset)
 
-    if layer.controlActivated:
-      gui.layerActivated = layer.id
+    if layer.controlEngaged:
+      gui.layerEngaged = layer.id
+
+    if layer.controlHovered:
+      gui.hoverLayer = layer.id
 
     if layer.finalMouseOver != 0:
       gui.finalMouseOver = layer.finalMouseOver
 
-    layer.controlActivated = false
+    layer.controlHovered = false
+    layer.controlEngaged = false
     layer.finalMouseOver = 0
 
   let highestZIndex = gui.activeLayers[gui.activeLayers.len - 1].zIndex
@@ -261,8 +268,8 @@ proc updateControl*(gui: Gui, id: GuiId, mouseOver: bool) =
 
   # Set mouse capture.
   if mousePressed and gui.hover == id:
-    layer.controlActivated = true
     gui.mouseCapture = id
+    layer.controlEngaged = true
 
   if mouseReleased:
     gui.mouseCapture = 0
@@ -270,3 +277,6 @@ proc updateControl*(gui: Gui, id: GuiId, mouseOver: bool) =
   if gui.mouseCapture == id:
     gui.hover = id
     gui.focus = id
+
+  if gui.hover == id:
+    layer.controlHovered = true

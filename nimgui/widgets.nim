@@ -262,7 +262,8 @@ proc beginWindow*(gui: Gui, title: string, initialBounds: Rect2, color: Color): 
   gui.beginIdSpace(windowId)
   gui.beginLayer("Window", window.position, vec2(0, 0), window.zIndex)
 
-  if gui.layerActivated == gui.currentLayer.id:
+  if gui.hoverLayer == gui.currentLayer.id and
+     gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):
     gui.bringToFront(window)
 
   window.bodyButton(gui)

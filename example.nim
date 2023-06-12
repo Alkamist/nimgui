@@ -3,26 +3,32 @@
 import nimgui
 import nimgui/imploswindow
 import nimgui/widgets
-import oswindow
+import oswindow as oswnd
 
-let window = OsWindow.new()
-window.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
-window.show()
+let osWindow = OsWindow.new()
+osWindow.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
+osWindow.show()
 
 let gui = Gui.new()
-gui.attachToOsWindow(window)
+gui.attachToOsWindow(osWindow)
 
-window.onFrame = proc(window: OsWindow) =
-  gui.beginFrame(window.time)
+osWindow.onFrame = proc(osWindow: OsWindow) =
+  gui.beginFrame(osWindow.time)
 
-  if gui.beginWindow("Window").isOpen:
+  let window = gui.getState("Window", GuiWindow)
+  if window.init:
+    window.isOpen = true
+    window.editBounds = rect2(200, 200, 300, 300)
+    window.minSize = vec2(500, 300)
+
+  if gui.beginWindow(window).isOpen:
     gui.endWindow()
 
   gui.endFrame()
 
-  if window.isHovered:
-    window.setCursorStyle(gui.cursorStyle)
+  if osWindow.isHovered:
+    osWindow.setCursorStyle(gui.cursorStyle)
 
-  window.swapBuffers()
+  osWindow.swapBuffers()
 
-window.run()
+osWindow.run()

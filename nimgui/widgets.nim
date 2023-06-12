@@ -296,24 +296,15 @@ proc backgroundButton(window: GuiWindow, gui: Gui) =
     vec2(window.bounds.width, window.bounds.height)
   ))
 
-proc beginWindow*(gui: Gui, title: string): GuiWindow =
-  let windowId = gui.getId(title)
-  let initialBounds = gui.getNextBounds()
-
-  let window = gui.getState(windowId, GuiWindow)
-  if window.init:
-    window.isOpen = true
-    window.minSize = vec2(300, windowHeaderHeight * 2.0)
-    window.editBounds = initialBounds
+proc beginWindow*(gui: Gui, window: GuiWindow): GuiWindow =
+  if not window.isOpen:
+    return window
 
   window.editBounds.size.x = max(window.editBounds.size.x, window.minSize.x)
   window.editBounds.size.y = max(window.editBounds.size.y, window.minSize.y)
   window.bounds = window.editBounds
 
-  if not window.isOpen:
-    return
-
-  gui.beginIdSpace(windowId)
+  gui.beginIdSpace(window.id)
   gui.beginLayer("Window", window.bounds.position, window.zIndex)
 
   if gui.hoverLayer == gui.currentLayer.id and
@@ -326,6 +317,20 @@ proc beginWindow*(gui: Gui, title: string): GuiWindow =
   gui.beginLayout(rect2(vec2(0, 0), window.bounds.size))
 
   window
+
+proc beginWindow*(gui: Gui, id: GuiId): GuiWindow =
+  let window = gui.getState(id, GuiWindow)
+
+  let initialBounds = gui.getNextBounds()
+  if window.init:
+    window.isOpen = true
+    window.minSize = vec2(300, windowHeaderHeight * 2.0)
+    window.editBounds = initialBounds
+
+  gui.beginWindow(window)
+
+proc beginWindow*(gui: Gui, title: string): GuiWindow =
+  gui.beginWindow(gui.getId(title))
 
 proc endWindow*(gui: Gui) =
   gui.endLayout()

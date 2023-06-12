@@ -15,13 +15,6 @@ type
     id*: GuiId
     init*: bool
 
-  GuiControl* = ref object of GuiState
-    isDown*: bool
-    pressed*: bool
-    released*: bool
-    clicked*: bool
-    previousEngage: bool
-
   GuiLayer = object
     vg: VectorGraphics
     offset: Vec2
@@ -49,6 +42,7 @@ type
     focus*: GuiId
     currentId*: GuiId
     currentBounds*: Rect2
+
     highestZIndex*: int
     cursorStyle*: CursorStyle
 
@@ -100,6 +94,9 @@ proc currentIdSpace*(gui: Gui): GuiId =
 
 proc currentLayer(gui: Gui): var GuiLayer =
   gui.layerStack[gui.layerStack.len - 1]
+
+proc requestHover*(gui: Gui, id: GuiId) =
+  gui.currentLayer.finalHover = id
 
 proc mousePosition*(gui: Gui): Vec2 =
   gui.globalMousePosition - gui.currentLayer.offset
@@ -219,41 +216,3 @@ proc endFrame*(gui: Gui) =
   gui.previousGlobalMousePosition = gui.globalMousePosition
 
   gui.vgCtx.endFrame()
-
-proc control*(gui: Gui, id: GuiId, hover, engage: bool): GuiControl =
-  let control = gui.getState(id, GuiControl)
-
-  let press = engage and not control.previousEngage
-  let release = control.previousEngage and not engage
-  control.previousEngage = engage
-
-  # Update gui hover.
-  if engage and not press and gui.hover == id:
-    gui.hover = 0
-
-  # Main logic.
-  control.pressed = false
-  control.released = false
-  control.clicked = false
-
-  if gui.hover == id and not control.isDown and press:
-    control.isDown = true
-    control.pressed = true
-
-  if control.isDown and release:
-    control.isDown = false
-    control.released = true
-    if gui.hover == id:
-      control.clicked = true
-
-  if hover:
-    gui.currentLayer.finalHover = id
-
-  # Update gui focus.
-  if control.pressed:
-    gui.focus = id
-
-  if press and gui.focus == id and gui.hover != id:
-    gui.focus = 0
-
-  control

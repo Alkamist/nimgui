@@ -1,23 +1,70 @@
 import ./gui
 import ./math
 
-proc buttonBehavior*(gui: Gui, id: GuiId, bounds: Rect2, mb = MouseButton.Left): GuiControl =
-  result = gui.control(id, bounds.contains(gui.mousePosition), gui.mouseDown(mb))
-  # let vg = gui.vg
-  # vg.beginPath()
-  # vg.rect(bounds)
-  # if gui.focus == id:
-  #   vg.setStrokeColor(rgb(0, 255, 0))
-  # else:
-  #   vg.setStrokeColor(rgb(0, 0, 255))
-  # vg.stroke()
+type
+  GuiButton* = ref object of GuiState
+    isDown*: bool
+    pressed*: bool
+    released*: bool
+    clicked*: bool
+    inputHeld: bool
 
-proc buttonBehavior*(gui: Gui, str: string, bounds: Rect2, mb = MouseButton.Left): GuiControl =
-  gui.buttonBehavior(gui.getId(str), bounds, mb)
+proc updateButton*(gui: Gui, button: GuiButton, hover, press, release: bool) =
+  let id = button.id
 
-proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiControl =
+  if press: button.inputHeld = true
+  if release: button.inputHeld = false
+
+  button.pressed = false
+  button.released = false
+  button.clicked = false
+
+  if gui.hover == id and not button.isDown and press:
+    button.isDown = true
+    button.pressed = true
+
+  if button.isDown and release:
+    button.isDown = false
+    button.released = true
+    if gui.hover == id:
+      button.clicked = true
+
+  if hover:
+    gui.requestHover(id)
+
+  if button.inputHeld and not press and gui.hover == id:
+    gui.hover = 0
+
+  if button.pressed:
+    gui.focus = id
+
+  if press and gui.focus == id and gui.hover != id:
+    gui.focus = 0
+
+proc invisibleButton*(gui: Gui, button: GuiButton, mb = MouseButton.Left): GuiButton =
   let bounds = gui.getNextBounds()
-  let button = gui.buttonBehavior(label, bounds, mb)
+
+  gui.updateButton(button,
+    hover = bounds.contains(gui.mousePosition),
+    press = gui.mousePressed(mb),
+    release = gui.mouseReleased(mb),
+  )
+
+  button
+
+proc invisibleButton*(gui: Gui, id: GuiId, mb = MouseButton.Left): GuiButton =
+  gui.invisibleButton(gui.getState(id, GuiButton), mb)
+
+proc invisibleButton*(gui: Gui, label: string, mb = MouseButton.Left): GuiButton =
+  gui.invisibleButton(gui.getId(label), mb)
+
+proc button*(gui: Gui, button: GuiButton, mb = MouseButton.Left): GuiButton =
+  let bounds = gui.getNextBounds()
+  gui.updateButton(button,
+    hover = bounds.contains(gui.mousePosition),
+    press = gui.mousePressed(mb),
+    release = gui.mouseReleased(mb),
+  )
 
   let vg = gui.vg
 
@@ -34,6 +81,12 @@ proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiControl =
     drawBody(rgba(255, 255, 255, 8))
 
   button
+
+proc button*(gui: Gui, id: GuiId, mb = MouseButton.Left): GuiButton =
+  gui.button(gui.getState(id, GuiButton), mb)
+
+proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiButton =
+  gui.button(gui.getId(label), mb)
 
 type
   GuiWindow* = ref object of GuiState
@@ -103,11 +156,12 @@ proc resizeBottom(window: GuiWindow, gui: Gui) =
     window.editBounds.height -= correction
 
 proc moveButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("MoveButton")
-  let button = gui.buttonBehavior("MoveButton", rect2(
+  gui.setNextBounds(rect2(
     vec2(windowResizeHitSize, windowResizeHitSize),
     vec2(window.bounds.width - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize),
   ))
+  let id = gui.getId("MoveButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id and gui.windowInteraction:
     gui.bringToFront(window)
   if button.pressed:
@@ -116,11 +170,12 @@ proc moveButton(window: GuiWindow, gui: Gui) =
     window.move(gui)
 
 proc resizeLeftButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeLeftButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(0, windowResizeHitSize),
     vec2(windowResizeHitSize, window.bounds.height - windowResizeHitSize * 2.0)
   ))
+  let id = gui.getId("ResizeLeftButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeLeftRight
     if gui.windowInteraction:
@@ -132,11 +187,12 @@ proc resizeLeftButton(window: GuiWindow, gui: Gui) =
     window.resizeLeft(gui)
 
 proc resizeRightButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeRightButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(window.bounds.width - windowResizeHitSize, windowResizeHitSize),
     vec2(windowResizeHitSize, window.bounds.height - windowResizeHitSize * 2.0)
   ))
+  let id = gui.getId("ResizeRightButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeLeftRight
     if gui.windowInteraction:
@@ -148,11 +204,12 @@ proc resizeRightButton(window: GuiWindow, gui: Gui) =
     window.resizeRight(gui)
 
 proc resizeTopButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeTopButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(windowResizeHitSize * 2.0, 0),
     vec2(window.bounds.width - windowResizeHitSize * 4.0, windowResizeHitSize)
   ))
+  let id = gui.getId("ResizeTopButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeTopBottom
     if gui.windowInteraction:
@@ -164,11 +221,12 @@ proc resizeTopButton(window: GuiWindow, gui: Gui) =
     window.resizeTop(gui)
 
 proc resizeBottomButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeBottomButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(windowResizeHitSize * 2.0, window.bounds.height - windowResizeHitSize),
     vec2(window.bounds.width - windowResizeHitSize * 4.0, windowResizeHitSize)
   ))
+  let id = gui.getId("ResizeBottomButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeTopBottom
     if gui.windowInteraction:
@@ -180,11 +238,12 @@ proc resizeBottomButton(window: GuiWindow, gui: Gui) =
     window.resizeBottom(gui)
 
 proc resizeTopLeftButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeTopLeftButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(0, 0),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
   ))
+  let id = gui.getId("ResizeTopLeftButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeTopLeftBottomRight
     if gui.windowInteraction:
@@ -197,11 +256,12 @@ proc resizeTopLeftButton(window: GuiWindow, gui: Gui) =
     window.resizeTop(gui)
 
 proc resizeTopRightButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeTopRightButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(window.bounds.width - windowResizeHitSize * 2.0, 0),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
   ))
+  let id = gui.getId("ResizeTopRightButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeTopRightBottomLeft
     if gui.windowInteraction:
@@ -214,11 +274,12 @@ proc resizeTopRightButton(window: GuiWindow, gui: Gui) =
     window.resizeTop(gui)
 
 proc resizeBottomLeftButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeBottomLeftButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(0, window.bounds.height - windowResizeHitSize),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
   ))
+  let id = gui.getId("ResizeBottomLeftButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeTopRightBottomLeft
     if gui.windowInteraction:
@@ -231,11 +292,12 @@ proc resizeBottomLeftButton(window: GuiWindow, gui: Gui) =
     window.resizeBottom(gui)
 
 proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("ResizeBottomRightButton")
-  let button = gui.buttonBehavior(id, rect2(
+  gui.setNextBounds(rect2(
     vec2(window.bounds.width - windowResizeHitSize * 2.0, window.bounds.height - windowResizeHitSize),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
   ))
+  let id = gui.getId("ResizeBottomRightButton")
+  let button = gui.invisibleButton(id)
   if gui.hover == id:
     gui.cursorStyle = ResizeTopLeftBottomRight
     if gui.windowInteraction:
@@ -246,6 +308,16 @@ proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
     gui.cursorStyle = ResizeTopLeftBottomRight
     window.resizeRight(gui)
     window.resizeBottom(gui)
+
+proc backgroundButton(window: GuiWindow, gui: Gui) =
+  gui.setNextBounds(rect2(
+    vec2(0, 0),
+    vec2(window.bounds.width, window.bounds.height)
+  ))
+  let id = gui.getId("BackgroundButton")
+  discard gui.invisibleButton(id)
+  if gui.hover == id and gui.windowInteraction:
+    gui.bringToFront(window)
 
 proc drawBackground(window: GuiWindow, gui: Gui) =
   const bodyColor = rgb(49, 51, 56)
@@ -327,13 +399,6 @@ proc drawBackground(window: GuiWindow, gui: Gui) =
   vg.strokeWidth(borderThickness)
   vg.strokeColor(headerBorderColor)
   vg.stroke()
-
-proc backgroundButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("BackgroundButton")
-  discard gui.buttonBehavior(id, rect2(
-    vec2(0, 0),
-    vec2(window.bounds.width, window.bounds.height)
-  ))
 
 proc beginWindow*(gui: Gui, window: GuiWindow): GuiWindow =
   if not window.isOpen:

@@ -228,9 +228,8 @@ proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, scale: float) =
 proc endFrame*(ctx: VectorGraphicsContext) =
   nvgEndFrame(ctx.nvgCtx)
 
-proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics, offset: Vec2) =
+proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics) =
   nvgSave(ctx.nvgCtx)
-  nvgTranslate(ctx.nvgCtx, offset.x, offset.y)
 
   for command in vg.commands:
     case command.kind:
@@ -270,5 +269,4 @@ proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics, offse
       nvgArcTo(ctx.nvgCtx, c.x0, c.y0, c.x1, c.y1, c.radius)
 
   nvgRestore(ctx.nvgCtx)
-
   vg.commands.setLen(0)

@@ -2,14 +2,6 @@ import std/options
 import ./math
 
 type
-  GuiPositioning* = enum
-    Relative
-    Absolute
-
-  FreelyPositionedRect2* = object
-    positioning*: GuiPositioning
-    bounds*: Rect2
-
   GuiLayout* = object
     itemSpacing*: Vec2
     defaultItemSize*: Vec2
@@ -21,7 +13,7 @@ type
     indexInRow*: int
     nextRow*: float
     indent*: float
-    freeBounds*: Option[FreelyPositionedRect2]
+    freeBounds*: Option[Rect2]
 
 proc newRow(layout: var GuiLayout, height: float) =
   layout.nextPosition.x = layout.indent
@@ -37,14 +29,8 @@ proc row*(layout: var GuiLayout, widths: openArray[float], height: float) =
 
 proc getNextBounds*(layout: var GuiLayout): Rect2 =
   if layout.freeBounds.isSome:
-    let freeBounds = layout.freeBounds.get
-    layout.freeBounds = none(FreelyPositionedRect2)
-
-    result = freeBounds.bounds
-
-    if freeBounds.positioning == Relative:
-      result.x += layout.bounds.x
-      result.y += layout.bounds.y
+    result = layout.freeBounds.get
+    layout.freeBounds = none(Rect2)
 
   else:
     if layout.indexInRow == layout.widths.len:
@@ -77,14 +63,8 @@ proc getNextBounds*(layout: var GuiLayout): Rect2 =
     layout.nextPosition.x += result.width + layout.itemSpacing.x
     layout.nextRow = max(layout.nextRow, result.y + result.height + layout.itemSpacing.y)
 
-    result.x += layout.bounds.x
-    result.y += layout.bounds.y
-
   layout.max.x = max(layout.max.x, result.x + result.width)
   layout.max.y = max(layout.max.y, result.y + result.height)
 
-proc setNextBounds*(layout: var GuiLayout, bounds: Rect2, positioning = GuiPositioning.Relative) =
-  layout.freeBounds = some(FreelyPositionedRect2(
-    positioning: positioning,
-    bounds: bounds,
-  ))
+proc `nextBounds=`*(layout: var GuiLayout, bounds: Rect2) =
+  layout.freeBounds = some(bounds)

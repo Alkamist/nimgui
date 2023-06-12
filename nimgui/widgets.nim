@@ -74,6 +74,8 @@ proc button*(gui: Gui, button: GuiButton, mb = MouseButton.Left): GuiButton =
     vg.fillColor(color)
     vg.fill()
 
+  # Maybe also a flag to avoid processing.
+  # Need a way to check if bounds are visible so this can be culled if not visible.
   drawBody(rgb(31, 32, 34))
   if button.isDown:
     drawBody(rgba(0, 0, 0, 8))
@@ -95,7 +97,7 @@ type
     zIndex*: int
     isOpen*: bool
     minSize*: Vec2
-    globalMousePositionWhenGrabbed: Vec2
+    mousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
 
@@ -112,12 +114,12 @@ proc windowInteraction(gui: Gui): bool =
   gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
 
 proc updateGrabState(window: GuiWindow, gui: Gui) =
-  window.globalMousePositionWhenGrabbed = gui.globalMousePosition
+  window.mousePositionWhenGrabbed = gui.mousePosition
   window.positionWhenGrabbed = window.editBounds.position
   window.sizeWhenGrabbed = window.editBounds.size
 
 proc calculateGrabDelta(window: GuiWindow, gui: Gui): Vec2 =
-  gui.globalMousePosition - window.globalMousePositionWhenGrabbed
+  gui.mousePosition - window.mousePositionWhenGrabbed
 
 proc move(window: GuiWindow, gui: Gui) =
   let grabDelta = window.calculateGrabDelta(gui)
@@ -156,10 +158,10 @@ proc resizeBottom(window: GuiWindow, gui: Gui) =
     window.editBounds.height -= correction
 
 proc moveButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(windowResizeHitSize, windowResizeHitSize),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(windowResizeHitSize, windowResizeHitSize),
     vec2(window.bounds.width - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize),
-  ))
+  )
   let id = gui.getId("MoveButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id and gui.windowInteraction:
@@ -170,10 +172,10 @@ proc moveButton(window: GuiWindow, gui: Gui) =
     window.move(gui)
 
 proc resizeLeftButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(0, windowResizeHitSize),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(0, windowResizeHitSize),
     vec2(windowResizeHitSize, window.bounds.height - windowResizeHitSize * 2.0)
-  ))
+  )
   let id = gui.getId("ResizeLeftButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -187,10 +189,10 @@ proc resizeLeftButton(window: GuiWindow, gui: Gui) =
     window.resizeLeft(gui)
 
 proc resizeRightButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(window.bounds.width - windowResizeHitSize, windowResizeHitSize),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(window.bounds.width - windowResizeHitSize, windowResizeHitSize),
     vec2(windowResizeHitSize, window.bounds.height - windowResizeHitSize * 2.0)
-  ))
+  )
   let id = gui.getId("ResizeRightButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -204,10 +206,10 @@ proc resizeRightButton(window: GuiWindow, gui: Gui) =
     window.resizeRight(gui)
 
 proc resizeTopButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(windowResizeHitSize * 2.0, 0),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(windowResizeHitSize * 2.0, 0),
     vec2(window.bounds.width - windowResizeHitSize * 4.0, windowResizeHitSize)
-  ))
+  )
   let id = gui.getId("ResizeTopButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -221,10 +223,10 @@ proc resizeTopButton(window: GuiWindow, gui: Gui) =
     window.resizeTop(gui)
 
 proc resizeBottomButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(windowResizeHitSize * 2.0, window.bounds.height - windowResizeHitSize),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(windowResizeHitSize * 2.0, window.bounds.height - windowResizeHitSize),
     vec2(window.bounds.width - windowResizeHitSize * 4.0, windowResizeHitSize)
-  ))
+  )
   let id = gui.getId("ResizeBottomButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -238,10 +240,10 @@ proc resizeBottomButton(window: GuiWindow, gui: Gui) =
     window.resizeBottom(gui)
 
 proc resizeTopLeftButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(0, 0),
+  gui.nextBounds = rect2(
+    window.bounds.position,
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
-  ))
+  )
   let id = gui.getId("ResizeTopLeftButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -256,10 +258,10 @@ proc resizeTopLeftButton(window: GuiWindow, gui: Gui) =
     window.resizeTop(gui)
 
 proc resizeTopRightButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(window.bounds.width - windowResizeHitSize * 2.0, 0),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(window.bounds.width - windowResizeHitSize * 2.0, 0),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
-  ))
+  )
   let id = gui.getId("ResizeTopRightButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -274,10 +276,10 @@ proc resizeTopRightButton(window: GuiWindow, gui: Gui) =
     window.resizeTop(gui)
 
 proc resizeBottomLeftButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(0, window.bounds.height - windowResizeHitSize),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(0, window.bounds.height - windowResizeHitSize),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
-  ))
+  )
   let id = gui.getId("ResizeBottomLeftButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -292,10 +294,10 @@ proc resizeBottomLeftButton(window: GuiWindow, gui: Gui) =
     window.resizeBottom(gui)
 
 proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(window.bounds.width - windowResizeHitSize * 2.0, window.bounds.height - windowResizeHitSize),
+  gui.nextBounds = rect2(
+    window.bounds.position + vec2(window.bounds.width - windowResizeHitSize * 2.0, window.bounds.height - windowResizeHitSize),
     vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
-  ))
+  )
   let id = gui.getId("ResizeBottomRightButton")
   let button = gui.invisibleButton(id)
   if gui.hover == id:
@@ -310,10 +312,7 @@ proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
     window.resizeBottom(gui)
 
 proc backgroundButton(window: GuiWindow, gui: Gui) =
-  gui.setNextBounds(rect2(
-    vec2(0, 0),
-    vec2(window.bounds.width, window.bounds.height)
-  ))
+  gui.nextBounds = window.bounds
   let id = gui.getId("BackgroundButton")
   discard gui.invisibleButton(id)
   if gui.hover == id and gui.windowInteraction:
@@ -331,8 +330,8 @@ proc drawBackground(window: GuiWindow, gui: Gui) =
   const cornerRadius = windowCornerRadius
   const borderCornerRadius = windowCornerRadius - borderThicknessHalf
 
-  let x = 0.0
-  let y = 0.0
+  let x = window.bounds.position.x
+  let y = window.bounds.position.y
   let width = window.bounds.size.x
   let height = window.bounds.size.y
 
@@ -408,17 +407,12 @@ proc beginWindow*(gui: Gui, window: GuiWindow): GuiWindow =
   window.editBounds.size.y = max(window.editBounds.size.y, window.minSize.y)
   window.bounds = window.editBounds
 
-  if gui.hover == window.id and
-     (gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)):
-    gui.bringToFront(window)
-
-  gui.beginIdSpace(window.id)
-  gui.beginLayer(window.bounds.position, window.zIndex)
+  gui.pushId(window.id)
+  gui.pushZIndex(window.zIndex)
+  gui.pushLayout(window.bounds)
 
   window.drawBackground(gui)
   window.backgroundButton(gui)
-
-  gui.beginLayout(rect2(vec2(0, 0), window.bounds.size))
 
   window
 
@@ -437,9 +431,7 @@ proc beginWindow*(gui: Gui, title: string): GuiWindow =
   gui.beginWindow(gui.getId(title))
 
 proc endWindow*(gui: Gui) =
-  gui.endLayout()
-
-  let window = gui.getState(gui.currentIdSpace, GuiWindow)
+  let window = gui.getState(gui.currentStackId, GuiWindow)
   window.moveButton(gui)
   window.resizeLeftButton(gui)
   window.resizeRightButton(gui)
@@ -450,5 +442,6 @@ proc endWindow*(gui: Gui) =
   window.resizeBottomLeftButton(gui)
   window.resizeBottomRightButton(gui)
 
-  gui.endLayer()
-  gui.endIdSpace()
+  gui.popLayout()
+  gui.popZIndex()
+  gui.popId()

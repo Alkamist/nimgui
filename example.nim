@@ -15,8 +15,8 @@ gui.attachToOsWindow(osWindow)
 osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.beginFrame(osWindow.time)
 
-  if gui.button("Button1").clicked:
-    echo "Clicked"
+  if gui.button("Button").clicked:
+    echo "1"
 
   let window = gui.getState("Window", GuiWindow)
   if window.init:
@@ -25,6 +25,9 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     window.minSize = vec2(500, 300)
 
   if gui.beginWindow(window).isOpen:
+    if gui.button("Button").clicked:
+      echo "2"
+
     gui.endWindow()
 
   if gui.beginWindow("Window2").isOpen:

@@ -33,8 +33,8 @@ proc attachToOsWindow*(gui: Gui, window: OsWindow) =
   window.onMouseMove = proc(window: OsWindow, x, y: int) =
     let gui = cast[Gui](window.userData)
     let dpi = window.dpi
-    gui.globalMousePosition.x = x.toDensityPixels(dpi)
-    gui.globalMousePosition.y = y.toDensityPixels(dpi)
+    gui.mousePosition.x = x.toDensityPixels(dpi)
+    gui.mousePosition.y = y.toDensityPixels(dpi)
     window.setCursorStyle(gui.cursorStyle)
 
   window.onMousePress = proc(window: OsWindow, button: MouseButton, x, y: int) =
@@ -42,16 +42,16 @@ proc attachToOsWindow*(gui: Gui, window: OsWindow) =
     let dpi = window.dpi
     gui.mouseDownStates[button] = true
     gui.mousePresses.add(button)
-    gui.globalMousePosition.x = x.toDensityPixels(dpi)
-    gui.globalMousePosition.y = y.toDensityPixels(dpi)
+    gui.mousePosition.x = x.toDensityPixels(dpi)
+    gui.mousePosition.y = y.toDensityPixels(dpi)
 
   window.onMouseRelease = proc(window: OsWindow, button: oswindow.MouseButton, x, y: int) =
     let gui = cast[Gui](window.userData)
     let dpi = window.dpi
     gui.mouseDownStates[button] = false
     gui.mouseReleases.add(button)
-    gui.globalMousePosition.x = x.toDensityPixels(dpi)
-    gui.globalMousePosition.y = y.toDensityPixels(dpi)
+    gui.mousePosition.x = x.toDensityPixels(dpi)
+    gui.mousePosition.y = y.toDensityPixels(dpi)
 
   window.onMouseWheel = proc(window: OsWindow, x, y: float) =
     let gui = cast[Gui](window.userData)

@@ -159,27 +159,13 @@ proc translate*(vg: VectorGraphics, value: Vec2) =
   vg.commands.add(DrawCommand(kind: Translate, translate: TranslateCommand(x: value.x, y: value.y)))
 
 
-proc fillColor*(vg: VectorGraphics, r, g, b, a: float) =
-  vg.commands.add(DrawCommand(kind: FillColor, fillColor: FillColorCommand(r: r, g: g, b: b, a: a)))
+proc `fillColor=`*(vg: VectorGraphics, color: Color) =
+  vg.commands.add(DrawCommand(kind: FillColor, fillColor: FillColorCommand(r: color.r, g: color.g, b: color.b, a: color.a)))
 
-proc fillColor*(vg: VectorGraphics, r, g, b: float) =
-  vg.fillColor(r, g, b, 1)
+proc `strokeColor=`*(vg: VectorGraphics, color: Color) =
+  vg.commands.add(DrawCommand(kind: StrokeColor, strokeColor: StrokeColorCommand(r: color.r, g: color.g, b: color.b, a: color.a)))
 
-proc fillColor*(vg: VectorGraphics, color: Color) =
-  vg.fillColor(color.r, color.g, color.b, color.a)
-
-
-proc strokeColor*(vg: VectorGraphics, r, g, b, a: float) =
-  vg.commands.add(DrawCommand(kind: StrokeColor, strokeColor: StrokeColorCommand(r: r, g: g, b: b, a: a)))
-
-proc strokeColor*(vg: VectorGraphics, r, g, b: float) =
-  vg.strokeColor(r, g, b, 1)
-
-proc strokeColor*(vg: VectorGraphics, color: Color) =
-  vg.strokeColor(color.r, color.g, color.b, color.a)
-
-
-proc strokeWidth*(vg: VectorGraphics, width: float) =
+proc `strokeWidth=`*(vg: VectorGraphics, width: float) =
   vg.commands.add(DrawCommand(kind: StrokeWidth, strokeWidth: StrokeWidthCommand(width: width)))
 
 

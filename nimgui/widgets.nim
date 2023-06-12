@@ -71,7 +71,7 @@ proc button*(gui: Gui, button: GuiButton, mb = MouseButton.Left): GuiButton =
   template drawBody(color: Color): untyped =
     vg.beginPath()
     vg.roundedRect(bounds.position, bounds.size, 3.0)
-    vg.fillColor(color)
+    vg.fillColor = color
     vg.fill()
 
   # Maybe also a flag to avoid processing.
@@ -345,7 +345,7 @@ proc drawBackground(window: GuiWindow, gui: Gui) =
     cornerRadius, cornerRadius,
     0, 0,
   )
-  vg.fillColor(headerColor)
+  vg.fillColor = headerColor
   vg.fill()
 
   # Body fill:
@@ -356,7 +356,7 @@ proc drawBackground(window: GuiWindow, gui: Gui) =
     0, 0,
     cornerRadius, cornerRadius,
   )
-  vg.fillColor(bodyColor)
+  vg.fillColor = bodyColor
   vg.fill()
 
   # Body border:
@@ -375,8 +375,8 @@ proc drawBackground(window: GuiWindow, gui: Gui) =
     borderCornerRadius,
   )
   vg.lineTo(vec2(x + borderThicknessHalf, y + headerHeight))
-  vg.strokeWidth(borderThickness)
-  vg.strokeColor(bodyBorderColor)
+  vg.strokeWidth = borderThickness
+  vg.strokeColor = bodyBorderColor
   vg.stroke()
 
   # Header border:
@@ -395,8 +395,8 @@ proc drawBackground(window: GuiWindow, gui: Gui) =
     borderCornerRadius,
   )
   vg.lineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
-  vg.strokeWidth(borderThickness)
-  vg.strokeColor(headerBorderColor)
+  vg.strokeWidth = borderThickness
+  vg.strokeColor = headerBorderColor
   vg.stroke()
 
 proc beginWindow*(gui: Gui, window: GuiWindow): GuiWindow =

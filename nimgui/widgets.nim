@@ -7,9 +7,9 @@ proc buttonBehavior*(gui: Gui, id: GuiId, bounds: Rect2, mb = MouseButton.Left):
   # vg.beginPath()
   # vg.rect(bounds)
   # if gui.focus == id:
-  #   vg.strokeColor = rgb(0, 255, 0)
+  #   vg.setStrokeColor(rgb(0, 255, 0))
   # else:
-  #   vg.strokeColor = rgb(0, 0, 255)
+  #   vg.setStrokeColor(rgb(0, 0, 255))
   # vg.stroke()
 
 proc buttonBehavior*(gui: Gui, str: string, bounds: Rect2, mb = MouseButton.Left): GuiControl =
@@ -24,7 +24,7 @@ proc button*(gui: Gui, label: string, mb = MouseButton.Left): GuiControl =
   template drawBody(color: Color): untyped =
     vg.beginPath()
     vg.roundedRect(bounds.position, bounds.size, 3.0)
-    vg.fillColor = color
+    vg.fillColor(color)
     vg.fill()
 
   drawBody(rgb(31, 32, 34))
@@ -39,7 +39,6 @@ type
   GuiWindow* = ref object of GuiState
     editBounds*: Rect2
     bounds*: Rect2
-    scroll*: Vec2
     zIndex*: int
     isOpen*: bool
     minSize*: Vec2
@@ -49,9 +48,9 @@ type
 
 const windowHeaderHeight = 22.0
 const windowResizeHitSize = 5.0
-# const windowBorderThickness = 1.0
-# const windowCornerRadius = 4.0
-# const windowRoundingInset = (1.0 - sin(45.0.degToRad)) * windowCornerRadius
+const windowBorderThickness = 1.0
+const windowCornerRadius = 4.0
+const windowRoundingInset = (1.0 - sin(45.0.degToRad)) * windowCornerRadius
 
 proc updateGrabState(window: GuiWindow, gui: Gui) =
   window.globalMousePositionWhenGrabbed = gui.globalMousePosition
@@ -209,8 +208,89 @@ proc resizeBottomRightButton(window: GuiWindow, gui: Gui) =
 proc bringToFront*(gui: Gui, window: GuiWindow) =
   window.zIndex = gui.highestZIndex + 1
 
-proc bodyButton(window: GuiWindow, gui: Gui) =
-  let id = gui.getId("BodyButton")
+proc drawBackground(window: GuiWindow, gui: Gui) =
+  const bodyColor = rgb(49, 51, 56)
+  const bodyBorderColor = rgb(49, 51, 56).lighten(0.1)
+  const headerColor = rgb(30, 31, 34)
+  const headerBorderColor = rgb(30, 31, 34)
+
+  const headerHeight = windowHeaderHeight
+  const borderThickness = windowBorderThickness.clamp(1.0, 0.5 * windowHeaderHeight)
+  const borderThicknessHalf = borderThickness * 0.5
+  const cornerRadius = windowCornerRadius
+  const borderCornerRadius = windowCornerRadius - borderThicknessHalf
+
+  let x = 0.0
+  let y = 0.0
+  let width = window.bounds.size.x
+  let height = window.bounds.size.y
+
+  let vg = gui.vg
+
+  # Header fill:
+  vg.beginPath()
+  vg.roundedRect(
+    vec2(x, y),
+    vec2(width, headerHeight),
+    cornerRadius, cornerRadius,
+    0, 0,
+  )
+  vg.fillColor(headerColor)
+  vg.fill()
+
+  # Body fill:
+  vg.beginPath()
+  vg.roundedRect(
+    vec2(x, y + headerHeight),
+    vec2(width, height - headerHeight),
+    0, 0,
+    cornerRadius, cornerRadius,
+  )
+  vg.fillColor(bodyColor)
+  vg.fill()
+
+  # Body border:
+  vg.beginPath()
+  vg.moveTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
+  vg.lineTo(vec2(x + width - borderThicknessHalf, y + height - cornerRadius))
+  vg.arcTo(
+    vec2(x + width - borderThicknessHalf, y + height - borderThicknessHalf),
+    vec2(x + width - cornerRadius, y + height - borderThicknessHalf),
+    borderCornerRadius,
+  )
+  vg.lineTo(vec2(x + cornerRadius, y + height - borderThicknessHalf))
+  vg.arcTo(
+    vec2(x + borderThicknessHalf, y + height - borderThicknessHalf),
+    vec2(x + borderThicknessHalf, y + height - cornerRadius),
+    borderCornerRadius,
+  )
+  vg.lineTo(vec2(x + borderThicknessHalf, y + headerHeight))
+  vg.strokeWidth(borderThickness)
+  vg.strokeColor(bodyBorderColor)
+  vg.stroke()
+
+  # Header border:
+  vg.beginPath()
+  vg.moveTo(vec2(x + borderThicknessHalf, y + headerHeight))
+  vg.lineTo(vec2(x + borderThicknessHalf, y + cornerRadius))
+  vg.arcTo(
+    vec2(x + borderThicknessHalf, y + borderThicknessHalf),
+    vec2(x + cornerRadius, y + borderThicknessHalf),
+    borderCornerRadius,
+  )
+  vg.lineTo(vec2(x + width - cornerRadius, y + borderThicknessHalf))
+  vg.arcTo(
+    vec2(x + width - borderThicknessHalf, y + borderThicknessHalf),
+    vec2(x + width - borderThicknessHalf, y + cornerRadius),
+    borderCornerRadius,
+  )
+  vg.lineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
+  vg.strokeWidth(borderThickness)
+  vg.strokeColor(headerBorderColor)
+  vg.stroke()
+
+proc backgroundButton(window: GuiWindow, gui: Gui) =
+  let id = gui.getId("BackgroundButton")
   discard gui.buttonBehavior(id, rect2(
     vec2(0, 0),
     vec2(window.bounds.width, window.bounds.height)
@@ -240,15 +320,10 @@ proc beginWindow*(gui: Gui, title: string): GuiWindow =
      gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right):
     gui.bringToFront(window)
 
-  window.bodyButton(gui)
+  window.drawBackground(gui)
+  window.backgroundButton(gui)
 
-  let vg = gui.vg
-  vg.beginPath()
-  vg.rect(vec2(0, 0), window.bounds.size)
-  vg.fillColor = rgb(125, 125, 125)
-  vg.fill()
-
-  gui.beginLayout(rect2(vec2(0, 0), window.bounds.size).expand(-10.0), window.scroll)
+  gui.beginLayout(rect2(vec2(0, 0), window.bounds.size))
 
   window
 

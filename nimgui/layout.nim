@@ -83,8 +83,8 @@ proc getNextBounds*(layout: var GuiLayout): Rect2 =
   layout.max.x = max(layout.max.x, result.x + result.width)
   layout.max.y = max(layout.max.y, result.y + result.height)
 
-proc `nextBounds=`*(layout: var GuiLayout, bounds: Rect2) =
+proc setNextBounds*(layout: var GuiLayout, bounds: Rect2, positioning = GuiPositioning.Relative) =
   layout.freeBounds = some(FreelyPositionedRect2(
-    positioning: Relative,
+    positioning: positioning,
     bounds: bounds,
   ))

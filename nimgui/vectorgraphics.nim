@@ -11,11 +11,12 @@ type
     Clip
     StrokeColor
     FillColor
+    StrokeWidth
     Translate
-    # MoveTo
-    # LineTo
+    MoveTo
+    LineTo
     # QuadTo
-    # ArcTo
+    ArcTo
     # Arc
     # RoundedRect
     # Ellipse
@@ -28,7 +29,6 @@ type
     # ShapeAntiAlias
     # FillPaint
     # MiterLimit
-    # StrokeWidth
     # LineCap
     # LineJoin
     # GlobalAlpha
@@ -53,11 +53,23 @@ type
   FillColorCommand = object
     r, g, b, a: float
 
+  StrokeWidthCommand = object
+    width: float
+
   ClipCommand = object
     x, y, width, height: float
 
   TranslateCommand = object
     x, y: float
+
+  MoveToCommand = object
+    x, y: float
+
+  LineToCommand = object
+    x, y: float
+
+  ArcToCommand = object
+    x0, y0, x1, y1, radius: float
 
   DrawCommand = object
     case kind: DrawCommandKind
@@ -65,8 +77,12 @@ type
     of RoundedRect: roundedRect: RoundedRectCommand
     of StrokeColor: strokeColor: StrokeColorCommand
     of FillColor: fillColor: FillColorCommand
+    of StrokeWidth: strokeWidth: StrokeWidthCommand
     of Clip: clip: ClipCommand
     of Translate: translate: TranslateCommand
+    of MoveTo: moveTo: MoveToCommand
+    of LineTo: lineTo: LineToCommand
+    of ArcTo: arcTo: ArcToCommand
     else: discard
 
   # Paint* = object
@@ -84,11 +100,14 @@ type
 proc beginPath*(vg: VectorGraphics) =
   vg.commands.add(DrawCommand(kind: BeginPath))
 
+
 proc closePath*(vg: VectorGraphics) =
   vg.commands.add(DrawCommand(kind: ClosePath))
 
+
 proc fill*(vg: VectorGraphics) =
   vg.commands.add(DrawCommand(kind: Fill))
+
 
 proc stroke*(vg: VectorGraphics) =
   vg.commands.add(DrawCommand(kind: Stroke))
@@ -139,11 +158,50 @@ proc clip*(vg: VectorGraphics, rect: Rect2) =
 proc translate*(vg: VectorGraphics, value: Vec2) =
   vg.commands.add(DrawCommand(kind: Translate, translate: TranslateCommand(x: value.x, y: value.y)))
 
-proc `fillColor=`*(vg: VectorGraphics, color: Color) =
-  vg.commands.add(DrawCommand(kind: FillColor, fillColor: FillColorCommand(r: color.r, g: color.g, b: color.b, a: color.a)))
 
-proc `strokeColor=`*(vg: VectorGraphics, color: Color) =
-  vg.commands.add(DrawCommand(kind: StrokeColor, strokeColor: StrokeColorCommand(r: color.r, g: color.g, b: color.b, a: color.a)))
+proc fillColor*(vg: VectorGraphics, r, g, b, a: float) =
+  vg.commands.add(DrawCommand(kind: FillColor, fillColor: FillColorCommand(r: r, g: g, b: b, a: a)))
+
+proc fillColor*(vg: VectorGraphics, r, g, b: float) =
+  vg.fillColor(r, g, b, 1)
+
+proc fillColor*(vg: VectorGraphics, color: Color) =
+  vg.fillColor(color.r, color.g, color.b, color.a)
+
+
+proc strokeColor*(vg: VectorGraphics, r, g, b, a: float) =
+  vg.commands.add(DrawCommand(kind: StrokeColor, strokeColor: StrokeColorCommand(r: r, g: g, b: b, a: a)))
+
+proc strokeColor*(vg: VectorGraphics, r, g, b: float) =
+  vg.strokeColor(r, g, b, 1)
+
+proc strokeColor*(vg: VectorGraphics, color: Color) =
+  vg.strokeColor(color.r, color.g, color.b, color.a)
+
+
+proc strokeWidth*(vg: VectorGraphics, width: float) =
+  vg.commands.add(DrawCommand(kind: StrokeWidth, strokeWidth: StrokeWidthCommand(width: width)))
+
+
+proc moveTo*(vg: VectorGraphics, x, y: float) =
+  vg.commands.add(DrawCommand(kind: MoveTo, moveTo: MoveToCommand(x: x, y: y)))
+
+proc moveTo*(vg: VectorGraphics, position: Vec2) =
+  vg.moveTo(position.x, position.y)
+
+
+proc lineTo*(vg: VectorGraphics, x, y: float) =
+  vg.commands.add(DrawCommand(kind: LineTo, lineTo: LineToCommand(x: x, y: y)))
+
+proc lineTo*(vg: VectorGraphics, position: Vec2) =
+  vg.lineTo(position.x, position.y)
+
+
+proc arcTo*(vg: VectorGraphics, x0, y0, x1, y1, radius: float) =
+  vg.commands.add(DrawCommand(kind: ArcTo, arcTo: ArcToCommand(x0: x0, y0: y0, x1: x1, y1: y1, radius: radius)))
+
+proc arcTo*(vg: VectorGraphics, p0, p1: Vec2, radius: float) =
+  vg.arcTo(p0.x, p0.y, p1.x, p1.y, radius)
 
 
 # ==========================================================================================
@@ -195,9 +253,21 @@ proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics, offse
     of FillColor:
       let c = command.fillColor
       nvgFillColor(ctx.nvgCtx, NVGcolor(r: c.r, g: c.g, b: c.b, a: c.a))
+    of StrokeWidth:
+      let c = command.strokeWidth
+      nvgStrokeWidth(ctx.nvgCtx, c.width)
     of Translate:
       let c = command.translate
       nvgTranslate(ctx.nvgCtx, c.x, c.y)
+    of MoveTo:
+      let c = command.moveTo
+      nvgMoveTo(ctx.nvgCtx, c.x, c.y)
+    of LineTo:
+      let c = command.lineTo
+      nvgLineTo(ctx.nvgCtx, c.x, c.y)
+    of ArcTo:
+      let c = command.arcTo
+      nvgArcTo(ctx.nvgCtx, c.x0, c.y0, c.x1, c.y1, c.radius)
 
   nvgRestore(ctx.nvgCtx)
 

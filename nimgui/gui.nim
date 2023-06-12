@@ -131,7 +131,7 @@ proc getNextBounds*(gui: Gui): Rect2 =
   result = gui.currentLayout.getNextBounds()
   gui.currentBounds = result
 
-proc beginLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
+proc beginLayout*(gui: Gui, bounds: Rect2, scroll = vec2(0, 0)) =
   gui.layoutStack.add GuiLayout(
     itemSpacing: gui.itemSpacing,
     defaultItemSize: gui.defaultItemSize,
@@ -158,8 +158,8 @@ proc endColumn*(gui: Gui) =
   a.max.y = max(a.max.y, b.max.y)
   gui.layoutStack[gui.layoutStack.len - 1] = a
 
-proc `nextBounds=`*(gui: Gui, bounds: Rect2) =
-  gui.currentLayout.nextBounds = bounds
+proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relative) =
+  gui.currentLayout.setNextBounds(bounds, positioning)
 
 proc beginLayer*(gui: Gui, id: GuiId, offset = vec2(0, 0), zIndex = 0) =
   let layer = gui.getState(id, GuiLayer)

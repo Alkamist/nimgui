@@ -15,14 +15,18 @@ type
     id*: GuiId
     init*: bool
 
+  GuiControl* = ref object of GuiState
+    isDown*: bool
+    pressed*: bool
+    released*: bool
+    clicked*: bool
+    previousEngage: bool
+
   GuiLayer* = ref object of GuiState
     vg*: VectorGraphics
     offset: Vec2
     zIndex: int
-    layoutStack: seq[GuiLayout]
-    finalMouseOver: GuiId
-    controlEngaged: bool
-    controlHovered: bool
+    finalHover: GuiId
 
   Gui* = ref object
     size*: Vec2
@@ -43,21 +47,18 @@ type
 
     hover*: GuiId
     focus*: GuiId
-    mouseCapture*: GuiId
     currentId*: GuiId
     currentBounds*: Rect2
     highestZIndex*: int
     cursorStyle*: CursorStyle
-    layerEngaged*: GuiId
     hoverLayer*: GuiId
 
     retainedState: Table[GuiId, GuiState]
 
     idStack: seq[GuiId]
+    layoutStack: seq[GuiLayout]
     layerStack: seq[GuiLayer]
     activeLayers: seq[GuiLayer]
-
-    finalMouseOver: GuiId
 
     vgCtx: VectorGraphicsContext
 
@@ -121,8 +122,7 @@ proc getState*(gui: Gui, str: string, T: typedesc): T =
   gui.getState(gui.getId(str), T)
 
 template currentLayout(gui: Gui): untyped =
-  let layer = gui.currentLayer
-  layer.layoutStack[layer.layoutStack.len - 1]
+  gui.layoutStack[gui.layoutStack.len - 1]
 
 proc row*(gui: Gui, widths: openArray[float], height: float) =
   gui.currentLayout.row(widths, height)
@@ -132,8 +132,7 @@ proc getNextBounds*(gui: Gui): Rect2 =
   gui.currentBounds = result
 
 proc beginLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
-  let layer = gui.currentLayer
-  layer.layoutStack.add GuiLayout(
+  gui.layoutStack.add GuiLayout(
     itemSpacing: gui.itemSpacing,
     defaultItemSize: gui.defaultItemSize,
     bounds: rect2(
@@ -145,26 +144,24 @@ proc beginLayout*(gui: Gui, bounds: Rect2, scroll: Vec2) =
   gui.row([0.0], 0.0)
 
 proc endLayout*(gui: Gui) =
-  let layer = gui.currentLayer
-  discard layer.layoutStack.pop()
+  discard gui.layoutStack.pop()
 
 proc beginColumn*(gui: Gui) =
   gui.beginLayout(gui.getNextBounds(), vec2(0, 0))
 
 proc endColumn*(gui: Gui) =
-  let layer = gui.currentLayer
-  let b = layer.layoutStack.pop()
-  var a = layer.layoutStack[layer.layoutStack.len - 1]
+  let b = gui.layoutStack.pop()
+  var a = gui.layoutStack[gui.layoutStack.len - 1]
   a.rowSize.x = max(a.rowSize.x, b.rowSize.x + b.bounds.x - a.bounds.x)
   a.nextRow = max(a.nextRow, b.nextRow + b.bounds.y - a.bounds.y)
   a.max.x = max(a.max.x, b.max.x)
   a.max.y = max(a.max.y, b.max.y)
-  layer.layoutStack[layer.layoutStack.len - 1] = a
+  gui.layoutStack[gui.layoutStack.len - 1] = a
 
-proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relative) =
-  gui.currentLayout.setNextBounds(bounds, positioning)
+proc `nextBounds=`*(gui: Gui, bounds: Rect2) =
+  gui.currentLayout.nextBounds = bounds
 
-proc beginLayer*(gui: Gui, id: GuiId, offset, scroll = vec2(0, 0), zIndex = 0) =
+proc beginLayer*(gui: Gui, id: GuiId, offset = vec2(0, 0), zIndex = 0) =
   let layer = gui.getState(id, GuiLayer)
   if layer.init:
     layer.vg = VectorGraphics.new()
@@ -175,14 +172,10 @@ proc beginLayer*(gui: Gui, id: GuiId, offset, scroll = vec2(0, 0), zIndex = 0) =
   gui.layerStack.add(layer)
   gui.activeLayers.add(layer)
 
-  gui.beginLayout(rect2(vec2(0, 0), vec2(500, 500)), scroll)
-
-proc beginLayer*(gui: Gui, str: string, offset, scroll = vec2(0, 0), zIndex = 0) =
-  gui.beginLayer(gui.getId(str), offset, scroll, zIndex)
+proc beginLayer*(gui: Gui, str: string, offset= vec2(0, 0), zIndex = 0) =
+  gui.beginLayer(gui.getId(str), offset, zIndex)
 
 proc endLayer*(gui: Gui) =
-  gui.endLayout()
-  assert(gui.currentLayer.layoutStack.len == 0)
   discard gui.layerStack.pop()
 
 proc new*(_: typedesc[Gui]): Gui =
@@ -198,42 +191,37 @@ proc beginFrame*(gui: Gui, time: float) =
   gui.time = time
   gui.cursorStyle = Arrow
 
-  gui.beginLayer("MainLayer", vec2(0, 0))
+  gui.beginLayer("MainLayer")
+  gui.beginLayout(rect2(vec2(0, 0), gui.size), vec2(0, 0))
 
 proc endFrame*(gui: Gui) =
+  gui.endLayout()
   gui.endLayer()
 
   assert(gui.idStack.len == 0)
+  assert(gui.layoutStack.len == 0)
   assert(gui.layerStack.len == 0)
 
   gui.activeLayers.sort do (x, y: GuiLayer) -> int:
     cmp(x.zIndex, y.zIndex)
 
-  gui.layerEngaged = 0
+  gui.hover = 0
   gui.hoverLayer = 0
 
   for layer in gui.activeLayers:
     gui.vgCtx.renderVectorGraphics(layer.vg, layer.offset)
 
-    if layer.controlEngaged:
-      gui.layerEngaged = layer.id
-
-    if layer.controlHovered:
+    if layer.finalHover != 0:
       gui.hoverLayer = layer.id
+      gui.hover = layer.finalHover
 
-    if layer.finalMouseOver != 0:
-      gui.finalMouseOver = layer.finalMouseOver
-
-    layer.controlHovered = false
-    layer.controlEngaged = false
-    layer.finalMouseOver = 0
+    layer.finalHover = 0
 
   let highestZIndex = gui.activeLayers[gui.activeLayers.len - 1].zIndex
   if highestZIndex > gui.highestZIndex:
     gui.highestZIndex = highestZIndex
 
   gui.activeLayers.setLen(0)
-
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)
@@ -244,39 +232,41 @@ proc endFrame*(gui: Gui) =
 
   gui.vgCtx.endFrame()
 
-proc updateControl*(gui: Gui, id: GuiId, mouseOver: bool) =
+proc control*(gui: Gui, id: GuiId, hover, engage: bool): GuiControl =
   let layer = gui.currentLayer
+  let control = gui.getState(id, GuiControl)
 
-  let mousePressed = gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
-  let mouseReleased = gui.mouseReleased(Left) or gui.mouseReleased(Middle) or gui.mouseReleased(Right)
+  let press = engage and not control.previousEngage
+  let release = control.previousEngage and not engage
+  control.previousEngage = engage
 
-  if mouseOver:
-    layer.finalMouseOver = id
-
-  # Set hover.
-  if gui.mouseCapture == 0 and mouseOver and gui.finalMouseOver == id:
-    gui.hover = id
-  else:
+  # Update gui hover.
+  if engage and not press and gui.hover == id:
     gui.hover = 0
 
-  # Set focus.
-  if gui.hover == id:
+  # Main logic.
+  control.pressed = false
+  control.released = false
+  control.clicked = false
+
+  if gui.hover == id and not control.isDown and press:
+    control.isDown = true
+    control.pressed = true
+
+  if control.isDown and release:
+    control.isDown = false
+    control.released = true
+    if gui.hover == id:
+      control.clicked = true
+
+  if hover:
+    layer.finalHover = id
+
+  # Update gui focus.
+  if control.pressed:
     gui.focus = id
 
-  if mousePressed and not mouseOver and gui.focus == id:
+  if press and gui.focus == id and gui.hover != id:
     gui.focus = 0
 
-  # Set mouse capture.
-  if mousePressed and gui.hover == id:
-    gui.mouseCapture = id
-    layer.controlEngaged = true
-
-  if mouseReleased:
-    gui.mouseCapture = 0
-
-  if gui.mouseCapture == id:
-    gui.hover = id
-    gui.focus = id
-
-  if gui.hover == id:
-    layer.controlHovered = true
+  control

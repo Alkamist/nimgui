@@ -15,29 +15,45 @@ gui.attachToOsWindow(window)
 window.onFrame = proc(window: OsWindow) =
   gui.beginFrame(window.time)
 
-  if gui.button("Button1").pressed:
+  if gui.button("Button").clicked:
     echo "1"
 
-  gui.setNextBounds rect2(20, 20, 50, 50)
-  if gui.button("Button2").pressed:
-    echo "2"
+  # if gui.button("Button2").clicked:
+  #   echo "2"
 
-  if gui.beginWindow("Window", rect2(100, 100, 300, 300), rgb(100, 0, 0)).isOpen:
-    if gui.button("Button").pressed:
-      echo "3"
+  gui.nextBounds = rect2(100, 100, 300, 300)
 
-    if gui.beginWindow("Window2", rect2(80, 80, 300, 300), rgb(0, 100, 0)).isOpen:
-      if gui.button("Button").pressed:
-        echo "4"
-
-      gui.endWindow()
-
+  if gui.beginWindow("Window1").isOpen:
     gui.endWindow()
+
+  if gui.beginWindow("Window2").isOpen:
+    gui.endWindow()
+
+  # gui.button("Button1"):
+  #   echo "1"
+
+  # gui.nextBounds = rect2(20, 20, 50, 50)
+
+  # gui.button("Button2"):
+  #   echo "2"
+
+  # gui.nextBounds = rect2(100, 100, 300, 300)
+
+  # gui.window("Window"):
+  #   gui.button("Button"):
+  #     echo "3"
+
+  #   gui.nextBounds = rect2(200, 200, 500, 500)
+
+  #   gui.window("Window"):
+  #     gui.button("B"):
+  #       echo "4"
 
   gui.endFrame()
 
   if window.isHovered:
     window.setCursorStyle(gui.cursorStyle)
+
   window.swapBuffers()
 
 window.run()

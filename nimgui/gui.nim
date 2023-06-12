@@ -22,8 +22,8 @@ type
     clicked*: bool
     previousEngage: bool
 
-  GuiLayer* = ref object of GuiState
-    vg*: VectorGraphics
+  GuiLayer = object
+    vg: VectorGraphics
     offset: Vec2
     zIndex: int
     finalHover: GuiId
@@ -51,14 +51,13 @@ type
     currentBounds*: Rect2
     highestZIndex*: int
     cursorStyle*: CursorStyle
-    hoverLayer*: GuiId
 
     retainedState: Table[GuiId, GuiState]
 
     idStack: seq[GuiId]
     layoutStack: seq[GuiLayout]
     layerStack: seq[GuiLayer]
-    activeLayers: seq[GuiLayer]
+    layers: seq[GuiLayer]
 
     vgCtx: VectorGraphicsContext
 
@@ -99,7 +98,7 @@ proc endIdSpace*(gui: Gui) =
 proc currentIdSpace*(gui: Gui): GuiId =
   gui.idStack[gui.idStack.len - 1]
 
-proc currentLayer*(gui: Gui): GuiLayer =
+proc currentLayer(gui: Gui): var GuiLayer =
   gui.layerStack[gui.layerStack.len - 1]
 
 proc mousePosition*(gui: Gui): Vec2 =
@@ -121,7 +120,7 @@ proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
 proc getState*(gui: Gui, str: string, T: typedesc): T =
   gui.getState(gui.getId(str), T)
 
-template currentLayout(gui: Gui): untyped =
+proc currentLayout(gui: Gui): var GuiLayout =
   gui.layoutStack[gui.layoutStack.len - 1]
 
 proc row*(gui: Gui, widths: openArray[float], height: float) =
@@ -161,22 +160,15 @@ proc endColumn*(gui: Gui) =
 proc setNextBounds*(gui: Gui, bounds: Rect2, positioning = GuiPositioning.Relative) =
   gui.currentLayout.setNextBounds(bounds, positioning)
 
-proc beginLayer*(gui: Gui, id: GuiId, offset = vec2(0, 0), zIndex = 0) =
-  let layer = gui.getState(id, GuiLayer)
-  if layer.init:
-    layer.vg = VectorGraphics.new()
-
-  layer.offset = offset
-  layer.zIndex = zIndex
-
-  gui.layerStack.add(layer)
-  gui.activeLayers.add(layer)
-
-proc beginLayer*(gui: Gui, str: string, offset= vec2(0, 0), zIndex = 0) =
-  gui.beginLayer(gui.getId(str), offset, zIndex)
+proc beginLayer*(gui: Gui, offset = vec2(0, 0), zIndex = 0) =
+  gui.layerStack.add(GuiLayer(
+    vg: VectorGraphics.new(),
+    offset: offset,
+    zIndex: zIndex,
+  ))
 
 proc endLayer*(gui: Gui) =
-  discard gui.layerStack.pop()
+  gui.layers.add(gui.layerStack.pop())
 
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
@@ -191,7 +183,7 @@ proc beginFrame*(gui: Gui, time: float) =
   gui.time = time
   gui.cursorStyle = Arrow
 
-  gui.beginLayer("MainLayer")
+  gui.beginLayer()
   gui.beginLayout(rect2(vec2(0, 0), gui.size), vec2(0, 0))
 
 proc endFrame*(gui: Gui) =
@@ -202,26 +194,22 @@ proc endFrame*(gui: Gui) =
   assert(gui.layoutStack.len == 0)
   assert(gui.layerStack.len == 0)
 
-  gui.activeLayers.sort do (x, y: GuiLayer) -> int:
+  gui.layers.reverse() # The layers are in reverse order because they were added in endLayer.
+  gui.layers.sort do (x, y: GuiLayer) -> int:
     cmp(x.zIndex, y.zIndex)
 
   gui.hover = 0
-  gui.hoverLayer = 0
 
-  for layer in gui.activeLayers:
+  for layer in gui.layers:
     gui.vgCtx.renderVectorGraphics(layer.vg, layer.offset)
-
     if layer.finalHover != 0:
-      gui.hoverLayer = layer.id
       gui.hover = layer.finalHover
 
-    layer.finalHover = 0
-
-  let highestZIndex = gui.activeLayers[gui.activeLayers.len - 1].zIndex
+  let highestZIndex = gui.layers[gui.layers.len - 1].zIndex
   if highestZIndex > gui.highestZIndex:
     gui.highestZIndex = highestZIndex
 
-  gui.activeLayers.setLen(0)
+  gui.layers.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)
@@ -233,7 +221,6 @@ proc endFrame*(gui: Gui) =
   gui.vgCtx.endFrame()
 
 proc control*(gui: Gui, id: GuiId, hover, engage: bool): GuiControl =
-  let layer = gui.currentLayer
   let control = gui.getState(id, GuiControl)
 
   let press = engage and not control.previousEngage
@@ -260,7 +247,7 @@ proc control*(gui: Gui, id: GuiId, hover, engage: bool): GuiControl =
       control.clicked = true
 
   if hover:
-    layer.finalHover = id
+    gui.currentLayer.finalHover = id
 
   # Update gui focus.
   if control.pressed:

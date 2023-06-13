@@ -411,7 +411,10 @@ proc beginWindow*(gui: Gui, window: GuiWindow): GuiWindow =
   window.bounds = window.editBounds
 
   gui.pushId(window.id)
-  gui.pushZIndex(gui.currentZIndex + window.zIndex)
+  if window.stayOnTop:
+    gui.pushZIndex(gui.currentZIndex + window.zIndex)
+  else:
+    gui.pushZIndex(window.zIndex)
   gui.pushLayout(window.bounds)
 
   window.drawBackground(gui)
@@ -425,7 +428,7 @@ proc beginWindow*(gui: Gui, id: GuiId): GuiWindow =
   let initialBounds = gui.getNextBounds()
   if window.init:
     window.isOpen = true
-    window.stayOnTop = gui.currentZIndex == 0
+    window.stayOnTop = not gui.onMainZLayer
     window.minSize = vec2(300, windowHeaderHeight * 2.0)
     window.editBounds = initialBounds
 

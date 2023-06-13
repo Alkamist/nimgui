@@ -49,7 +49,7 @@ type
 
     idStack: seq[GuiId]
     layoutStack: seq[GuiLayout]
-    layerStack: seq[GuiZLayer]
+    zLayerStack: seq[GuiZLayer]
     layers: seq[GuiZLayer]
 
     vgCtx: VectorGraphicsContext
@@ -91,8 +91,11 @@ proc popId*(gui: Gui) =
 proc stackId*(gui: Gui): GuiId =
   gui.idStack[gui.idStack.len - 1]
 
+proc onMainZLayer*(gui: Gui): bool =
+  gui.zLayerStack.len == 1
+
 proc currentZLayer*(gui: Gui): var GuiZLayer =
-  gui.layerStack[gui.layerStack.len - 1]
+  gui.zLayerStack[gui.zLayerStack.len - 1]
 
 proc currentZIndex*(gui: Gui): int =
   gui.currentZLayer.zIndex
@@ -157,13 +160,13 @@ proc `nextBounds=`*(gui: Gui, bounds: Rect2) =
   gui.currentLayout.nextBounds = bounds
 
 proc pushZIndex*(gui: Gui, zIndex: int) =
-  gui.layerStack.add(GuiZLayer(
+  gui.zLayerStack.add(GuiZLayer(
     vg: VectorGraphics.new(),
     zIndex: zIndex,
   ))
 
 proc popZIndex*(gui: Gui) =
-  let layer = gui.layerStack.pop()
+  let layer = gui.zLayerStack.pop()
   gui.layers.add(layer)
 
 proc new*(_: typedesc[Gui]): Gui =
@@ -188,7 +191,7 @@ proc endFrame*(gui: Gui) =
 
   assert(gui.idStack.len == 0)
   assert(gui.layoutStack.len == 0)
-  assert(gui.layerStack.len == 0)
+  assert(gui.zLayerStack.len == 0)
 
   gui.layers.reverse() # The layers are in reverse order because they were added in popZIndex.
   gui.layers.sort do (x, y: GuiZLayer) -> int:

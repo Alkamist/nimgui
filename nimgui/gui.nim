@@ -1,10 +1,10 @@
 {.experimental: "overloadableEnums".}
 
-import std/hashes
-import std/tables
+import std/hashes; export hashes
+import std/tables; export tables
+import std/options; export options
 import std/algorithm
 import ./math; export math
-import ./layout
 import ./vectorgraphics; export vectorgraphics
 import oswindow; export oswindow
 
@@ -20,10 +20,27 @@ type
     zIndex*: int
     finalHover*: GuiId
 
+  GuiLayout* = object
+    bounds*: Rect2
+    itemSize*: Vec2
+    itemSpacing*: Vec2
+    rowItemIndex*: int
+    rowIndex*: int
+    itemIsOnSameRow*: bool
+    currentRowHeight*: float
+    currentRowWidth*: float
+    heightOfAllRowsBefore*: float
+    nextOffset*: Option[Vec2]
+    nextSize*: Option[Vec2]
+    nextFreeBounds*: Option[Rect2]
+
   Gui* = ref object
     size*: Vec2
     scale*: float
     time*: float
+    cursorStyle*: CursorStyle
+
+    # Input
     mousePosition*: Vec2
     mouseWheel*: Vec2
     mousePresses*: seq[MouseButton]
@@ -34,28 +51,27 @@ type
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
 
-    defaultItemSize*: Vec2
-    itemSpacing*: Vec2
-
+    # Ids and state
     hover*: GuiId
     focus*: GuiId
     currentId*: GuiId
-    currentBounds*: Rect2
+    retainedState*: Table[GuiId, GuiState]
+    idStack*: seq[GuiId]
 
+    # Z index
     highestZIndex*: int
-    cursorStyle*: CursorStyle
+    zLayerStack*: seq[GuiZLayer]
+    zLayers*: seq[GuiZLayer]
 
-    retainedState: Table[GuiId, GuiState]
+    # Layout
+    layoutStack*: seq[GuiLayout]
 
-    idStack: seq[GuiId]
-    layoutStack: seq[GuiLayout]
-    zLayerStack: seq[GuiZLayer]
-    layers: seq[GuiZLayer]
+    # Vector graphics
+    vgCtx*: VectorGraphicsContext
 
-    vgCtx: VectorGraphicsContext
-
-    previousTime: float
-    previousMousePosition: Vec2
+    # Previous frame state
+    previousTime*: float
+    previousMousePosition*: Vec2
 
 proc mouseDelta*(gui: Gui): Vec2 = gui.mousePosition - gui.previousMousePosition
 proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
@@ -71,6 +87,12 @@ proc keyPressed*(gui: Gui, key: KeyboardKey): bool = key in gui.keyPresses
 proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
+
+
+# ======================================================================
+# Ids and State
+# ======================================================================
+
 
 proc getId*[T: not GuiId](gui: Gui, x: T): GuiId =
   if gui.idStack.len > 0:
@@ -91,21 +113,6 @@ proc popId*(gui: Gui) =
 proc stackId*(gui: Gui): GuiId =
   gui.idStack[gui.idStack.len - 1]
 
-proc onMainZLayer*(gui: Gui): bool =
-  gui.zLayerStack.len == 1
-
-proc currentZLayer*(gui: Gui): var GuiZLayer =
-  gui.zLayerStack[gui.zLayerStack.len - 1]
-
-proc currentZIndex*(gui: Gui): int =
-  gui.currentZLayer.zIndex
-
-proc requestHover*(gui: Gui, id: GuiId) =
-  gui.currentZLayer.finalHover = id
-
-proc vg*(gui: Gui): VectorGraphics =
-  gui.currentZLayer.vg
-
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   if gui.retainedState.hasKey(id):
     result = T(gui.retainedState[id])
@@ -119,42 +126,20 @@ proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
 proc getState*(gui: Gui, str: string, T: typedesc): T =
   gui.getState(gui.getId(str), T)
 
-proc currentLayout*(gui: Gui): var GuiLayout =
-  gui.layoutStack[gui.layoutStack.len - 1]
 
-proc row*(gui: Gui, widths: openArray[float], height: float) =
-  gui.currentLayout.row(widths, height)
+# ======================================================================
+# Z Index
+# ======================================================================
 
-proc getNextBounds*(gui: Gui): Rect2 =
-  result = gui.currentLayout.getNextBounds()
-  gui.currentBounds = result
 
-proc pushLayout*(gui: Gui, bounds: Rect2) =
-  gui.layoutStack.add GuiLayout(
-    itemSpacing: gui.itemSpacing,
-    defaultItemSize: gui.defaultItemSize,
-    bounds: bounds,
-    max: vec2(low(float), low(float)),
-  )
-  gui.row([0.0], 0.0)
+proc zLayer(gui: Gui): ptr GuiZLayer =
+  addr(gui.zLayerStack[gui.zLayerStack.len - 1])
 
-proc popLayout*(gui: Gui) =
-  discard gui.layoutStack.pop()
+proc currentZIndex*(gui: Gui): int =
+  gui.zLayer.zIndex
 
-proc beginColumn*(gui: Gui) =
-  gui.pushLayout(gui.getNextBounds())
-
-proc endColumn*(gui: Gui) =
-  let b = gui.layoutStack.pop()
-  var a = gui.layoutStack[gui.layoutStack.len - 1]
-  a.rowSize.x = max(a.rowSize.x, b.rowSize.x + b.bounds.x - a.bounds.x)
-  a.nextRow = max(a.nextRow, b.nextRow + b.bounds.y - a.bounds.y)
-  a.max.x = max(a.max.x, b.max.x)
-  a.max.y = max(a.max.y, b.max.y)
-  gui.layoutStack[gui.layoutStack.len - 1] = a
-
-proc `nextBounds=`*(gui: Gui, bounds: Rect2) =
-  gui.currentLayout.nextBounds = bounds
+proc requestHover*(gui: Gui, id: GuiId) =
+  gui.zLayer.finalHover = id
 
 proc pushZIndex*(gui: Gui, zIndex: int) =
   gui.zLayerStack.add(GuiZLayer(
@@ -164,21 +149,110 @@ proc pushZIndex*(gui: Gui, zIndex: int) =
 
 proc popZIndex*(gui: Gui) =
   let layer = gui.zLayerStack.pop()
-  gui.layers.add(layer)
+  gui.zLayers.add(layer)
+
+proc vg*(gui: Gui): VectorGraphics =
+  gui.zLayer.vg
+
+
+# ======================================================================
+# Layout
+# ======================================================================
+
+
+proc layout(gui: Gui): ptr GuiLayout =
+  addr(gui.layoutStack[gui.layoutStack.len - 1])
+
+proc getNextBounds*(gui: Gui): Rect2 =
+  let layout = gui.layout
+
+  if layout.nextFreeBounds.isSome:
+    result = layout.nextFreeBounds.get
+    layout.nextFreeBounds = none(Rect2)
+    return
+
+  if layout.itemIsOnSameRow:
+    layout.rowItemIndex += 1
+  else:
+    layout.heightOfAllRowsBefore += layout.currentRowHeight
+    layout.currentRowWidth = 0
+    layout.currentRowHeight = 0
+    layout.rowIndex += 1
+    layout.rowItemIndex = 0
+
+  if layout.nextSize.isSome:
+    result.size = layout.nextSize.get
+    layout.nextSize = none(Vec2)
+  else:
+    result.size = layout.itemSize
+
+  result.position = layout.bounds.position
+
+  if layout.nextOffset.isSome:
+    result.position += layout.nextOffset.get
+    layout.nextOffset = none(Vec2)
+
+  let spacingX = if layout.rowItemIndex > 0: layout.itemSpacing.x else: 0.0
+  let spacingY = if layout.rowIndex > 0: layout.itemSpacing.y else: 0.0
+
+  result.position.x += layout.currentRowWidth + spacingX
+  result.position.y += layout.heightOfAllRowsBefore + spacingY
+
+  let itemRight = result.position.x + result.size.x
+  let itemBottom = result.position.y + result.size.y
+
+  layout.currentRowWidth = max(layout.currentRowWidth, itemRight - layout.bounds.position.x)
+  layout.currentRowHeight = max(layout.currentRowHeight, itemBottom - layout.heightOfAllRowsBefore - layout.bounds.position.y)
+
+  layout.itemIsOnSameRow = false
+
+proc peekNextBounds*(gui: Gui): Rect2 =
+  let layoutCopy = gui.layout[]
+  result = gui.getNextBounds()
+  gui.layout[] = layoutCopy
+
+proc sameRow*(gui: Gui) =
+  gui.layout.itemIsOnSameRow = true
+
+proc `nextFreeBounds=`*(gui: Gui, bounds: Rect2) =
+  gui.layout.nextFreeBounds = some(bounds)
+
+proc `nextOffset=`*(gui: Gui, offset: Vec2) =
+  gui.layout.nextOffset = some(offset)
+
+proc `nextPosition=`*(gui: Gui, position: Vec2) =
+  gui.nextOffset = position - gui.peekNextBounds.position
+
+proc `nextSize=`*(gui: Gui, size: Vec2) =
+  gui.layout.nextSize = some(size)
+
+proc `nextBounds`*(gui: Gui, bounds: Rect2) =
+  gui.nextPosition = bounds.position
+  gui.nextSize = bounds.size
+
+proc pushLayout*(gui: Gui, bounds: Rect2) =
+  gui.layoutStack.add(GuiLayout(
+    bounds: bounds.expand(-300),
+    itemSize: vec2(96, 32),
+    itemSpacing: vec2(5, 5),
+  ))
+
+proc popLayout*(gui: Gui) =
+  discard gui.layoutStack.pop()
+
+
+# ======================================================================
+# Gui
+# ======================================================================
+
 
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
   result.vgCtx = VectorGraphicsContext.new()
-  result.defaultItemSize = vec2(50, 50)
-  result.itemSpacing = vec2(10, 20)
 
-proc beginFrame*(gui: Gui, time: float) =
+proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
-
-  gui.previousTime = gui.time
-  gui.time = time
   gui.cursorStyle = Arrow
-
   gui.pushZIndex(0)
   gui.pushLayout(rect2(vec2(0, 0), gui.size))
 
@@ -190,22 +264,22 @@ proc endFrame*(gui: Gui) =
   assert(gui.layoutStack.len == 0)
   assert(gui.zLayerStack.len == 0)
 
-  gui.layers.reverse() # The layers are in reverse order because they were added in popZIndex.
-  gui.layers.sort do (x, y: GuiZLayer) -> int:
+  gui.zLayers.reverse() # The zLayers are in reverse order because they were added in popZIndex.
+  gui.zLayers.sort do (x, y: GuiZLayer) -> int:
     cmp(x.zIndex, y.zIndex)
 
   gui.hover = 0
 
-  for layer in gui.layers:
+  for layer in gui.zLayers:
     gui.vgCtx.renderVectorGraphics(layer.vg)
     if layer.finalHover != 0:
       gui.hover = layer.finalHover
 
-  let highestZIndex = gui.layers[gui.layers.len - 1].zIndex
+  let highestZIndex = gui.zLayers[gui.zLayers.len - 1].zIndex
   if highestZIndex > gui.highestZIndex:
     gui.highestZIndex = highestZIndex
 
-  gui.layers.setLen(0)
+  gui.zLayers.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)
@@ -213,5 +287,6 @@ proc endFrame*(gui: Gui) =
   gui.textInput.setLen(0)
   gui.mouseWheel = vec2(0, 0)
   gui.previousMousePosition = gui.mousePosition
+  gui.previousTime = gui.time
 
   gui.vgCtx.endFrame()

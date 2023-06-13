@@ -13,36 +13,34 @@ let gui = Gui.new()
 gui.attachToOsWindow(osWindow)
 
 osWindow.onFrame = proc(osWindow: OsWindow) =
-  gui.beginFrame(osWindow.time)
+  gui.time = osWindow.time
+  gui.beginFrame()
 
-  if gui.button("Button").clicked:
-    echo "1"
-
-  let window = gui.getState("Window", GuiWindow)
-  if window.init:
-    window.isOpen = true
-    window.editBounds = rect2(200, 200, 300, 300)
-    window.minSize = vec2(500, 300)
-
-  if gui.beginWindow(window).isOpen:
-    if gui.button("Button").clicked:
-      echo "2"
-
-    if gui.beginWindow("ChildWindow").isOpen:
-      if gui.beginWindow("ChildChildWindow").isOpen:
-        gui.endWindow()
-      gui.endWindow()
-
-    if gui.beginWindow("ChildWindow2").isOpen:
-      gui.endWindow()
-
+  if gui.beginWindow("Window").isOpen:
     gui.endWindow()
 
-  # if gui.beginWindow("Window3").isOpen:
-  #   gui.endWindow()
+  if gui.button("Button1").clicked:
+    echo "1"
 
-  # if gui.beginWindow("Window4").isOpen:
-  #   gui.endWindow()
+  gui.sameRow()
+  gui.nextPosition = gui.mousePosition
+  gui.nextSize = vec2(200, 200)
+
+  if gui.button("Button2").clicked:
+    echo "2"
+
+  gui.sameRow()
+
+  if gui.button("Button3").clicked:
+    echo "3"
+
+  if gui.button("Button4").clicked:
+    echo "4"
+
+  # gui.sameRow()
+
+  # if gui.button("Button5").clicked:
+  #   echo "5"
 
   gui.endFrame()
 

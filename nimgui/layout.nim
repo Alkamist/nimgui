@@ -60,6 +60,8 @@ proc getNextBounds*(layout: var GuiLayout): Rect2 =
 
     layout.indexInRow += 1
 
+    result.position += layout.bounds.position
+
     layout.nextPosition.x += result.width + layout.itemSpacing.x
     layout.nextRow = max(layout.nextRow, result.y + result.height + layout.itemSpacing.y)
 

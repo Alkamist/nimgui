@@ -129,14 +129,11 @@ proc getNextBounds*(gui: Gui): Rect2 =
   result = gui.currentLayout.getNextBounds()
   gui.currentBounds = result
 
-proc pushLayout*(gui: Gui, bounds: Rect2, scroll = vec2(0, 0)) =
+proc pushLayout*(gui: Gui, bounds: Rect2) =
   gui.layoutStack.add GuiLayout(
     itemSpacing: gui.itemSpacing,
     defaultItemSize: gui.defaultItemSize,
-    bounds: rect2(
-      bounds.x - scroll.x, bounds.y - scroll.y,
-      bounds.width, bounds.height,
-    ),
+    bounds: bounds,
     max: vec2(low(float), low(float)),
   )
   gui.row([0.0], 0.0)
@@ -145,7 +142,7 @@ proc popLayout*(gui: Gui) =
   discard gui.layoutStack.pop()
 
 proc beginColumn*(gui: Gui) =
-  gui.pushLayout(gui.getNextBounds(), vec2(0, 0))
+  gui.pushLayout(gui.getNextBounds())
 
 proc endColumn*(gui: Gui) =
   let b = gui.layoutStack.pop()
@@ -183,7 +180,7 @@ proc beginFrame*(gui: Gui, time: float) =
   gui.cursorStyle = Arrow
 
   gui.pushZIndex(0)
-  gui.pushLayout(rect2(vec2(0, 0), gui.size), vec2(0, 0))
+  gui.pushLayout(rect2(vec2(0, 0), gui.size))
 
 proc endFrame*(gui: Gui) =
   gui.popLayout()

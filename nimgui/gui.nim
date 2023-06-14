@@ -22,17 +22,14 @@ type
 
   GuiLayout* = object
     bounds*: Rect2
-    itemSize*: Vec2
-    itemSpacing*: Vec2
-    rowItemIndex*: int
-    rowIndex*: int
-    itemIsOnSameRow*: bool
-    currentRowHeight*: float
-    currentRowWidth*: float
-    heightOfAllRowsBefore*: float
-    nextOffset*: Option[Vec2]
-    nextSize*: Option[Vec2]
-    nextFreeBounds*: Option[Rect2]
+    max*: Vec2
+    spacing*: Vec2
+    nextPosition*: Vec2
+    rowSize*: Vec2
+    widths*: seq[float]
+    indexInRow*: int
+    nextRow*: float
+    indent*: float
 
   Gui* = ref object
     size*: Vec2
@@ -94,26 +91,22 @@ proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 # ======================================================================
 
 
-proc getId*[T: not GuiId](gui: Gui, x: T): GuiId =
-  if gui.idStack.len > 0:
-    result = !$(gui.idStack[^1] !& hash(x))
+proc getId*(gui: Gui, x: auto): GuiId =
+  when x is GuiId:
+    result = x
   else:
-    result = hash(x)
+    if gui.idStack.len > 0:
+      result = !$(gui.idStack[^1] !& hash(x))
+    else:
+      result = hash(x)
   gui.currentId = result
 
-proc pushId*(gui: Gui, id: GuiId) =
-  gui.idStack.add(id)
+proc pushId*(gui: Gui, id: auto) = gui.idStack.add(gui.getId(id))
+proc popId*(gui: Gui) = discard gui.idStack.pop()
+proc stackId*(gui: Gui): GuiId = gui.idStack[gui.idStack.len - 1]
 
-proc pushId*(gui: Gui, str: string) =
-  gui.pushId(gui.getId(str))
-
-proc popId*(gui: Gui) =
-  discard gui.idStack.pop()
-
-proc stackId*(gui: Gui): GuiId =
-  gui.idStack[gui.idStack.len - 1]
-
-proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
+proc getState*(gui: Gui, id: auto, T: typedesc): T =
+  let id = gui.getId(id)
   if gui.retainedState.hasKey(id):
     result = T(gui.retainedState[id])
     result.init = false
@@ -122,9 +115,6 @@ proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
     result.init = true
     result.id = id
     gui.retainedState[id] = result
-
-proc getState*(gui: Gui, str: string, T: typedesc): T =
-  gui.getState(gui.getId(str), T)
 
 
 # ======================================================================
@@ -135,11 +125,9 @@ proc getState*(gui: Gui, str: string, T: typedesc): T =
 proc zLayer(gui: Gui): ptr GuiZLayer =
   addr(gui.zLayerStack[gui.zLayerStack.len - 1])
 
-proc currentZIndex*(gui: Gui): int =
-  gui.zLayer.zIndex
-
-proc requestHover*(gui: Gui, id: GuiId) =
-  gui.zLayer.finalHover = id
+proc currentZIndex*(gui: Gui): int = gui.zLayer.zIndex
+proc requestHover*(gui: Gui, id: auto) = gui.zLayer.finalHover = gui.getId(id)
+proc vg*(gui: Gui): VectorGraphics = gui.zLayer.vg
 
 proc pushZIndex*(gui: Gui, zIndex: int) =
   gui.zLayerStack.add(GuiZLayer(
@@ -151,9 +139,6 @@ proc popZIndex*(gui: Gui) =
   let layer = gui.zLayerStack.pop()
   gui.zLayers.add(layer)
 
-proc vg*(gui: Gui): VectorGraphics =
-  gui.zLayer.vg
-
 
 # ======================================================================
 # Layout
@@ -163,78 +148,83 @@ proc vg*(gui: Gui): VectorGraphics =
 proc layout(gui: Gui): ptr GuiLayout =
   addr(gui.layoutStack[gui.layoutStack.len - 1])
 
+proc newRow(gui: Gui) =
+  let layout = gui.layout
+  layout.nextPosition.x = layout.indent
+  layout.nextPosition.y = layout.nextRow
+  layout.indexInRow = 0
+
+proc `rowWidths=`*[T](gui: Gui, widths: openArray[T]) =
+  let layout = gui.layout
+  layout.widths.setLen(widths.len)
+  for i in 0 ..< widths.len:
+    layout.widths[i] = float(widths[i])
+  gui.newRow()
+
+proc `rowHeight=`*(gui: Gui, height: float) = gui.layout.rowSize.y = height
+proc layoutBounds*(gui: Gui): Rect2 = gui.layout.bounds
+proc layoutSize*(gui: Gui): Vec2 = gui.layout.bounds.size
+proc layoutWidth*(gui: Gui): float = gui.layout.bounds.size.x
+proc layoutHeight*(gui: Gui): float = gui.layout.bounds.size.y
+
+proc splitWidth*(gui: Gui, divisions: float): float =
+  let layout = gui.layout
+  let full = layout.bounds.size.x
+  let spacing = layout.spacing.x
+  (full - spacing * (divisions - 1.0)) / divisions
+
+proc splitHeight*(gui: Gui, divisions: float): float =
+  let layout = gui.layout
+  let full = layout.bounds.size.y
+  let spacing = layout.spacing.y
+  (full - spacing * (divisions - 1.0)) / divisions
+
+# proc evenWidth*(gui: Gui, divisions: float): float =
+#   let layout = gui.layout
+#   let fullWidth = layout.bounds.size.x
+#   let spacing = layout.spacing.x
+#   (fullWidth - spacing * (divisions - 1.0)) / divisions
+
+# proc evenHeight*(gui: Gui, divisions: float): float =
+#   let layout = gui.layout
+#   let fullWidth = layout.bounds.size.y
+#   let spacing = layout.spacing.y
+#   (fullWidth - spacing * (divisions - 1.0)) / divisions
+
 proc getNextBounds*(gui: Gui): Rect2 =
   let layout = gui.layout
 
-  if layout.nextFreeBounds.isSome:
-    result = layout.nextFreeBounds.get
-    layout.nextFreeBounds = none(Rect2)
-    return
+  if layout.indexInRow == layout.widths.len:
+    gui.newRow()
 
-  if layout.itemIsOnSameRow:
-    layout.rowItemIndex += 1
-  else:
-    layout.heightOfAllRowsBefore += layout.currentRowHeight
-    layout.currentRowWidth = 0
-    layout.currentRowHeight = 0
-    layout.rowIndex += 1
-    layout.rowItemIndex = 0
+  result.position = layout.bounds.position + layout.nextPosition
 
-  if layout.nextSize.isSome:
-    result.size = layout.nextSize.get
-    layout.nextSize = none(Vec2)
-  else:
-    result.size = layout.itemSize
+  result.width =
+    if layout.widths.len > 0:
+      layout.widths[layout.indexInRow]
+    else:
+      layout.rowSize.x
 
-  result.position = layout.bounds.position
+  result.height = layout.rowSize.y
 
-  if layout.nextOffset.isSome:
-    result.position += layout.nextOffset.get
-    layout.nextOffset = none(Vec2)
+  if result.width < 0:
+    result.width += layout.bounds.width - result.x + 1
 
-  let spacingX = if layout.rowItemIndex > 0: layout.itemSpacing.x else: 0.0
-  let spacingY = if layout.rowIndex > 0: layout.itemSpacing.y else: 0.0
+  if result.height < 0:
+    result.height += layout.bounds.height - result.y + 1
 
-  result.position.x += layout.currentRowWidth + spacingX
-  result.position.y += layout.heightOfAllRowsBefore + spacingY
+  layout.indexInRow += 1
 
-  let itemRight = result.position.x + result.size.x
-  let itemBottom = result.position.y + result.size.y
+  layout.nextPosition.x += result.width + layout.spacing.x
+  layout.nextRow = max(layout.nextRow, result.y + result.height + layout.spacing.y)
 
-  layout.currentRowWidth = max(layout.currentRowWidth, itemRight - layout.bounds.position.x)
-  layout.currentRowHeight = max(layout.currentRowHeight, itemBottom - layout.heightOfAllRowsBefore - layout.bounds.position.y)
-
-  layout.itemIsOnSameRow = false
-
-proc peekNextBounds*(gui: Gui): Rect2 =
-  let layoutCopy = gui.layout[]
-  result = gui.getNextBounds()
-  gui.layout[] = layoutCopy
-
-proc sameRow*(gui: Gui) =
-  gui.layout.itemIsOnSameRow = true
-
-proc `nextFreeBounds=`*(gui: Gui, bounds: Rect2) =
-  gui.layout.nextFreeBounds = some(bounds)
-
-proc `nextOffset=`*(gui: Gui, offset: Vec2) =
-  gui.layout.nextOffset = some(offset)
-
-proc `nextPosition=`*(gui: Gui, position: Vec2) =
-  gui.nextOffset = position - gui.peekNextBounds.position
-
-proc `nextSize=`*(gui: Gui, size: Vec2) =
-  gui.layout.nextSize = some(size)
-
-proc `nextBounds`*(gui: Gui, bounds: Rect2) =
-  gui.nextPosition = bounds.position
-  gui.nextSize = bounds.size
+  layout.max.x = max(layout.max.x, result.x + result.width)
+  layout.max.y = max(layout.max.y, result.y + result.height)
 
 proc pushLayout*(gui: Gui, bounds: Rect2) =
   gui.layoutStack.add(GuiLayout(
-    bounds: bounds.expand(-300),
-    itemSize: vec2(96, 32),
-    itemSpacing: vec2(5, 5),
+    bounds: bounds,
+    spacing: vec2(3, 3),
   ))
 
 proc popLayout*(gui: Gui) =

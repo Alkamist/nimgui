@@ -23,30 +23,28 @@ gui.attachToOsWindow(osWindow)
 #   result = gui.getNextBounds()
 #   gui.outline(result, color)
 
-proc testWidget(gui: Gui, id: auto) =
-  gui.pushLayout(gui.getNextBounds())
-  gui.pushId(id)
-  gui.rowHeight = 32
-  gui.rowWidths = [16, 32, -1]
-  if gui.button("Button1").clicked: echo "Button 1 Clicked"
-  if gui.button("Button2").clicked: echo "Button 2 Clicked"
-  gui.popId()
-  gui.popLayout()
+# proc testWidget(gui: Gui, id: auto) =
+#   gui.pushLayout(gui.getNextBounds())
+#   gui.pushId(id)
+#   gui.rowHeight = 32
+#   gui.rowWidths = [16, 32, -1]
+#   if gui.button("Button1").clicked: echo "Button 1 Clicked"
+#   if gui.button("Button2").clicked: echo "Button 2 Clicked"
+#   gui.popId()
+#   gui.popLayout()
 
 osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.time = osWindow.time
   gui.beginFrame()
 
-  let width = gui.splitWidth(3)
+  
+  if gui.button("MiddleButton").clicked: echo "Middle Button Clicked"
 
-  gui.rowHeight = gui.splitHeight(2)
-  gui.rowWidths = [width, width]
+  # if gui.button("Button1").clicked: echo "Button 1 Clicked"
+  # if gui.button("Button2").clicked: echo "Button 2 Clicked"
+  # if gui.button("Button3").clicked: echo "Button 3 Clicked"
 
-  if gui.button("Button1").clicked: echo "Button 1 Clicked"
-  if gui.button("Button2").clicked: echo "Button 2 Clicked"
-
-  if gui.button("Button3").clicked: echo "Button 3 Clicked"
-  if gui.button("Button4").clicked: echo "Button 4 Clicked"
+  # if gui.button("Button4").clicked: echo "Button 4 Clicked"
 
   # gui.testWidget("1")
   # gui.testWidget("2")

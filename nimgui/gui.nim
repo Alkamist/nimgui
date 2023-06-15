@@ -20,13 +20,24 @@ type
     zIndex*: int
     finalHover*: GuiId
 
+  GuiMeasureKind* = enum
+    Normal
+    Reverse
+    Fill
+
+  GuiMeasure* = object
+    case kind*: GuiMeasureKind
+    of Normal, Reverse:
+      units*: float
+    else: discard
+
   GuiLayout* = object
     bounds*: Rect2
     max*: Vec2
     spacing*: Vec2
     nextPosition*: Vec2
     rowSize*: Vec2
-    widths*: seq[float]
+    widths*: seq[GuiMeasure]
     indexInRow*: int
     nextRow*: float
     indent*: float
@@ -50,7 +61,6 @@ type
 
     # Ids and state
     hover*: GuiId
-    focus*: GuiId
     currentId*: GuiId
     retainedState*: Table[GuiId, GuiState]
     idStack*: seq[GuiId]
@@ -127,6 +137,7 @@ proc zLayer(gui: Gui): ptr GuiZLayer =
 
 proc currentZIndex*(gui: Gui): int = gui.zLayer.zIndex
 proc requestHover*(gui: Gui, id: auto) = gui.zLayer.finalHover = gui.getId(id)
+proc clearHover*(gui: Gui) = gui.hover = 0
 proc vg*(gui: Gui): VectorGraphics = gui.zLayer.vg
 
 proc pushZIndex*(gui: Gui, zIndex: int) =
@@ -154,42 +165,42 @@ proc newRow(gui: Gui) =
   layout.nextPosition.y = layout.nextRow
   layout.indexInRow = 0
 
-proc `rowWidths=`*[T](gui: Gui, widths: openArray[T]) =
-  let layout = gui.layout
-  layout.widths.setLen(widths.len)
-  for i in 0 ..< widths.len:
-    layout.widths[i] = float(widths[i])
-  gui.newRow()
+converter guiMeasure*(x: float): GuiMeasure =
+  if x >= 0: GuiMeasure(kind: Normal, units: x)
+  else: GuiMeasure(kind: Reverse, units: -x)
 
-proc `rowHeight=`*(gui: Gui, height: float) = gui.layout.rowSize.y = height
+converter guiMeasure*(x: int): GuiMeasure =
+  if x >= 0: GuiMeasure(kind: Normal, units: float(x))
+  else: GuiMeasure(kind: Reverse, units: float(-x))
+
+converter guiMeasure*(kind: GuiMeasureKind): GuiMeasure = GuiMeasure(kind: kind)
+
+proc splitWidth*(gui: Gui, divisions: auto): float =
+  let layout = gui.layout
+  let full = layout.bounds.size.x
+  let spacing = layout.spacing.x
+  let divisions = float(divisions)
+  (full - spacing * (divisions - 1.0)) / divisions
+
+proc splitHeight*(gui: Gui, divisions: auto): float =
+  let layout = gui.layout
+  let full = layout.bounds.size.y
+  let spacing = layout.spacing.y
+  let divisions = float(divisions)
+  (full - spacing * (divisions - 1.0)) / divisions
+
 proc layoutBounds*(gui: Gui): Rect2 = gui.layout.bounds
 proc layoutSize*(gui: Gui): Vec2 = gui.layout.bounds.size
 proc layoutWidth*(gui: Gui): float = gui.layout.bounds.size.x
 proc layoutHeight*(gui: Gui): float = gui.layout.bounds.size.y
 
-proc splitWidth*(gui: Gui, divisions: float): float =
+proc setRowHeight*(gui: Gui, height: float) = gui.layout.rowSize.y = height
+proc setRowWidths*(gui: Gui, widths: varargs[GuiMeasure]) =
   let layout = gui.layout
-  let full = layout.bounds.size.x
-  let spacing = layout.spacing.x
-  (full - spacing * (divisions - 1.0)) / divisions
-
-proc splitHeight*(gui: Gui, divisions: float): float =
-  let layout = gui.layout
-  let full = layout.bounds.size.y
-  let spacing = layout.spacing.y
-  (full - spacing * (divisions - 1.0)) / divisions
-
-# proc evenWidth*(gui: Gui, divisions: float): float =
-#   let layout = gui.layout
-#   let fullWidth = layout.bounds.size.x
-#   let spacing = layout.spacing.x
-#   (fullWidth - spacing * (divisions - 1.0)) / divisions
-
-# proc evenHeight*(gui: Gui, divisions: float): float =
-#   let layout = gui.layout
-#   let fullWidth = layout.bounds.size.y
-#   let spacing = layout.spacing.y
-#   (fullWidth - spacing * (divisions - 1.0)) / divisions
+  layout.widths.setLen(widths.len)
+  for i in 0 ..< widths.len:
+    layout.widths[i] = widths[i]
+  gui.newRow()
 
 proc getNextBounds*(gui: Gui): Rect2 =
   let layout = gui.layout
@@ -198,20 +209,16 @@ proc getNextBounds*(gui: Gui): Rect2 =
     gui.newRow()
 
   result.position = layout.bounds.position + layout.nextPosition
-
-  result.width =
-    if layout.widths.len > 0:
-      layout.widths[layout.indexInRow]
-    else:
-      layout.rowSize.x
-
   result.height = layout.rowSize.y
 
-  if result.width < 0:
-    result.width += layout.bounds.width - result.x + 1
+  let width =
+    if layout.widths.len > 0: layout.widths[layout.indexInRow]
+    else: GuiMeasure(kind: Fill)
 
-  if result.height < 0:
-    result.height += layout.bounds.height - result.y + 1
+  case width.kind:
+  of Normal: result.width = width.units
+  of Reverse: result.width = gui.layout.bounds.size.x - result.width - result.x
+  of Fill: result.width = gui.splitWidth(layout.widths.len)
 
   layout.indexInRow += 1
 

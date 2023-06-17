@@ -9,7 +9,7 @@ type
     clicked*: bool
     inputHeld: bool
 
-proc updateButton*(gui: Gui, button: GuiButton, hover, press, release: bool): GuiButton {.discardable.} =
+proc update*(gui: Gui, button: GuiButton, hover, press, release: bool) =
   let id = button.id
   let isHovered = gui.hover == id
 
@@ -36,17 +36,15 @@ proc updateButton*(gui: Gui, button: GuiButton, hover, press, release: bool): Gu
   if button.inputHeld and not press:
     gui.clearHover()
 
-  button
-
-proc updateButton*(gui: Gui, button: GuiButton, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
-  gui.updateButton(
+proc update*(gui: Gui, button: GuiButton, mouseButton = MouseButton.Left) =
+  gui.update(
     button,
     hover = gui.mouseIsOver(button),
     press = gui.mousePressed(mouseButton),
     release = gui.mouseReleased(mouseButton),
   )
 
-proc drawButton*(gui: Gui, button: GuiButton) =
+proc draw*(gui: Gui, button: GuiButton) =
   let vg = gui.vg
 
   template drawBody(color: Color): untyped =
@@ -60,9 +58,3 @@ proc drawButton*(gui: Gui, button: GuiButton) =
     drawBody(rgba(0, 0, 0, 8))
   elif gui.hover == button.id:
     drawBody(rgba(255, 255, 255, 8))
-
-# proc button*(gui: Gui, id: auto): GuiButton {.discardable.} =
-#   let button = gui.getState(id, GuiButton)
-#   gui.button(button)
-#   gui.drawButton(button)
-#   button

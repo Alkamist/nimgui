@@ -22,15 +22,23 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     window.size = vec2(300, 200)
     window.minSize = vec2(200, 100)
 
-  gui.beginWindow(window)
+  gui.update(window):
+    gui.draw(window)
 
-  let button = gui.getState("Button", GuiButton)
-  button.position = vec2(300, 300)
-  button.size = vec2(50, 50)
-  gui.updateButton(button)
-  gui.drawButton(button)
+    # gui.header(window):
+    #   let vg = gui.vg
+    #   vg.beginPath()
+    #   vg.rect(vec2(0, 0), vec2(1000, 1000))
+    #   vg.fillColor = rgb(255, 255, 255)
+    #   vg.fill()
 
-  gui.endWindow()
+    gui.body(window):
+      let button = gui.getState("Button", GuiButton)
+      button.position = vec2(300, 300)
+      button.size = vec2(50, 50)
+
+      gui.update(button)
+      gui.draw(button)
 
   gui.endFrame()
 

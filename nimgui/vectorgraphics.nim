@@ -24,7 +24,7 @@ type
     # SaveState
     # RestoreState
     # Reset
-    # ResetTransform
+    ResetTransform
     # PathWinding
     # ShapeAntiAlias
     # FillPaint
@@ -97,20 +97,11 @@ type
   VectorGraphics* = ref object
     commands*: seq[DrawCommand]
 
-proc beginPath*(vg: VectorGraphics) =
-  vg.commands.add(DrawCommand(kind: BeginPath))
-
-
-proc closePath*(vg: VectorGraphics) =
-  vg.commands.add(DrawCommand(kind: ClosePath))
-
-
-proc fill*(vg: VectorGraphics) =
-  vg.commands.add(DrawCommand(kind: Fill))
-
-
-proc stroke*(vg: VectorGraphics) =
-  vg.commands.add(DrawCommand(kind: Stroke))
+proc beginPath*(vg: VectorGraphics) = vg.commands.add(DrawCommand(kind: BeginPath))
+proc closePath*(vg: VectorGraphics) = vg.commands.add(DrawCommand(kind: ClosePath))
+proc fill*(vg: VectorGraphics) = vg.commands.add(DrawCommand(kind: Fill))
+proc stroke*(vg: VectorGraphics) = vg.commands.add(DrawCommand(kind: Stroke))
+proc resetTransform*(vg: VectorGraphics) = vg.commands.add(DrawCommand(kind: ResetTransform))
 
 
 proc rect*(vg: VectorGraphics, x, y, width, height: float) =
@@ -211,6 +202,7 @@ proc renderVectorGraphics*(ctx: VectorGraphicsContext, vg: VectorGraphics) =
     of ClosePath: nvgClosePath(ctx.nvgCtx)
     of Fill: nvgFill(ctx.nvgCtx)
     of Stroke: nvgStroke(ctx.nvgCtx)
+    of ResetTransform: nvgResetTransform(ctx.nvgCtx)
     of Rect:
       let c = command.rect
       nvgRect(ctx.nvgCtx, c.x, c.y, c.width, c.height)

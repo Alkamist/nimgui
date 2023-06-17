@@ -95,21 +95,18 @@ proc mousePosition*(gui: Gui): Vec2 =
 
 
 proc getId*(gui: Gui, x: auto): GuiId =
-  when x is GuiId:
-    result = x
+  if gui.idStack.len > 0:
+    result = !$(gui.idStack[^1] !& hash(x))
   else:
-    if gui.idStack.len > 0:
-      result = !$(gui.idStack[^1] !& hash(x))
-    else:
-      result = hash(x)
+    result = hash(x)
   gui.currentId = result
 
-proc pushId*(gui: Gui, id: auto) = gui.idStack.add(gui.getId(id))
+proc pushId*(gui: Gui, id: GuiId) = gui.idStack.add(id)
+proc pushId*(gui: Gui, id: string) = gui.idStack.add(gui.getId(id))
 proc popId*(gui: Gui) = discard gui.idStack.pop()
 proc stackId*(gui: Gui): GuiId = gui.idStack[gui.idStack.len - 1]
 
-proc getState*(gui: Gui, id: auto, T: typedesc): T =
-  let id = gui.getId(id)
+proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   if gui.retainedState.hasKey(id):
     result = T(gui.retainedState[id])
     result.init = false
@@ -119,6 +116,9 @@ proc getState*(gui: Gui, id: auto, T: typedesc): T =
     result.id = id
     gui.retainedState[id] = result
 
+proc getState*[X: not GuiId](gui: Gui, x: X, T: typedesc): T =
+  gui.getState(gui.getId(x), T)
+
 
 # ======================================================================
 # Z Index
@@ -126,7 +126,7 @@ proc getState*(gui: Gui, id: auto, T: typedesc): T =
 
 
 proc currentZIndex*(gui: Gui): int = gui.zLayerStack[^1].zIndex
-proc requestHover*(gui: Gui, id: auto) = gui.zLayerStack[^1].finalHover = gui.getId(id)
+proc requestHover*(gui: Gui, id: GuiId) = gui.zLayerStack[^1].finalHover = id
 proc clearHover*(gui: Gui) = gui.hover = 0
 proc vg*(gui: Gui): VectorGraphics = gui.zLayerStack[^1].vg
 
@@ -155,13 +155,17 @@ proc popZIndex*(gui: Gui) =
 
 proc pushOffset*(gui: Gui, offset: Vec2) =
   gui.offsetStack.add(offset)
-  gui.vg.translate(offset)
   gui.globalPositionOffset += offset
+  let vg = gui.vg
+  vg.resetTransform()
+  vg.translate(gui.globalPositionOffset)
 
 proc popOffset*(gui: Gui) =
   let offset = gui.offsetStack.pop()
-  gui.vg.translate(-offset)
   gui.globalPositionOffset -= offset
+  let vg = gui.vg
+  vg.resetTransform()
+  vg.translate(gui.globalPositionOffset)
 
 
 # ======================================================================
@@ -185,16 +189,16 @@ proc contains*(a: GuiClip, b: Vec2): bool =
 proc pushClip*(gui: Gui, position, size: Vec2) =
   let clip =
     if gui.clipStack.len == 0:
-      GuiClip(position: position, size: size)
+      GuiClip(position: position + gui.globalPositionOffset, size: size)
     else:
-      GuiClip(position: position, size: size).intersect(gui.clipStack[^1])
+      GuiClip(position: position + gui.globalPositionOffset, size: size).intersect(gui.clipStack[^1])
 
   gui.clipStack.add(clip)
-  gui.vg.clip(clip.position, clip.size)
+  gui.vg.clip(clip.position - gui.globalPositionOffset, clip.size)
 
 proc popClip*(gui: Gui) =
   let clip = gui.clipStack.pop()
-  gui.vg.clip(clip.position, clip.size)
+  gui.vg.clip(clip.position - gui.globalPositionOffset, clip.size)
 
 
 # ======================================================================
@@ -212,11 +216,10 @@ proc height*(control: GuiControl): var float = control.size.y
 proc `height=`*(control: GuiControl, value: float) = control.size.y = value
 
 proc mouseIsOver*(gui: Gui, control: GuiControl): bool =
-  let m = gui.mousePosition
-
-  if not gui.clipStack[^1].contains(m):
+  if not gui.clipStack[^1].contains(gui.globalMousePosition):
     return false
 
+  let m = gui.mousePosition
   let c = control
   m.x >= c.x and m.x <= c.x + c.width and
   m.y >= c.y and m.y <= c.y + c.height

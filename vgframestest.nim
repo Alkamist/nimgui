@@ -22,17 +22,17 @@ window.onFrame = proc(window: OsWindow) =
 
   let w = float(pixelWidth) / 100.0
   let h = float(pixelHeight) / 100.0
+
+  vg.beginPath()
+
   for i in 0 ..< 100:
     for j in 0 ..< 100:
       let position = vec2(float(i) * w, float(j) * h) + vec2(0, 18)
       let size = vec2(w * 0.8, h * 0.8)
-      vg.saveState()
-      vg.translate(vec2(0, 0))
-      vg.beginPath()
       vg.rect(position, size)
-      vg.fillColor = rgb(100, 100, 100)
-      vg.fill()
-      vg.restoreState()
+
+  vg.fillColor = rgb(100, 100, 100)
+  vg.fill()
 
   vg.fillColor = rgb(255, 255, 255)
   vg.font = "consola"

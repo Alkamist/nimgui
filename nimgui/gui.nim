@@ -15,32 +15,18 @@ type
     id*: GuiId
     init*: bool
 
+  GuiControl* = ref object of GuiState
+    position*: Vec2
+    size*: Vec2
+
+  GuiClip* = object
+    position*: Vec2
+    size*: Vec2
+
   GuiZLayer* = object
     vg*: VectorGraphics
     zIndex*: int
     finalHover*: GuiId
-
-  GuiMeasureKind* = enum
-    Normal
-    Reverse
-    Fill
-
-  GuiMeasure* = object
-    case kind*: GuiMeasureKind
-    of Normal, Reverse:
-      units*: float
-    else: discard
-
-  GuiLayout* = object
-    bounds*: Rect2
-    max*: Vec2
-    spacing*: Vec2
-    nextPosition*: Vec2
-    rowSize*: Vec2
-    widths*: seq[GuiMeasure]
-    indexInRow*: int
-    nextRow*: float
-    indent*: float
 
   Gui* = ref object
     size*: Vec2
@@ -49,7 +35,7 @@ type
     cursorStyle*: CursorStyle
 
     # Input
-    mousePosition*: Vec2
+    globalMousePosition*: Vec2
     mouseWheel*: Vec2
     mousePresses*: seq[MouseButton]
     mouseReleases*: seq[MouseButton]
@@ -70,17 +56,21 @@ type
     zLayerStack*: seq[GuiZLayer]
     zLayers*: seq[GuiZLayer]
 
-    # Layout
-    layoutStack*: seq[GuiLayout]
+    # Offset
+    offsetStack*: seq[Vec2]
+    globalPositionOffset*: Vec2
+
+    # Clipping
+    clipStack*: seq[GuiClip]
 
     # Vector graphics
     vgCtx*: VectorGraphicsContext
 
     # Previous frame state
     previousTime*: float
-    previousMousePosition*: Vec2
+    previousGlobalMousePosition*: Vec2
 
-proc mouseDelta*(gui: Gui): Vec2 = gui.mousePosition - gui.previousMousePosition
+proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
 proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
 proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
@@ -94,6 +84,9 @@ proc keyPressed*(gui: Gui, key: KeyboardKey): bool = key in gui.keyPresses
 proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
+
+proc mousePosition*(gui: Gui): Vec2 =
+  gui.globalMousePosition - gui.globalPositionOffset
 
 
 # ======================================================================
@@ -132,13 +125,10 @@ proc getState*(gui: Gui, id: auto, T: typedesc): T =
 # ======================================================================
 
 
-proc zLayer(gui: Gui): ptr GuiZLayer =
-  addr(gui.zLayerStack[gui.zLayerStack.len - 1])
-
-proc currentZIndex*(gui: Gui): int = gui.zLayer.zIndex
-proc requestHover*(gui: Gui, id: auto) = gui.zLayer.finalHover = gui.getId(id)
+proc currentZIndex*(gui: Gui): int = gui.zLayerStack[^1].zIndex
+proc requestHover*(gui: Gui, id: auto) = gui.zLayerStack[^1].finalHover = gui.getId(id)
 proc clearHover*(gui: Gui) = gui.hover = 0
-proc vg*(gui: Gui): VectorGraphics = gui.zLayer.vg
+proc vg*(gui: Gui): VectorGraphics = gui.zLayerStack[^1].vg
 
 proc pushZIndex*(gui: Gui, zIndex: int) =
   gui.zLayerStack.add(GuiZLayer(
@@ -150,92 +140,86 @@ proc popZIndex*(gui: Gui) =
   let layer = gui.zLayerStack.pop()
   gui.zLayers.add(layer)
 
+# proc splitWidth*(gui: Gui, divisions: auto): float =
+#   let layout = gui.layout
+#   let full = layout.bounds.size.x
+#   let spacing = layout.spacing.x
+#   let divisions = float(divisions)
+#   (full - spacing * (divisions - 1.0)) / divisions
+
 
 # ======================================================================
-# Layout
+# Offset
 # ======================================================================
 
 
-proc layout(gui: Gui): ptr GuiLayout =
-  addr(gui.layoutStack[gui.layoutStack.len - 1])
+proc pushOffset*(gui: Gui, offset: Vec2) =
+  gui.offsetStack.add(offset)
+  gui.vg.translate(offset)
+  gui.globalPositionOffset += offset
 
-proc newRow(gui: Gui) =
-  let layout = gui.layout
-  layout.nextPosition.x = layout.indent
-  layout.nextPosition.y = layout.nextRow
-  layout.indexInRow = 0
+proc popOffset*(gui: Gui) =
+  let offset = gui.offsetStack.pop()
+  gui.vg.translate(-offset)
+  gui.globalPositionOffset -= offset
 
-converter guiMeasure*(x: float): GuiMeasure =
-  if x >= 0: GuiMeasure(kind: Normal, units: x)
-  else: GuiMeasure(kind: Reverse, units: -x)
 
-converter guiMeasure*(x: int): GuiMeasure =
-  if x >= 0: GuiMeasure(kind: Normal, units: float(x))
-  else: GuiMeasure(kind: Reverse, units: float(-x))
+# ======================================================================
+# Clip
+# ======================================================================
 
-converter guiMeasure*(kind: GuiMeasureKind): GuiMeasure = GuiMeasure(kind: kind)
 
-proc splitWidth*(gui: Gui, divisions: auto): float =
-  let layout = gui.layout
-  let full = layout.bounds.size.x
-  let spacing = layout.spacing.x
-  let divisions = float(divisions)
-  (full - spacing * (divisions - 1.0)) / divisions
+proc intersect*(a, b: GuiClip): GuiClip =
+  let x1 = max(a.position.x, b.position.x)
+  let y1 = max(a.position.y, b.position.y)
+  var x2 = min(a.position.x + a.size.x, b.position.x + b.size.x)
+  var y2 = min(a.position.y + a.size.y, b.position.y + b.size.y)
+  if x2 < x1: x2 = x1
+  if y2 < y1: y2 = y1
+  GuiClip(position: vec2(x1, y1), size: vec2(x2 - x1, y2 - y1))
 
-proc splitHeight*(gui: Gui, divisions: auto): float =
-  let layout = gui.layout
-  let full = layout.bounds.size.y
-  let spacing = layout.spacing.y
-  let divisions = float(divisions)
-  (full - spacing * (divisions - 1.0)) / divisions
+proc contains*(a: GuiClip, b: Vec2): bool =
+  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
+  b.y >= a.position.y and b.y <= a.position.y + a.size.y
 
-proc layoutBounds*(gui: Gui): Rect2 = gui.layout.bounds
-proc layoutSize*(gui: Gui): Vec2 = gui.layout.bounds.size
-proc layoutWidth*(gui: Gui): float = gui.layout.bounds.size.x
-proc layoutHeight*(gui: Gui): float = gui.layout.bounds.size.y
+proc pushClip*(gui: Gui, position, size: Vec2) =
+  let clip =
+    if gui.clipStack.len == 0:
+      GuiClip(position: position, size: size)
+    else:
+      GuiClip(position: position, size: size).intersect(gui.clipStack[^1])
 
-proc setRowHeight*(gui: Gui, height: float) = gui.layout.rowSize.y = height
-proc setRowWidths*(gui: Gui, widths: varargs[GuiMeasure]) =
-  let layout = gui.layout
-  layout.widths.setLen(widths.len)
-  for i in 0 ..< widths.len:
-    layout.widths[i] = widths[i]
-  gui.newRow()
+  gui.clipStack.add(clip)
+  gui.vg.clip(clip.position, clip.size)
 
-proc getNextBounds*(gui: Gui): Rect2 =
-  let layout = gui.layout
+proc popClip*(gui: Gui) =
+  let clip = gui.clipStack.pop()
+  gui.vg.clip(clip.position, clip.size)
 
-  if layout.indexInRow == layout.widths.len:
-    gui.newRow()
 
-  result.position = layout.bounds.position + layout.nextPosition
-  result.height = layout.rowSize.y
+# ======================================================================
+# Control
+# ======================================================================
 
-  let width =
-    if layout.widths.len > 0: layout.widths[layout.indexInRow]
-    else: GuiMeasure(kind: Fill)
 
-  case width.kind:
-  of Normal: result.width = width.units
-  of Reverse: result.width = gui.layout.bounds.size.x - result.width - result.x
-  of Fill: result.width = gui.splitWidth(layout.widths.len)
+proc x*(control: GuiControl): var float = control.position.x
+proc `x=`*(control: GuiControl, value: float) = control.position.x = value
+proc y*(control: GuiControl): var float = control.position.y
+proc `y=`*(control: GuiControl, value: float) = control.position.y = value
+proc width*(control: GuiControl): var float = control.size.x
+proc `width=`*(control: GuiControl, value: float) = control.size.x = value
+proc height*(control: GuiControl): var float = control.size.y
+proc `height=`*(control: GuiControl, value: float) = control.size.y = value
 
-  layout.indexInRow += 1
+proc mouseIsOver*(gui: Gui, control: GuiControl): bool =
+  let m = gui.mousePosition
 
-  layout.nextPosition.x += result.width + layout.spacing.x
-  layout.nextRow = max(layout.nextRow, result.y + result.height + layout.spacing.y)
+  if not gui.clipStack[^1].contains(m):
+    return false
 
-  layout.max.x = max(layout.max.x, result.x + result.width)
-  layout.max.y = max(layout.max.y, result.y + result.height)
-
-proc pushLayout*(gui: Gui, bounds: Rect2) =
-  gui.layoutStack.add(GuiLayout(
-    bounds: bounds,
-    spacing: vec2(3, 3),
-  ))
-
-proc popLayout*(gui: Gui) =
-  discard gui.layoutStack.pop()
+  let c = control
+  m.x >= c.x and m.x <= c.x + c.width and
+  m.y >= c.y and m.y <= c.y + c.height
 
 
 # ======================================================================
@@ -250,16 +234,21 @@ proc new*(_: typedesc[Gui]): Gui =
 proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
   gui.cursorStyle = Arrow
+  gui.pushId("Root")
   gui.pushZIndex(0)
-  gui.pushLayout(rect2(vec2(0, 0), gui.size))
+  gui.pushClip(vec2(0, 0), gui.size)
+  gui.pushOffset(vec2(0, 0))
 
 proc endFrame*(gui: Gui) =
-  gui.popLayout()
+  gui.popOffset()
+  gui.popClip()
   gui.popZIndex()
+  gui.popId()
 
   assert(gui.idStack.len == 0)
-  assert(gui.layoutStack.len == 0)
   assert(gui.zLayerStack.len == 0)
+  assert(gui.offsetStack.len == 0)
+  assert(gui.clipStack.len == 0)
 
   gui.zLayers.reverse() # The zLayers are in reverse order because they were added in popZIndex.
   gui.zLayers.sort do (x, y: GuiZLayer) -> int:
@@ -276,6 +265,7 @@ proc endFrame*(gui: Gui) =
   if highestZIndex > gui.highestZIndex:
     gui.highestZIndex = highestZIndex
 
+  gui.globalPositionOffset = vec2(0, 0)
   gui.zLayers.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
@@ -283,7 +273,7 @@ proc endFrame*(gui: Gui) =
   gui.keyReleases.setLen(0)
   gui.textInput.setLen(0)
   gui.mouseWheel = vec2(0, 0)
-  gui.previousMousePosition = gui.mousePosition
+  gui.previousGlobalMousePosition = gui.globalMousePosition
   gui.previousTime = gui.time
 
   gui.vgCtx.endFrame()

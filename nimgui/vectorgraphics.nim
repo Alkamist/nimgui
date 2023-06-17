@@ -95,7 +95,7 @@ type
   #   image*: int
 
   VectorGraphics* = ref object
-    commands: seq[DrawCommand]
+    commands*: seq[DrawCommand]
 
 proc beginPath*(vg: VectorGraphics) =
   vg.commands.add(DrawCommand(kind: BeginPath))
@@ -119,9 +119,6 @@ proc rect*(vg: VectorGraphics, x, y, width, height: float) =
 proc rect*(vg: VectorGraphics, position, size: Vec2) =
   vg.rect(position.x, position.y, size.x, size.y)
 
-proc rect*(vg: VectorGraphics, rect: Rect2) =
-  vg.rect(rect.position, rect.size)
-
 
 proc roundedRect*(vg: VectorGraphics, x, y, width, height, rTopLeft, rTopRight, rBottomRight, rBottomLeft: float) =
   vg.commands.add(DrawCommand(kind: RoundedRect, roundedRect: RoundedRectCommand(
@@ -132,17 +129,11 @@ proc roundedRect*(vg: VectorGraphics, x, y, width, height, rTopLeft, rTopRight, 
 proc roundedRect*(vg: VectorGraphics, position, size: Vec2, rTopLeft, rTopRight, rBottomRight, rBottomLeft: float) =
   vg.roundedRect(position.x, position.y, size.x, size.y, rTopLeft, rTopRight, rBottomRight, rBottomLeft)
 
-proc roundedRect*(vg: VectorGraphics, rect: Rect2, rTopLeft, rTopRight, rBottomRight, rBottomLeft: float) =
-  vg.roundedRect(rect.position, rect.size, rTopLeft, rTopRight, rBottomRight, rBottomLeft)
-
 proc roundedRect*(vg: VectorGraphics, x, y, width, height, rounding: float) =
   vg.roundedRect(x, y, width, height, rounding, rounding, rounding, rounding)
 
 proc roundedRect*(vg: VectorGraphics, position, size: Vec2, rounding: float) =
   vg.roundedRect(position, size, rounding, rounding, rounding, rounding)
-
-proc roundedRect*(vg: VectorGraphics, rect: Rect2, rounding: float) =
-  vg.roundedRect(rect, rounding, rounding, rounding, rounding)
 
 
 proc clip*(vg: VectorGraphics, x, y, width, height: float) =
@@ -150,9 +141,6 @@ proc clip*(vg: VectorGraphics, x, y, width, height: float) =
 
 proc clip*(vg: VectorGraphics, position, size: Vec2) =
   vg.clip(position.x, position.y, size.x, size.y)
-
-proc clip*(vg: VectorGraphics, rect: Rect2) =
-  vg.clip(rect.position, rect.size)
 
 
 proc translate*(vg: VectorGraphics, value: Vec2) =

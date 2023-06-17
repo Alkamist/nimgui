@@ -12,43 +12,25 @@ osWindow.show()
 let gui = Gui.new()
 gui.attachToOsWindow(osWindow)
 
-# proc outline(gui: Gui, bounds: Rect2, color: Color) =
-#   let vg = gui.vg
-#   vg.beginPath()
-#   vg.rect(bounds.expand(-0.5))
-#   vg.strokeColor = color
-#   vg.stroke()
-
-# proc debugBounds(gui: Gui, color = rgb(255, 255, 255)): Rect2 {.discardable.} =
-#   result = gui.getNextBounds()
-#   gui.outline(result, color)
-
-# proc testWidget(gui: Gui, id: auto) =
-#   gui.pushLayout(gui.getNextBounds())
-#   gui.pushId(id)
-#   gui.rowHeight = 32
-#   gui.rowWidths = [16, 32, -1]
-#   if gui.button("Button1").clicked: echo "Button 1 Clicked"
-#   if gui.button("Button2").clicked: echo "Button 2 Clicked"
-#   gui.popId()
-#   gui.popLayout()
-
 osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.time = osWindow.time
   gui.beginFrame()
 
-  
-  if gui.button("MiddleButton").clicked: echo "Middle Button Clicked"
+  let window = gui.getState("Window", GuiWindow)
+  if window.init:
+    window.position = vec2(200, 200)
+    window.size = vec2(300, 200)
+    window.minSize = vec2(200, 100)
 
-  # if gui.button("Button1").clicked: echo "Button 1 Clicked"
-  # if gui.button("Button2").clicked: echo "Button 2 Clicked"
-  # if gui.button("Button3").clicked: echo "Button 3 Clicked"
+  gui.beginWindow(window)
 
-  # if gui.button("Button4").clicked: echo "Button 4 Clicked"
+  let button = gui.getState("Button", GuiButton)
+  button.position = vec2(300, 300)
+  button.size = vec2(50, 50)
+  gui.updateButton(button)
+  gui.drawButton(button)
 
-  # gui.testWidget("1")
-  # gui.testWidget("2")
-  # gui.testWidget("3")
+  gui.endWindow()
 
   gui.endFrame()
 

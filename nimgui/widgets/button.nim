@@ -1,5 +1,4 @@
 import ../gui
-import ../math
 
 type
   GuiButton* = ref object of GuiControl
@@ -45,13 +44,11 @@ proc update*(gui: Gui, button: GuiButton, mouseButton = MouseButton.Left) =
   )
 
 proc draw*(gui: Gui, button: GuiButton) =
-  let vg = gui.vg
-
   template drawBody(color: Color): untyped =
-    vg.beginPath()
-    vg.roundedRect(button.position, button.size, 3.0)
-    vg.fillColor = color
-    vg.fill()
+    gui.beginPath()
+    gui.pathRoundedRect(button.position, button.size, 3.0)
+    gui.fillColor = color
+    gui.fill()
 
   drawBody(rgb(31, 32, 34))
   if button.isDown:

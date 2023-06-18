@@ -1,9 +1,4 @@
 import ./common
-export common
-
-type
-  Vec2* = object
-    x*, y*: float
 
 {.push inline.}
 

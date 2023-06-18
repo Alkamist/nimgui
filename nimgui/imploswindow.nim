@@ -1,5 +1,5 @@
 import oswindow; export oswindow
-import ./gui
+import ./common
 
 const densityPixelDpi = 96.0
 

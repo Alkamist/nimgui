@@ -1,5 +1,4 @@
 import ../gui
-import ../math
 import ./button
 
 type
@@ -267,19 +266,19 @@ proc backgroundButton(gui: Gui, window: GuiWindow) =
 #   let position = window.visualPosition
 #   let size = window.bounds.size
 
-#   let vg = gui.vg
-#   vg.beginPath()
-#   vg.rect(-vec2(feather), size + feather2)
-#   vg.roundedRect(position, size, cornerRadius)
-#   vg.pathWinding = Hole
-#   vg.fillPaint = vg.boxGradient(
+#   let gui = gui.gui
+#   gui.beginPath()
+#   gui.rect(-vec2(feather), size + feather2)
+#   gui.roundedRect(position, size, cornerRadius)
+#   gui.pathWinding = Hole
+#   gui.fillPaint = gui.boxGradient(
 #     vec2(position.x, position.y + 2),
 #     size,
 #     cornerRadius * 2.0,
 #     feather,
 #     rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
 #   )
-#   vg.fill()
+#   gui.fill()
 
 proc drawBackground(gui: Gui, window: GuiWindow) =
   const bodyColor = rgb(49, 51, 56)
@@ -298,69 +297,67 @@ proc drawBackground(gui: Gui, window: GuiWindow) =
   let width = window.visualSize.x
   let height = window.visualSize.y
 
-  let vg = gui.vg
-
   # Header fill:
-  vg.beginPath()
-  vg.roundedRect(
+  gui.beginPath()
+  gui.pathRoundedRect(
     vec2(x, y),
     vec2(width, headerHeight),
     cornerRadius, cornerRadius,
     0, 0,
   )
-  vg.fillColor = headerColor
-  vg.fill()
+  gui.fillColor = headerColor
+  gui.fill()
 
   # Body fill:
-  vg.beginPath()
-  vg.roundedRect(
+  gui.beginPath()
+  gui.pathRoundedRect(
     vec2(x, y + headerHeight),
     vec2(width, height - headerHeight),
     0, 0,
     cornerRadius, cornerRadius,
   )
-  vg.fillColor = bodyColor
-  vg.fill()
+  gui.fillColor = bodyColor
+  gui.fill()
 
   # Body border:
-  vg.beginPath()
-  vg.moveTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
-  vg.lineTo(vec2(x + width - borderThicknessHalf, y + height - cornerRadius))
-  vg.arcTo(
+  gui.beginPath()
+  gui.pathMoveTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
+  gui.pathLineTo(vec2(x + width - borderThicknessHalf, y + height - cornerRadius))
+  gui.pathArcTo(
     vec2(x + width - borderThicknessHalf, y + height - borderThicknessHalf),
     vec2(x + width - cornerRadius, y + height - borderThicknessHalf),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + cornerRadius, y + height - borderThicknessHalf))
-  vg.arcTo(
+  gui.pathLineTo(vec2(x + cornerRadius, y + height - borderThicknessHalf))
+  gui.pathArcTo(
     vec2(x + borderThicknessHalf, y + height - borderThicknessHalf),
     vec2(x + borderThicknessHalf, y + height - cornerRadius),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + borderThicknessHalf, y + headerHeight))
-  vg.strokeWidth = borderThickness
-  vg.strokeColor = bodyBorderColor
-  vg.stroke()
+  gui.pathLineTo(vec2(x + borderThicknessHalf, y + headerHeight))
+  gui.strokeWidth = borderThickness
+  gui.strokeColor = bodyBorderColor
+  gui.stroke()
 
   # Header border:
-  vg.beginPath()
-  vg.moveTo(vec2(x + borderThicknessHalf, y + headerHeight))
-  vg.lineTo(vec2(x + borderThicknessHalf, y + cornerRadius))
-  vg.arcTo(
+  gui.beginPath()
+  gui.pathMoveTo(vec2(x + borderThicknessHalf, y + headerHeight))
+  gui.pathLineTo(vec2(x + borderThicknessHalf, y + cornerRadius))
+  gui.pathArcTo(
     vec2(x + borderThicknessHalf, y + borderThicknessHalf),
     vec2(x + cornerRadius, y + borderThicknessHalf),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + width - cornerRadius, y + borderThicknessHalf))
-  vg.arcTo(
+  gui.pathLineTo(vec2(x + width - cornerRadius, y + borderThicknessHalf))
+  gui.pathArcTo(
     vec2(x + width - borderThicknessHalf, y + borderThicknessHalf),
     vec2(x + width - borderThicknessHalf, y + cornerRadius),
     borderCornerRadius,
   )
-  vg.lineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
-  vg.strokeWidth = borderThickness
-  vg.strokeColor = headerBorderColor
-  vg.stroke()
+  gui.pathLineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
+  gui.strokeWidth = borderThickness
+  gui.strokeColor = headerBorderColor
+  gui.stroke()
 
 proc draw*(gui: Gui, window: GuiWindow) =
   gui.drawBackground(window)

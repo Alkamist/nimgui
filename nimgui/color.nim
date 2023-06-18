@@ -1,9 +1,4 @@
 import ./common
-export common
-
-type
-  Color* = object
-    r*, g*, b*, a*: float
 
 {.push inline.}
 

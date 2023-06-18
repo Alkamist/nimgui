@@ -2,8 +2,15 @@
 
 import nimgui
 import nimgui/imploswindow
-import nimgui/widgets
+# import nimgui/widgets
 import oswindow as oswnd
+
+# var textTest = ""
+
+# for _ in 0 ..< 100:
+#   for _ in 0 ..< 1000:
+#     textTest &= "A"
+#   textTest &= "\n"
 
 let osWindow = OsWindow.new()
 osWindow.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
@@ -12,33 +19,39 @@ osWindow.show()
 let gui = Gui.new()
 gui.attachToOsWindow(osWindow)
 
+const fontData = readFile("consola.ttf")
+gui.addFont(fontData)
+
+var frames = 0
+
 osWindow.onFrame = proc(osWindow: OsWindow) =
+  frames += 1
+
   gui.time = osWindow.time
   gui.beginFrame()
 
-  let window = gui.getState("Window", GuiWindow)
-  if window.init:
-    window.position = vec2(200, 200)
-    window.size = vec2(300, 200)
-    window.minSize = vec2(200, 100)
+  # gui.pushOffset(vec2(0, 300))
+  # gui.pushClip(vec2(400, 100), vec2(200, 200))
 
-  gui.update(window):
-    gui.draw(window)
+  gui.fillColor = rgb(255, 255, 255)
 
-    # gui.header(window):
-    #   let vg = gui.vg
-    #   vg.beginPath()
-    #   vg.rect(vec2(0, 0), vec2(1000, 1000))
-    #   vg.fillColor = rgb(255, 255, 255)
-    #   vg.fill()
+  let text = "Test Text"
+  let position = gui.mousePosition
 
-    gui.body(window):
-      let button = gui.getState("Button", GuiButton)
-      button.position = vec2(300, 300)
-      button.size = vec2(50, 50)
+  # gui.beginPath()
+  # for glyph in gui.calculateGlyphs(text):
+  #   gui.pathRect(position + vec2(glyph.x, 0) + vec2(0.5, 0.5), vec2(glyph.width, gui.lineHeight))
+  # gui.strokeColor = rgb(0, 255, 0)
+  # gui.stroke()
 
-      gui.update(button)
-      gui.draw(button)
+  gui.fillColor = rgb(255, 255, 255)
+  gui.drawText(position, text)
+
+  # gui.popClip()
+  # gui.popOffset()
+
+  gui.fillColor = rgb(255, 255, 255)
+  gui.drawText(vec2(0, 0), $(float(frames) / gui.time))
 
   gui.endFrame()
 

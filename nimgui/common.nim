@@ -52,8 +52,8 @@ type
     position*: Vec2
     size*: Vec2
 
-  GuiGlyph* = object
-    index*: uint64
+  GuiTextMeasurement* = object
+    index*: int
     x*: float
     width*: float
     logicalX*: float
@@ -103,8 +103,8 @@ type
     clipStack*: seq[GuiClip]
 
     # Vector graphics
-    font*: GuiFont
-    fontSize*: float
+    currentFont*: GuiFont
+    currentFontSize*: float
     originalFontSize*: float
     textAscender*: float
     textDescender*: float

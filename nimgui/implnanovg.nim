@@ -24,26 +24,46 @@ proc calculateTextMetrics*(ctx: GuiVectorGraphicsContext): tuple[ascender, desce
   nvgTextMetrics(ctx.nvgCtx, addr(ascender), addr(descender), addr(lineHeight))
   (float(ascender), float(descender), float(lineHeight))
 
-proc calculateGlyphs*(ctx: GuiVectorGraphicsContext, text: openArray[char]): seq[GuiGlyph] =
-  if text.len <= 0:
-    return
+# proc calculateGlyphs*(ctx: GuiVectorGraphicsContext, text: openArray[char]): seq[GuiGlyph] =
+#   if text.len <= 0:
+#     return
 
-  let nvgCtx = ctx.nvgCtx
+#   let nvgCtx = ctx.nvgCtx
 
-  var nvgPositions = newSeq[NVGglyphPosition](text.len)
-  discard nvgTextGlyphPositions(nvgCtx, 0, 0, cast[cstring](unsafeAddr(text[0])), nil, addr(nvgPositions[0]), cint(text.len))
-  for i in countdown(nvgPositions.len - 1, 0, 1):
-    let glyph = nvgPositions[i]
-    if glyph.str != nil:
-      nvgPositions.setLen(i + 1)
-      break
+#   var nvgPositions = newSeq[NVGglyphPosition](text.len)
+#   discard nvgTextGlyphPositions(nvgCtx, 0, 0, cast[cstring](unsafeAddr(text[0])), nil, addr(nvgPositions[0]), cint(text.len))
+#   for i in countdown(nvgPositions.len - 1, 0, 1):
+#     let glyph = nvgPositions[i]
+#     if glyph.str != nil:
+#       nvgPositions.setLen(i + 1)
+#       break
 
-  result.setLen(nvgPositions.len)
-  for i, nvgPosition in nvgPositions:
-    result[i].index = cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))
-    result[i].x = nvgPosition.minx
-    result[i].width = nvgPosition.maxx - nvgPosition.minx
-    result[i].logicalX = nvgPosition.x
+#   result.setLen(nvgPositions.len)
+#   for i, nvgPosition in nvgPositions:
+#     result[i].index = cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))
+#     result[i].x = nvgPosition.minx
+#     result[i].width = nvgPosition.maxx - nvgPosition.minx
+#     result[i].logicalX = nvgPosition.x
+
+iterator measureText*(ctx: GuiVectorGraphicsContext, text: openArray[char]): GuiTextMeasurement =
+  if text.len > 0:
+    let nvgCtx = ctx.nvgCtx
+
+    var nvgPositions = newSeq[NVGglyphPosition](text.len)
+    discard nvgTextGlyphPositions(nvgCtx, 0, 0, cast[cstring](unsafeAddr(text[0])), nil, addr(nvgPositions[0]), cint(text.len))
+    for i in countdown(nvgPositions.len - 1, 0, 1):
+      let glyph = nvgPositions[i]
+      if glyph.str != nil:
+        nvgPositions.setLen(i + 1)
+        break
+
+    for i, nvgPosition in nvgPositions:
+      yield GuiTextMeasurement(
+        index: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
+        x: nvgPosition.minx,
+        width: nvgPosition.maxx - nvgPosition.minx,
+        logicalX: nvgPosition.x,
+      )
 
 proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
   if data.len == 0:

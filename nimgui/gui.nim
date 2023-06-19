@@ -5,6 +5,7 @@ import ./common; export common
 import ./vec2; export vec2
 import ./color; export color
 import ./implnanovg; export implnanovg
+import ./imploswindow; export imploswindow
 
 proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
 proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
@@ -68,10 +69,10 @@ proc visuallyTranslate*(gui: Gui, amount: Vec2) =
 
 proc drawText*(gui: Gui, position: Vec2, data: string) =
   gui.commands.add(DrawCommand(kind: Text, text: TextCommand(
-    font: gui.font,
-    fontSize: gui.fontSize,
+    font: gui.currentFont,
+    fontSize: gui.currentFontSize,
     position: position,
-    data: data
+    data: data,
   )))
 
 proc `fillColor=`*(gui: Gui, color: Color) =
@@ -84,8 +85,8 @@ proc `strokeWidth=`*(gui: Gui, width: float) =
   gui.commands.add(DrawCommand(kind: StrokeWidth, strokeWidth: StrokeWidthCommand(width: width)))
 
 proc updateTextMetrics(gui: Gui) =
-  gui.vgCtx.setFont(gui.font)
-  gui.vgCtx.setFontSize(gui.fontSize)
+  gui.vgCtx.setFont(gui.currentFont)
+  gui.vgCtx.setFontSize(gui.currentFontSize)
   let metrics = gui.vgCtx.calculateTextMetrics()
   gui.textAscender = metrics.ascender
   gui.textDescender = metrics.descender
@@ -93,18 +94,24 @@ proc updateTextMetrics(gui: Gui) =
 
 proc addFont*(gui: Gui, data: string): GuiFont {.discardable.} =
   result = gui.vgCtx.addFont(data)
-  gui.font = result
+  gui.currentFont = result
+
+proc font*(gui: Gui): GuiFont =
+  gui.currentFont
+
+proc fontSize*(gui: Gui): float =
+  gui.currentFontSize
 
 proc `font=`*(gui: Gui, font: GuiFont) =
-  gui.font = font
+  gui.currentFont = font
   gui.updateTextMetrics()
 
 proc `fontSize=`*(gui: Gui, size: float) =
-  gui.fontSize = size
+  gui.currentFontSize = size
   gui.updateTextMetrics()
 
-proc calculateGlyphs*(gui: Gui, text: openArray[char]): seq[GuiGlyph] =
-  gui.vgCtx.calculateGlyphs(text)
+template measureText*(gui: Gui, text: openArray[char]): untyped =
+  gui.vgCtx.measureText(text)
 
 
 # ======================================================================
@@ -240,7 +247,7 @@ proc mouseIsOver*(gui: Gui, control: GuiControl): bool =
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
   result.vgCtx = GuiVectorGraphicsContext.new()
-  result.fontSize = 13.0
+  result.currentFontSize = 13.0
 
 proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
@@ -251,9 +258,9 @@ proc beginFrame*(gui: Gui) =
   gui.pushOffset(vec2(0, 0))
 
   if gui.originalFontSize == 0:
-    gui.originalFontSize = gui.fontSize
+    gui.originalFontSize = gui.currentFontSize
   else:
-    gui.fontSize = gui.originalFontSize
+    gui.currentFontSize = gui.originalFontSize
 
   gui.updateTextMetrics()
 

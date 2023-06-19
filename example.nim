@@ -1,16 +1,17 @@
 {.experimental: "overloadableEnums".}
 
 import nimgui
-import nimgui/imploswindow
-# import nimgui/widgets
-import oswindow as oswnd
+import nimgui/widgets
 
-# var textTest = ""
+# const testText = """
+# An preost wes on leoden, Laȝamon was ihoten
+# He wes Leovenaðes sone -- liðe him be Drihten.
+# He wonede at Ernleȝe at æðelen are chirechen,
+# Uppen Sevarne staþe, sel þar him þuhte,
+# Onfest Radestone, þer he bock radde.
+# """
 
-# for _ in 0 ..< 100:
-#   for _ in 0 ..< 1000:
-#     textTest &= "A"
-#   textTest &= "\n"
+const testText = "An preost wes on leoden, Lðæð\nðæasdf"
 
 let osWindow = OsWindow.new()
 osWindow.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
@@ -30,25 +31,26 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.time = osWindow.time
   gui.beginFrame()
 
-  # gui.pushOffset(vec2(0, 300))
-  # gui.pushClip(vec2(400, 100), vec2(200, 200))
+  gui.fontSize = 26
 
-  gui.fillColor = rgb(255, 255, 255)
+  let text = gui.getState("Text", GuiText)
+  text.position = gui.mousePosition
+  text.data = testText
 
-  let text = "Test Text"
-  let position = gui.mousePosition
+  gui.update(text)
 
-  # gui.beginPath()
-  # for glyph in gui.calculateGlyphs(text):
-  #   gui.pathRect(position + vec2(glyph.x, 0) + vec2(0.5, 0.5), vec2(glyph.width, gui.lineHeight))
-  # gui.strokeColor = rgb(0, 255, 0)
-  # gui.stroke()
+  gui.beginPath()
+  for glyph in text.glyphs:
+    gui.pathRect(glyph.position + vec2(0.5, 0.5), glyph.size)
+  gui.strokeColor = rgba(0, 255, 0, 64)
+  gui.stroke()
 
-  gui.fillColor = rgb(255, 255, 255)
-  gui.drawText(position, text)
+  gui.draw(text)
 
-  # gui.popClip()
-  # gui.popOffset()
+
+
+  # gui.fillColor = rgb(255, 255, 255)
+  # gui.drawText(position, text)
 
   gui.fillColor = rgb(255, 255, 255)
   gui.drawText(vec2(0, 0), $(float(frames) / gui.time))

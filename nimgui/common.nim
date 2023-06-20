@@ -52,11 +52,10 @@ type
     position*: Vec2
     size*: Vec2
 
-  GuiTextMeasurement* = object
+  GuiGlyph* = object
     index*: int
     x*: float
-    width*: float
-    logicalX*: float
+    left*, right*: float
 
   GuiClip* = object
     position*: Vec2

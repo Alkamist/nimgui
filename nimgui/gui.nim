@@ -67,7 +67,7 @@ proc visuallyClip*(gui: Gui, position, size: Vec2) =
 proc visuallyTranslate*(gui: Gui, amount: Vec2) =
   gui.commands.add(DrawCommand(kind: Translate, translate: TranslateCommand(amount: amount)))
 
-proc drawText*(gui: Gui, position: Vec2, data: string) =
+proc drawTextLine*(gui: Gui, position: Vec2, data: string) =
   gui.commands.add(DrawCommand(kind: Text, text: TextCommand(
     font: gui.currentFont,
     fontSize: gui.currentFontSize,
@@ -110,8 +110,8 @@ proc `fontSize=`*(gui: Gui, size: float) =
   gui.currentFontSize = size
   gui.updateTextMetrics()
 
-template measureText*(gui: Gui, text: openArray[char]): untyped =
-  gui.vgCtx.measureText(text)
+template textGlyphs*(gui: Gui, text: openArray[char]): untyped =
+  gui.vgCtx.textGlyphs(text)
 
 
 # ======================================================================
@@ -184,6 +184,13 @@ proc popOffset*(gui: Gui) =
 # Clip
 # ======================================================================
 
+# Clip rects are stored in global coordinates so
+# they can easily be intersected with each other.
+
+# The current clip rect in relative coordinates.
+proc currentClip*(gui: Gui): GuiClip =
+  result = gui.clipStack[^1]
+  result.position -= gui.globalPositionOffset
 
 proc intersect*(a, b: GuiClip): GuiClip =
   let x1 = max(a.position.x, b.position.x)
@@ -210,6 +217,13 @@ proc pushClip*(gui: Gui, position, size: Vec2) =
 
 proc popClip*(gui: Gui) =
   discard gui.clipStack.pop()
+
+  # let clip = gui.clipStack.pop()
+  # gui.beginPath()
+  # gui.pathRect(clip.position + vec2(0.5, 0.5), clip.size - vec2(1.0, 1.0))
+  # gui.strokeColor = rgb(0, 255, 0)
+  # gui.stroke()
+
   if gui.clipStack.len > 0:
     let previousClip = gui.clipStack[^1]
     gui.visuallyClip(previousClip.position - gui.globalPositionOffset, previousClip.size)
@@ -302,3 +316,53 @@ proc endFrame*(gui: Gui) =
   gui.previousTime = gui.time
 
   gui.vgCtx.endFrame()
+
+# proc drawText*(gui: Gui, position: Vec2, text: string) =
+#   let clip = gui.currentClip
+#   let clipLeft = clip.position.x
+#   let clipRight = clip.position.x + clip.size.x
+#   let clipTop = clip.position.y
+#   let clipBottom = clip.position.y + clip.size.y
+
+#   let lineHeight = gui.lineHeight
+#   var linePosition = position
+
+#   for line in text.splitLines:
+#     if linePosition.y > clipBottom:
+#       break
+
+#     if linePosition.y + lineHeight > clipTop:
+#       gui.beginPath()
+
+#       var startIndex = 0
+#       var stopIndex = line.len
+#       var firstVisibleGlyph = false
+#       var drawPosition = linePosition
+
+#       for measurement in gui.measureText(line):
+#         let glyphLeft = linePosition.x + measurement.left
+#         let glyphPosition = linePosition + vec2(measurement.x, 0)
+#         let glyphSize = vec2(measurement.right - measurement.left, lineHeight)
+
+#         if firstVisibleGlyph:
+#           drawPosition.x = glyphPosition.x
+#           startIndex = measurement.index
+#           firstVisibleGlyph = false
+
+#         if glyphLeft + glyphSize.x < clipLeft:
+#           firstVisibleGlyph = true
+#           continue
+
+#         if glyphLeft > clipRight:
+#           stopIndex = measurement.index
+#           break
+
+#         gui.pathRect(glyphPosition, glyphSize)
+
+#       gui.strokeColor = rgb(255, 0, 0)
+#       gui.stroke()
+
+#       gui.fillColor = rgb(255, 255, 255)
+#       gui.drawTextRaw(drawPosition, line[startIndex..<stopIndex])
+
+#     linePosition.y += lineHeight

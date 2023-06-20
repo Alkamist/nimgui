@@ -50,6 +50,8 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     gui.fillColor = rgb(255, 255, 255)
     gui.drawTextLine(line.position, line.text)
 
+  # gui.drawText(gui.mousePosition, testText)
+
   gui.popClip()
   gui.popOffset()
 

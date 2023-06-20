@@ -67,12 +67,12 @@ proc visuallyClip*(gui: Gui, position, size: Vec2) =
 proc visuallyTranslate*(gui: Gui, amount: Vec2) =
   gui.commands.add(DrawCommand(kind: Translate, translate: TranslateCommand(amount: amount)))
 
-proc drawTextLine*(gui: Gui, position: Vec2, data: string) =
+proc drawTextLine*(gui: Gui, position: Vec2, text: string) =
   gui.commands.add(DrawCommand(kind: Text, text: TextCommand(
     font: gui.currentFont,
     fontSize: gui.currentFontSize,
     position: position,
-    data: data,
+    data: text,
   )))
 
 proc `fillColor=`*(gui: Gui, color: Color) =
@@ -316,53 +316,3 @@ proc endFrame*(gui: Gui) =
   gui.previousTime = gui.time
 
   gui.vgCtx.endFrame()
-
-# proc drawText*(gui: Gui, position: Vec2, text: string) =
-#   let clip = gui.currentClip
-#   let clipLeft = clip.position.x
-#   let clipRight = clip.position.x + clip.size.x
-#   let clipTop = clip.position.y
-#   let clipBottom = clip.position.y + clip.size.y
-
-#   let lineHeight = gui.lineHeight
-#   var linePosition = position
-
-#   for line in text.splitLines:
-#     if linePosition.y > clipBottom:
-#       break
-
-#     if linePosition.y + lineHeight > clipTop:
-#       gui.beginPath()
-
-#       var startIndex = 0
-#       var stopIndex = line.len
-#       var firstVisibleGlyph = false
-#       var drawPosition = linePosition
-
-#       for measurement in gui.measureText(line):
-#         let glyphLeft = linePosition.x + measurement.left
-#         let glyphPosition = linePosition + vec2(measurement.x, 0)
-#         let glyphSize = vec2(measurement.right - measurement.left, lineHeight)
-
-#         if firstVisibleGlyph:
-#           drawPosition.x = glyphPosition.x
-#           startIndex = measurement.index
-#           firstVisibleGlyph = false
-
-#         if glyphLeft + glyphSize.x < clipLeft:
-#           firstVisibleGlyph = true
-#           continue
-
-#         if glyphLeft > clipRight:
-#           stopIndex = measurement.index
-#           break
-
-#         gui.pathRect(glyphPosition, glyphSize)
-
-#       gui.strokeColor = rgb(255, 0, 0)
-#       gui.stroke()
-
-#       gui.fillColor = rgb(255, 255, 255)
-#       gui.drawTextRaw(drawPosition, line[startIndex..<stopIndex])
-
-#     linePosition.y += lineHeight

@@ -66,3 +66,7 @@ iterator textLines*(gui: Gui, position: Vec2, text: string): GuiTextLine =
       yield textLine
 
     linePosition.y += lineHeight
+
+proc drawText*(gui: Gui, position: Vec2, text: string) =
+  for line in gui.textLines(position, text):
+    gui.drawTextLine(line.position, line.text)

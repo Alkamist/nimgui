@@ -11,6 +11,8 @@ Uppen Sevarne staþe, sel þar him þuhte,
 Onfest Radestone, þer he bock radde.
 """
 
+# const testText = "1234567890\n1234567890\n1234567890\n1234567890\n1234567890\n1234567890"
+
 # var testText = ""
 # for _ in 0 ..< 100:
 #   testText.add("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\n")
@@ -35,25 +37,21 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
 
   gui.fontSize = 26
 
-  gui.pushOffset(vec2(500, 300))
-  gui.pushClip(vec2(0, 0), vec2(300, 300))
-
-  for line in gui.textLines(gui.mousePosition, testText):
+  for line in gui.textBoxLines(vec2(50, 50), gui.mousePosition - vec2(50, 50), testText):
     gui.beginPath()
-
     for glyph in line.glyphs:
-      gui.pathRect(line.position + vec2(glyph.left, 0) + vec2(0.5, 0.5), vec2(glyph.right - glyph.left, gui.lineHeight) - vec2(1.0, 1.0))
-
+      gui.pathRect(line.position + vec2(glyph.x, 0), vec2(glyph.right - glyph.left, gui.lineHeight))
     gui.strokeColor = rgb(255, 0, 0)
     gui.stroke()
 
-    gui.fillColor = rgb(255, 255, 255)
     gui.drawTextLine(line.position, line.text)
 
-  # gui.drawText(gui.mousePosition, testText)
+  # gui.drawTextBox(vec2(50, 50), gui.mousePosition - vec2(50, 50), testText)
 
-  gui.popClip()
-  gui.popOffset()
+  gui.beginPath()
+  gui.pathRect(vec2(50, 50), gui.mousePosition - vec2(50, 50))
+  gui.strokeColor = rgb(0, 255, 0)
+  gui.stroke()
 
   gui.fillColor = rgb(255, 255, 255)
   gui.drawTextLine(vec2(0, 0), $(float(frames) / gui.time))

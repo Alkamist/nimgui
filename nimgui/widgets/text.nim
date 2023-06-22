@@ -22,8 +22,6 @@ iterator textLines*(gui: Gui, position: Vec2, text: string): GuiTextLine =
       break
 
     if linePosition.y + lineHeight > clipTop:
-      gui.beginPath()
-
       var startIndex = 0
       var stopIndex = line.len
       var firstVisibleGlyph = false
@@ -67,6 +65,75 @@ iterator textLines*(gui: Gui, position: Vec2, text: string): GuiTextLine =
 
     linePosition.y += lineHeight
 
-proc drawText*(gui: Gui, position: Vec2, text: string) =
-  for line in gui.textLines(position, text):
-    gui.drawTextLine(line.position, line.text)
+# proc drawText*(gui: Gui, position: Vec2, text: string) =
+#   for line in gui.textLines(position, text):
+#     gui.drawTextLine(line.position, line.text)
+
+iterator textBoxLines*(gui: Gui, position, size: Vec2, text: string, wordWrap = true): GuiTextLine =
+  if text.len > 0:
+    let lineHeight = gui.lineHeight
+    var lineYOffset = 0.0
+
+    let glyphs = gui.calculateGlyphs(text)
+
+    var start = 0
+
+    for _ in 0 ..< glyphs.len:
+      if lineYOffset > size.y:
+        break
+
+      var endOfLine = glyphs.len - 1
+      var nextStart = endOfLine
+
+      var textLine = GuiTextLine(position: position + vec2(0, lineYOffset))
+      let glyphXOffset = -glyphs[start].x
+
+      for i in start ..< glyphs.len:
+        let glyph = glyphs[i]
+
+        if text[glyph.index] == '\n':
+          endOfLine = i - 1
+          nextStart = i + 1
+          break
+
+        if wordWrap and i > start and text[glyph.index] != ' ' and glyph.right + glyphXOffset > size.x:
+          var wordIsEntireLine = true
+
+          block lastWordSearch:
+            for lookback in countdown(i - 1, start, 1):
+              if text[glyphs[lookback].index] == ' ':
+                for lookbackMore in countdown(lookback - 1, start, 1):
+                  if text[glyphs[lookbackMore].index] != ' ':
+                    endOfLine = lookbackMore
+                    nextStart = lookback + 1
+                    wordIsEntireLine = false
+                    break lastWordSearch
+
+          if wordIsEntireLine:
+            endOfLine = i - 1
+            nextStart = i
+
+          break
+
+      if endOfLine >= 0:
+        let glyphCount = endOfLine + 1 - start
+        textLine.glyphs.setLen(glyphCount)
+
+        for i in 0 ..< glyphCount:
+          let glyph = glyphs[start + i]
+          textLine.glyphs[i] = GuiGlyph(
+            index: glyph.index,
+            x: glyph.x + glyphXOffset,
+            left: glyph.left + glyphXOffset,
+            right: glyph.right + glyphXOffset,
+          )
+
+        textLine.text = text[glyphs[start].index .. glyphs[endOfLine].index]
+
+        yield textLine
+
+      if nextStart >= glyphs.len - 1:
+        break
+
+      start = nextStart
+      lineYOffset += lineHeight

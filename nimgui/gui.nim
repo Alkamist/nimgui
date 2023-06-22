@@ -113,6 +113,9 @@ proc `fontSize=`*(gui: Gui, size: float) =
 template textGlyphs*(gui: Gui, text: openArray[char]): untyped =
   gui.vgCtx.textGlyphs(text)
 
+proc calculateGlyphs*(gui: Gui, text: openArray[char]): seq[GuiGlyph] =
+  gui.vgCtx.calculateGlyphs(text)
+
 
 # ======================================================================
 # Ids and State

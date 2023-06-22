@@ -46,6 +46,31 @@ iterator textGlyphs*(ctx: GuiVectorGraphicsContext, text: openArray[char]): GuiG
         right: nvgPosition.maxx,
       )
 
+proc calculateGlyphs*(ctx: GuiVectorGraphicsContext, text: openArray[char]): seq[GuiGlyph] =
+  if text.len > 0:
+    let nvgCtx = ctx.nvgCtx
+
+    var nvgPositions = newSeq[NVGglyphPosition](text.len)
+    let positionCount = nvgTextGlyphPositions(
+      nvgCtx, 0, 0,
+      cast[cstring](unsafeAddr(text[0])),
+      nil,
+      addr(nvgPositions[0]),
+      cint(text.len),
+    )
+
+    result.setLen(positionCount)
+
+    for i in 0 ..< positionCount:
+      let nvgPosition = nvgPositions[i]
+      result[i] = GuiGlyph(
+        index: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
+        x: nvgPosition.x,
+        left: nvgPosition.minx,
+        right: nvgPosition.maxx,
+      )
+
+
 proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
   if data.len == 0:
     return

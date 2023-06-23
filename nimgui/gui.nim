@@ -110,11 +110,11 @@ proc `fontSize=`*(gui: Gui, size: float) =
   gui.currentFontSize = size
   gui.updateTextMetrics()
 
-template textGlyphs*(gui: Gui, text: openArray[char]): untyped =
-  gui.vgCtx.textGlyphs(text)
+# template textGlyphs*(gui: Gui, text: openArray[char]): untyped =
+#   gui.vgCtx.textGlyphs(text)
 
-proc calculateGlyphs*(gui: Gui, text: openArray[char]): seq[GuiGlyph] =
-  gui.vgCtx.calculateGlyphs(text)
+proc measureText*(gui: Gui, position: Vec2, text: openArray[char]): seq[GuiTextMeasurement] =
+  gui.vgCtx.measureText(position, text)
 
 
 # ======================================================================

@@ -1,139 +1,130 @@
-import std/strutils
 import ../gui
 
 type
-  GuiTextLine = object
-    text*: string
+  GuiGlyph* = object
+    byteIndex*: int
     position*: Vec2
+    size*: Vec2
+    drawX*: float
+
+  GuiTextLine* = object
+    text*: string
     glyphs*: seq[GuiGlyph]
 
-iterator textLines*(gui: Gui, position: Vec2, text: string): GuiTextLine =
-  let clip = gui.currentClip
-  let clipLeft = clip.position.x
-  let clipRight = clip.position.x + clip.size.x
-  let clipTop = clip.position.y
-  let clipBottom = clip.position.y + clip.size.y
-
-  let lineHeight = gui.lineHeight
-  var linePosition = position
-
-  for line in text.splitLines:
-    if linePosition.y > clipBottom:
-      break
-
-    if linePosition.y + lineHeight > clipTop:
-      var startIndex = 0
-      var stopIndex = line.len
-      var firstVisibleGlyph = false
-
-      var textLine = GuiTextLine(position: linePosition)
-
-      for glyph in gui.textGlyphs(line):
-        let glyphX = linePosition.x + glyph.x
-        let glyphLeft = linePosition.x + glyph.left
-        let glyphWidth = glyph.right - glyph.left
-        let glyphRight = glyphLeft + glyphWidth
-
-        if firstVisibleGlyph:
-          textLine.position.x = glyphX
-          startIndex = glyph.index
-          firstVisibleGlyph = false
-
-        if glyphRight < clipLeft:
-          firstVisibleGlyph = true
-          continue
-
-        if glyphLeft > clipRight:
-          stopIndex = glyph.index
-          break
-
-        textLine.glyphs.add(GuiGlyph(
-          index: glyph.index,
-          x: glyphX - textLine.position.x,
-          left: glyphLeft - textLine.position.x,
-          right: glyphRight - textLine.position.x,
-        ))
-
-      # This check is needed to handle the edge case where
-      # the entire line is to the left of the clip rect.
-      # This bool is true in that case so you can just
-      # leave textLine.text as nil.
-      if not firstVisibleGlyph:
-        textLine.text = line[startIndex..<stopIndex]
-
-      yield textLine
-
-    linePosition.y += lineHeight
-
-# proc drawText*(gui: Gui, position: Vec2, text: string) =
-#   for line in gui.textLines(position, text):
-#     gui.drawTextLine(line.position, line.text)
+proc position*(line: GuiTextLine): Vec2 =
+  if line.glyphs.len > 0:
+    return vec2(line.glyphs[0].drawX, line.glyphs[0].position.y)
 
 iterator textBoxLines*(gui: Gui, position, size: Vec2, text: string, wordWrap = true): GuiTextLine =
   if text.len > 0:
+    let measurements = gui.measureText(position, text)
     let lineHeight = gui.lineHeight
-    var lineYOffset = 0.0
+    let boxRight = position.x + size.x
 
-    let glyphs = gui.calculateGlyphs(text)
+    var lineY = position.y
+    var startOfLine = 0
+    var endOfLine = measurements.len
+    var startOfNextLine = endOfLine
 
-    var start = 0
-
-    for _ in 0 ..< glyphs.len:
-      if lineYOffset > size.y:
+    let maxLines = measurements.len
+    for _ in 0 ..< maxLines:
+      # If this is true we are done.
+      if startOfLine >= measurements.len:
         break
 
-      var endOfLine = glyphs.len - 1
-      var nextStart = endOfLine
+      let lineXOffsetForGlyph = measurements[startOfLine].left - position.x
 
-      var textLine = GuiTextLine(position: position + vec2(0, lineYOffset))
-      let glyphXOffset = -glyphs[start].x
-
-      for i in start ..< glyphs.len:
-        let glyph = glyphs[i]
-
-        if text[glyph.index] == '\n':
-          endOfLine = i - 1
-          nextStart = i + 1
+      # Find the end of this line and the start of the next line.
+      for i in startOfLine ..< measurements.len:
+        # Handle lines created by the newline character.
+        if text[measurements[i].byteIndex] == '\n':
+          endOfLine = i
+          startOfNextLine = i + 1
           break
 
-        if wordWrap and i > start and text[glyph.index] != ' ' and glyph.right + glyphXOffset > size.x:
+        # Handle lines created by the glyph extending outside the bounding box.
+        if wordWrap and i > startOfLine and
+           text[measurements[i].byteIndex] != ' ' and
+           measurements[i].right - lineXOffsetForGlyph > boxRight:
           var wordIsEntireLine = true
 
           block lastWordSearch:
-            for lookback in countdown(i - 1, start, 1):
-              if text[glyphs[lookback].index] == ' ':
-                for lookbackMore in countdown(lookback - 1, start, 1):
-                  if text[glyphs[lookbackMore].index] != ' ':
-                    endOfLine = lookbackMore
-                    nextStart = lookback + 1
+            for lookback in countdown(i - 1, startOfLine, 1):
+              if text[measurements[lookback].byteIndex] == ' ':
+                for lookbackMore in countdown(lookback - 1, startOfLine, 1):
+                  if text[measurements[lookbackMore].byteIndex] != ' ':
+                    endOfLine = lookbackMore + 1
+                    startOfNextLine = lookback + 1
                     wordIsEntireLine = false
                     break lastWordSearch
 
           if wordIsEntireLine:
-            endOfLine = i - 1
-            nextStart = i
+            endOfLine = i
+            startOfNextLine = i
 
           break
 
-      if endOfLine >= 0:
-        let glyphCount = endOfLine + 1 - start
-        textLine.glyphs.setLen(glyphCount)
+        # Handle reaching the end of the string.
+        if i == measurements.len - 1:
+          endOfLine = i + 1
+          startOfNextLine = i + 2
 
-        for i in 0 ..< glyphCount:
-          let glyph = glyphs[start + i]
-          textLine.glyphs[i] = GuiGlyph(
-            index: glyph.index,
-            x: glyph.x + glyphXOffset,
-            left: glyph.left + glyphXOffset,
-            right: glyph.right + glyphXOffset,
-          )
+      let endOfLineByteIndex =
+        if endOfLine >= measurements.len: text.len
+        else: measurements[endOfLine].byteIndex
 
-        textLine.text = text[glyphs[start].index .. glyphs[endOfLine].index]
+      # Create a new line, preallocate the glyph buffer.
+      var line = GuiTextLine(
+        text: text[measurements[startOfLine].byteIndex ..< endOfLineByteIndex],
+        glyphs: newSeq[GuiGlyph](endOfLine - startOfLine),
+      )
 
-        yield textLine
+      # Populate the glyph buffer.
+      for i in startOfLine ..< endOfLine:
+        line.glyphs[i - startOfLine] = GuiGlyph(
+          byteIndex: measurements[i].byteIndex - measurements[startOfLine].byteIndex,
+          position: vec2(measurements[i].left - lineXOffsetForGlyph, lineY),
+          size: vec2(measurements[i].right - measurements[i].left, lineHeight),
+          drawX: measurements[i].x - lineXOffsetForGlyph,
+        )
 
-      if nextStart >= glyphs.len - 1:
-        break
+      yield line
 
-      start = nextStart
-      lineYOffset += lineHeight
+      # Set up for next line.
+      startOfLine = startOfNextLine
+      lineY += lineHeight
+
+proc trimGlyphs*(line: GuiTextLine, left, right: float): GuiTextLine =
+  if right < left:
+    return
+
+  var insideBox = false
+  var startOfLine = 0
+  var endOfLine = line.glyphs.len
+
+  for i, glyph in line.glyphs:
+    if not insideBox and glyph.position.x + glyph.size.x > left:
+      startOfLine = i
+      insideBox = true
+
+    if glyph.position.x > right:
+      endOfLine = i
+      break
+
+  # The entire line is to the left of the cull range.
+  if not insideBox:
+    return
+
+  # The entire line is to the right of the cull range.
+  if endOfLine == 0:
+    return
+
+  let endOfLineByteIndex =
+    if endOfLine >= line.glyphs.len: line.text.len
+    else: line.glyphs[endOfLine].byteIndex
+
+  result.glyphs = line.glyphs[startOfLine ..< endOfLine]
+  result.text = line.text[result.glyphs[0].byteIndex ..< endOfLineByteIndex]
+
+  for i in 0 ..< result.glyphs.len:
+    result.glyphs[i].byteIndex -= startOfLine

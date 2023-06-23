@@ -11,7 +11,7 @@ Uppen Sevarne staþe, sel þar him þuhte,
 Onfest Radestone, þer he bock radde.
 """
 
-# const testText = "1234567890\n1234567890\n1234567890\n1234567890\n1234567890\n1234567890"
+# const testText = "1234567890\n1234567890"
 
 # var testText = ""
 # for _ in 0 ..< 100:
@@ -29,6 +29,12 @@ gui.addFont(fontData)
 
 var frames = 0
 
+var position = vec2(50, 50)
+var size = vec2(600, 400)
+
+var cullPosition = vec2(100, 100)
+var cullSize = vec2(200, 200)
+
 osWindow.onFrame = proc(osWindow: OsWindow) =
   frames += 1
 
@@ -37,20 +43,40 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
 
   gui.fontSize = 26
 
-  for line in gui.textBoxLines(vec2(50, 50), gui.mousePosition - vec2(50, 50), testText):
+  if gui.mouseDown(Left) and gui.mouseMoved:
+    if gui.keyDown(LeftShift):
+      position += gui.mouseDelta
+    else:
+      size += gui.mouseDelta
+
+  if gui.mouseDown(Right) and gui.mouseMoved:
+    if gui.keyDown(LeftShift):
+      cullPosition += gui.mouseDelta
+    else:
+      cullSize += gui.mouseDelta
+
+  for line in gui.textBoxLines(position, size, testText, true):
+    if line.position.y + gui.lineHeight < cullPosition.y: continue
+    if line.position.y > cullPosition.y + cullSize.y: break
+
+    let line = line.trimGlyphs(cullPosition.x, cullPosition.x + cullSize.x)
+
     gui.beginPath()
     for glyph in line.glyphs:
-      gui.pathRect(line.position + vec2(glyph.x, 0), vec2(glyph.right - glyph.left, gui.lineHeight))
+      gui.pathRect(glyph.position, glyph.size)
     gui.strokeColor = rgb(255, 0, 0)
     gui.stroke()
 
     gui.drawTextLine(line.position, line.text)
 
-  # gui.drawTextBox(vec2(50, 50), gui.mousePosition - vec2(50, 50), testText)
+  gui.beginPath()
+  gui.pathRect(position, size)
+  gui.strokeColor = rgb(0, 255, 0)
+  gui.stroke()
 
   gui.beginPath()
-  gui.pathRect(vec2(50, 50), gui.mousePosition - vec2(50, 50))
-  gui.strokeColor = rgb(0, 255, 0)
+  gui.pathRect(cullPosition, cullSize)
+  gui.strokeColor = rgb(0, 0, 255)
   gui.stroke()
 
   gui.fillColor = rgb(255, 255, 255)

@@ -14,6 +14,9 @@ type
 
 func `~=`*(a, b: float): bool {.inline.} = (a - b).abs <= 0.000001
 
+func lerp*(a, b: float, weight: float): float =
+  a * (1.0 - weight) + b * weight
+
 # ===========================================================
 # Nanovg Implementation
 # ===========================================================
@@ -47,6 +50,7 @@ type
   GuiState* = ref object of RootObj
     id*: GuiId
     init*: bool
+    accessCount*: int
 
   GuiControl* = ref object of GuiState
     position*: Vec2
@@ -88,6 +92,7 @@ type
     currentId*: GuiId
     retainedState*: Table[GuiId, GuiState]
     idStack*: seq[GuiId]
+    activeState*: seq[GuiState]
 
     # Z index
     highestZIndex*: int
@@ -201,3 +206,6 @@ type
     of ArcTo: arcTo*: ArcToCommand
     of Text: text*: TextCommand
     else: discard
+
+proc firstAccessThisFrame*(state: GuiState): bool =
+  state.accessCount == 1

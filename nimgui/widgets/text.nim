@@ -139,7 +139,7 @@ proc trimGlyphs*(line: GuiTextLine, left, right: float): GuiTextLine =
   for i in 0 ..< result.glyphs.len:
     result.glyphs[i].byteIndex -= startOfLine
 
-proc drawText*(gui: Gui, position: Vec2, text: string, width: float, alignment = 0.0, wordWrap = false) =
+proc drawText*(gui: Gui, position: Vec2, text: string, width, alignment = 0.0, wordWrap = false) =
   let clip = gui.currentClip
   for line in gui.splitTextLines(position, text, width, alignment, wordWrap):
     if line.position.y + gui.lineHeight < clip.position.y: continue

@@ -122,6 +122,10 @@ proc measureText*(gui: Gui, position: Vec2, text: openArray[char]): seq[GuiTextM
 # ======================================================================
 
 
+proc getGlobalId*(gui: Gui, x: auto): GuiId =
+  result = hash(x)
+  gui.currentId = result
+
 proc getId*(gui: Gui, x: auto): GuiId =
   if gui.idStack.len > 0:
     result = !$(gui.idStack[^1] !& hash(x))
@@ -144,8 +148,14 @@ proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
     result.id = id
     gui.retainedState[id] = result
 
+  gui.activeState.add(result)
+  result.accessCount += 1
+
 proc getState*[X: not GuiId](gui: Gui, x: X, T: typedesc): T =
   gui.getState(gui.getId(x), T)
+
+proc getGlobalState*[X: not GuiId](gui: Gui, x: X, T: typedesc): T =
+  gui.getState(gui.getGlobalId(x), T)
 
 
 # ======================================================================
@@ -307,7 +317,11 @@ proc endFrame*(gui: Gui) =
   if highestZIndex > gui.highestZIndex:
     gui.highestZIndex = highestZIndex
 
+  for state in gui.activeState:
+    state.accessCount = 0
+
   gui.globalPositionOffset = vec2(0, 0)
+  gui.activeState.setLen(0)
   gui.zLayers.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)

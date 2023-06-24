@@ -11,8 +11,6 @@ Uppen Sevarne staþe, sel þar him þuhte,
 Onfest Radestone, þer he bock radde.
 """
 
-# const testText = "1234567890\n1234567890"
-
 # var testText = ""
 # for _ in 0 ..< 100:
 #   testText.add("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\n")
@@ -60,11 +58,13 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     else:
       wrapWidth += gui.mouseDelta.x
 
-  gui.pushClip(vec2(400, 400), vec2(300, 300))
-  gui.drawText(position, testText, wrapWidth)
-  gui.popClip()
+  # gui.pushClip(vec2(400, 400), vec2(300, 300))
+  gui.drawText(position, testText, wrapWidth, 0.5, true)
+  # gui.popClip()
 
   gui.beginPath()
+  gui.pathMoveTo(vec2(position.x, 0))
+  gui.pathlineTo(vec2(position.x, gui.size.y))
   gui.pathMoveTo(vec2(position.x + wrapWidth, 0))
   gui.pathlineTo(vec2(position.x + wrapWidth, gui.size.y))
   gui.strokeColor = rgb(0, 255, 0)

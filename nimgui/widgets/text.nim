@@ -15,11 +15,11 @@ proc position*(line: GuiTextLine): Vec2 =
   if line.glyphs.len > 0:
     return vec2(line.glyphs[0].drawX, line.glyphs[0].position.y)
 
-iterator textBoxLines*(gui: Gui, position, size: Vec2, text: string, wordWrap = true): GuiTextLine =
+iterator splitTextLines(gui: Gui, position: Vec2, text: string, wrapWidth: float, wordWrap: bool): GuiTextLine =
   if text.len > 0:
     let measurements = gui.measureText(position, text)
     let lineHeight = gui.lineHeight
-    let boxRight = position.x + size.x
+    let boxRight = position.x + wrapWidth
 
     var lineY = position.y
     var startOfLine = 0
@@ -94,6 +94,14 @@ iterator textBoxLines*(gui: Gui, position, size: Vec2, text: string, wordWrap = 
       startOfLine = startOfNextLine
       lineY += lineHeight
 
+iterator splitTextLines*(gui: Gui, position: Vec2, text: string): GuiTextLine =
+  for line in gui.splitTextLines(position, text, 0.0, false):
+    yield line
+
+iterator splitTextLines*(gui: Gui, position: Vec2, text: string, wrapWidth: float): GuiTextLine =
+  for line in gui.splitTextLines(position, text, wrapWidth, true):
+    yield line
+
 proc trimGlyphs*(line: GuiTextLine, left, right: float): GuiTextLine =
   if right < left:
     return
@@ -128,3 +136,11 @@ proc trimGlyphs*(line: GuiTextLine, left, right: float): GuiTextLine =
 
   for i in 0 ..< result.glyphs.len:
     result.glyphs[i].byteIndex -= startOfLine
+
+proc drawText*(gui: Gui, position: Vec2, text: string, wrapWidth: float) =
+  let clip = gui.currentClip
+  for line in gui.splitTextLines(position, text, wrapWidth):
+    if line.position.y + gui.lineHeight < clip.position.y: continue
+    if line.position.y > clip.position.y + clip.size.y: break
+    let line = line.trimGlyphs(clip.position.x, clip.position.x + clip.size.x)
+    gui.drawTextLine(line.position, line.text)

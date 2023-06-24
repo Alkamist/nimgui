@@ -29,11 +29,8 @@ gui.addFont(fontData)
 
 var frames = 0
 
-var position = vec2(50, 50)
-var size = vec2(600, 400)
-
-var cullPosition = vec2(100, 100)
-var cullSize = vec2(200, 200)
+var position = vec2(300, 300)
+var wrapWidth = 80.0
 
 osWindow.onFrame = proc(osWindow: OsWindow) =
   frames += 1
@@ -43,40 +40,34 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
 
   gui.fontSize = 26
 
+  # for line in gui.splitTextLines(position, testText, size.x):
+  #   if line.position.y + gui.lineHeight < cullPosition.y: continue
+  #   if line.position.y > cullPosition.y + cullSize.y: break
+
+  #   let line = line.trimGlyphs(cullPosition.x, cullPosition.x + cullSize.x)
+
+  #   gui.beginPath()
+  #   for glyph in line.glyphs:
+  #     gui.pathRect(glyph.position, glyph.size)
+  #   gui.strokeColor = rgb(255, 0, 0)
+  #   gui.stroke()
+
+  #   gui.drawTextLine(line.position, line.text)
+
   if gui.mouseDown(Left) and gui.mouseMoved:
     if gui.keyDown(LeftShift):
       position += gui.mouseDelta
     else:
-      size += gui.mouseDelta
+      wrapWidth += gui.mouseDelta.x
 
-  if gui.mouseDown(Right) and gui.mouseMoved:
-    if gui.keyDown(LeftShift):
-      cullPosition += gui.mouseDelta
-    else:
-      cullSize += gui.mouseDelta
-
-  for line in gui.textBoxLines(position, size, testText, true):
-    if line.position.y + gui.lineHeight < cullPosition.y: continue
-    if line.position.y > cullPosition.y + cullSize.y: break
-
-    let line = line.trimGlyphs(cullPosition.x, cullPosition.x + cullSize.x)
-
-    gui.beginPath()
-    for glyph in line.glyphs:
-      gui.pathRect(glyph.position, glyph.size)
-    gui.strokeColor = rgb(255, 0, 0)
-    gui.stroke()
-
-    gui.drawTextLine(line.position, line.text)
+  gui.pushClip(vec2(400, 400), vec2(300, 300))
+  gui.drawText(position, testText, wrapWidth)
+  gui.popClip()
 
   gui.beginPath()
-  gui.pathRect(position, size)
+  gui.pathMoveTo(vec2(position.x + wrapWidth, 0))
+  gui.pathlineTo(vec2(position.x + wrapWidth, gui.size.y))
   gui.strokeColor = rgb(0, 255, 0)
-  gui.stroke()
-
-  gui.beginPath()
-  gui.pathRect(cullPosition, cullSize)
-  gui.strokeColor = rgb(0, 0, 255)
   gui.stroke()
 
   gui.fillColor = rgb(255, 255, 255)

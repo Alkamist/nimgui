@@ -220,8 +220,8 @@ proc pushClip*(gui: Gui, position, size: Vec2) =
 
 proc popClip*(gui: Gui) =
   discard gui.clipStack.pop()
-
   # let clip = gui.clipStack.pop()
+
   # gui.beginPath()
   # gui.pathRect(clip.position + vec2(0.5, 0.5), clip.size - vec2(1.0, 1.0))
   # gui.strokeColor = rgb(0, 255, 0)

@@ -1,15 +1,16 @@
 import ../gui
 
 type
-  GuiButton* = ref object of GuiControl
+  GuiButton* = ref object of GuiState
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
     inputHeld: bool
 
-proc update*(gui: Gui, button: GuiButton, hover, press, release: bool) =
-  let id = button.id
+proc invisibleButton*(gui: Gui, id: GuiId, hover, press, release: bool): GuiButton =
+  let button = gui.getState(id, GuiButton)
+
   let isHovered = gui.hover == id
 
   if press: button.inputHeld = true
@@ -35,23 +36,38 @@ proc update*(gui: Gui, button: GuiButton, hover, press, release: bool) =
   if button.inputHeld and not press:
     gui.clearHover()
 
-proc update*(gui: Gui, button: GuiButton, mouseButton = MouseButton.Left) =
-  gui.update(
-    button,
-    hover = gui.mouseIsOver(button),
+  button
+
+proc invisibleButton*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+  gui.invisibleButton(
+    id,
+    hover = gui.mouseIsOverBox(position, size),
     press = gui.mousePressed(mouseButton),
     release = gui.mouseReleased(mouseButton),
   )
 
-proc draw*(gui: Gui, button: GuiButton) =
+proc button*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+  let button = gui.invisibleButton(id, position, size, mouseButton)
+
   template drawBody(color: Color): untyped =
     gui.beginPath()
-    gui.pathRoundedRect(button.position, button.size, 3.0)
+    gui.pathRoundedRect(position, size, 3.0)
     gui.fillColor = color
     gui.fill()
 
   drawBody(rgb(31, 32, 34))
   if button.isDown:
     drawBody(rgba(0, 0, 0, 8))
-  elif gui.hover == button.id:
+  elif gui.hover == id:
     drawBody(rgba(255, 255, 255, 8))
+
+  button
+
+proc invisibleButton*(gui: Gui, id: string, hover, press, release: bool): GuiButton =
+  gui.invisibleButton(gui.getId(id), hover, press, release)
+
+proc invisibleButton*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+  gui.invisibleButton(gui.getId(id), position, size, mouseButton)
+
+proc button*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+  gui.button(gui.getId(id), position, size, mouseButton)

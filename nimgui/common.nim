@@ -52,10 +52,6 @@ type
     init*: bool
     accessCount*: int
 
-  GuiControl* = ref object of GuiState
-    position*: Vec2
-    size*: Vec2
-
   GuiTextMeasurement* = object
     byteIndex*: int
     x*: float

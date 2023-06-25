@@ -2,21 +2,20 @@ import ../gui
 import ./button
 
 type
-  GuiSlider* = ref object of GuiControl
+  GuiSlider* = ref object of GuiState
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
 proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minValue = 0.0, maxValue = 1.0) =
   let slider = gui.getState(id, GuiSlider)
-  slider.position = position
-  slider.size = size
 
   gui.pushId(slider.id)
-  gui.pushOffset(slider.position)
+  gui.pushOffset(position)
 
-  let handle = gui.getState("SliderHandle", GuiButton)
-  handle.size = vec2(16, slider.size.y)
-  gui.update(handle)
+  let handleWidth = 16.0
+  let handlePosition = vec2((size.x - handleWidth) * (value - minValue) / (maxValue - minValue), 0.0)
+  let handleSize = vec2(handleWidth, size.y)
+  let handle = gui.invisibleButton("SliderHandle", handlePosition, handleSize)
 
   if handle.pressed or gui.keyPressed(LeftControl) or gui.keyReleased(LeftControl):
     slider.valueWhenHandleGrabbed = value
@@ -28,21 +27,19 @@ proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minVal
 
   if handle.isDown:
     let grabDelta = gui.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
-    value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (slider.size.x - handle.size.x)
+    value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handleSize.x)
 
   if value > maxValue: value = maxValue
   if value < minValue: value = minValue
 
-  handle.position.x = (slider.size.x - handle.size.x) * (value - minValue) / (maxValue - minValue)
-
   gui.beginPath()
-  gui.pathRoundedRect(vec2(0, 0), slider.size, 3)
+  gui.pathRoundedRect(vec2(0, 0), size, 3)
   gui.fillColor = rgb(31, 32, 34)
   gui.fill()
 
   template drawHandle(color: Color): untyped =
     gui.beginPath()
-    gui.pathRoundedRect(gui.pixelAlign(handle.position), handle.size, 3)
+    gui.pathRoundedRect(gui.pixelAlign(handlePosition), handleSize, 3)
     gui.fillColor = color
     gui.fill()
 

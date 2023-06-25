@@ -23,13 +23,7 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
 
   gui.slider("Slider", vec2(100, 100), vec2(200, 24), someValue, 21.0, 138.0)
 
-  let button = gui.getState("Button", GuiButton)
-  button.position = vec2(100, 200)
-  button.size = vec2(50, 50)
-  gui.update(button)
-  gui.draw(button)
-
-  if button.pressed:
+  if gui.button("Button", vec2(100, 200), vec2(50, 50)).pressed:
     someValue += 2.0
 
   gui.fillColor = rgb(255, 255, 255)

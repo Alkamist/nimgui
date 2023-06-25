@@ -241,29 +241,12 @@ proc popClip*(gui: Gui) =
     let previousClip = gui.clipStack[^1]
     gui.visuallyClip(previousClip.position - gui.globalPositionOffset, previousClip.size)
 
-
-# ======================================================================
-# Control
-# ======================================================================
-
-
-proc x*(control: GuiControl): var float = control.position.x
-proc `x=`*(control: GuiControl, value: float) = control.position.x = value
-proc y*(control: GuiControl): var float = control.position.y
-proc `y=`*(control: GuiControl, value: float) = control.position.y = value
-proc width*(control: GuiControl): var float = control.size.x
-proc `width=`*(control: GuiControl, value: float) = control.size.x = value
-proc height*(control: GuiControl): var float = control.size.y
-proc `height=`*(control: GuiControl, value: float) = control.size.y = value
-
-proc mouseIsOver*(gui: Gui, control: GuiControl): bool =
+proc mouseIsOverBox*(gui: Gui, position, size: Vec2): bool =
   if not gui.clipStack[^1].contains(gui.globalMousePosition):
     return false
-
   let m = gui.mousePosition
-  let c = control
-  m.x >= c.x and m.x <= c.x + c.width and
-  m.y >= c.y and m.y <= c.y + c.height
+  m.x >= position.x and m.x <= position.x + size.x and
+  m.y >= position.y and m.y <= position.y + size.y
 
 
 # ======================================================================

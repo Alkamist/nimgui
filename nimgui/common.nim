@@ -209,3 +209,10 @@ type
 
 proc firstAccessThisFrame*(state: GuiState): bool =
   state.accessCount == 1
+
+proc pixelAlign*(gui: Gui, value: float): float =
+  let scale = gui.scale
+  round(value * scale) / scale
+
+proc pixelAlign*(gui: Gui, value: Vec2): Vec2 =
+  Vec2(x: gui.pixelAlign(value.x), y: gui.pixelAlign(value.y))

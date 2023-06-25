@@ -24,28 +24,6 @@ proc calculateTextMetrics*(ctx: GuiVectorGraphicsContext): tuple[ascender, desce
   nvgTextMetrics(ctx.nvgCtx, addr(ascender), addr(descender), addr(lineHeight))
   (float(ascender), float(descender), float(lineHeight))
 
-# iterator textGlyphs*(ctx: GuiVectorGraphicsContext, text: openArray[char]): GuiGlyph =
-#   if text.len > 0:
-#     let nvgCtx = ctx.nvgCtx
-
-#     var nvgPositions = newSeq[NVGglyphPosition](text.len)
-#     let positionCount = nvgTextGlyphPositions(
-#       nvgCtx, 0, 0,
-#       cast[cstring](unsafeAddr(text[0])),
-#       nil,
-#       addr(nvgPositions[0]),
-#       cint(text.len),
-#     )
-#     nvgPositions.setLen(positionCount)
-
-#     for nvgPosition in nvgPositions:
-#       yield GuiGlyph(
-#         index: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
-#         x: nvgPosition.x,
-#         left: nvgPosition.minx,
-#         right: nvgPosition.maxx,
-#       )
-
 proc measureText*(ctx: GuiVectorGraphicsContext, position: Vec2, text: openArray[char]): seq[GuiTextMeasurement] =
   if text.len > 0:
     let nvgCtx = ctx.nvgCtx

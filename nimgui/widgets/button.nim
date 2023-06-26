@@ -8,8 +8,10 @@ type
     clicked*: bool
     inputHeld: bool
 
-proc invisibleButton*(gui: Gui, id: GuiId, hover, press, release: bool): GuiButton =
+proc invisibleButton*(gui: Gui, id: GuiId, hover, press, release: bool): GuiButton {.discardable.} =
   let button = gui.getState(id, GuiButton)
+  if not button.firstAccessThisFrame:
+    return button
 
   let isHovered = gui.hover == id
 
@@ -38,7 +40,7 @@ proc invisibleButton*(gui: Gui, id: GuiId, hover, press, release: bool): GuiButt
 
   button
 
-proc invisibleButton*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+proc invisibleButton*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
   gui.invisibleButton(
     id,
     hover = gui.mouseIsOverBox(position, size),
@@ -46,7 +48,7 @@ proc invisibleButton*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = M
     release = gui.mouseReleased(mouseButton),
   )
 
-proc button*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+proc button*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
   let button = gui.invisibleButton(id, position, size, mouseButton)
 
   template drawBody(color: Color): untyped =
@@ -63,11 +65,11 @@ proc button*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButto
 
   button
 
-proc invisibleButton*(gui: Gui, id: string, hover, press, release: bool): GuiButton =
+proc invisibleButton*(gui: Gui, id: string, hover, press, release: bool): GuiButton {.discardable.} =
   gui.invisibleButton(gui.getId(id), hover, press, release)
 
-proc invisibleButton*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+proc invisibleButton*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
   gui.invisibleButton(gui.getId(id), position, size, mouseButton)
 
-proc button*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton =
+proc button*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
   gui.button(gui.getId(id), position, size, mouseButton)

@@ -12,7 +12,25 @@ type
   Color* = object
     r*, g*, b*, a*: float
 
-func `~=`*(a, b: float): bool {.inline.} = (a - b).abs <= 0.000001
+  Paint* = object
+    transform*: array[6, float]
+    extent*: array[2, float]
+    radius*: float
+    feather*: float
+    innerColor*: Color
+    outerColor*: Color
+    image*: int
+
+  PathWinding* = enum
+    CounterClockwise
+    Clockwise
+
+  PathSolidity* = enum
+    Solid
+    Hole
+
+func `~=`*(a, b: float): bool {.inline.} =
+  abs(a - b) <= 0.000001
 
 func lerp*(a, b: float, weight: float): float =
   a * (1.0 - weight) + b * weight
@@ -139,9 +157,10 @@ type
     # RestoreState
     # Reset
     ResetTransform
-    # PathWinding
+    DcPathWinding
     # ShapeAntiAlias
-    # FillPaint
+    FillPaint
+    StrokePaint
     # MiterLimit
     # LineCap
     # LineJoin
@@ -188,6 +207,15 @@ type
     position*: Vec2
     data*: string
 
+  FillPaintCommand* = object
+    paint*: Paint
+
+  StrokePaintCommand* = object
+    paint*: Paint
+
+  PathWindingCommand* = object
+    winding*: PathWinding
+
   DrawCommand* = object
     case kind*: DrawCommandKind
     of Rect: rect*: RectCommand
@@ -201,6 +229,9 @@ type
     of LineTo: lineTo*: LineToCommand
     of ArcTo: arcTo*: ArcToCommand
     of Text: text*: TextCommand
+    of FillPaint: fillPaint*: FillPaintCommand
+    of StrokePaint: strokePaint*: StrokePaintCommand
+    of DcPathWinding: pathWinding*: PathWindingCommand
     else: discard
 
 proc firstAccessThisFrame*(state: GuiState): bool =

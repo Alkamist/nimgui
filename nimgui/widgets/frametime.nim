@@ -8,22 +8,23 @@ type
 
 proc frameTime*(gui: Gui, averageWindow = 100): float =
   let state = gui.getGlobalState("GUIFRAMETIME", GuiFrameTimeState)
+  if not state.firstAccessThisFrame:
+    return state.cachedValue
 
   if state.init:
     state.deltaTimes = newSeq[float](averageWindow)
 
-  if state.firstAccessThisFrame:
-    state.deltaTimes[state.index] = gui.deltaTime
-    state.index += 1
-    if state.index >= state.deltaTimes.len:
-      state.index = 0
+  state.deltaTimes[state.index] = gui.deltaTime
+  state.index += 1
+  if state.index >= state.deltaTimes.len:
+    state.index = 0
 
-    state.cachedValue = 0.0
+  state.cachedValue = 0.0
 
-    for dt in state.deltaTimes:
-      state.cachedValue += dt
+  for dt in state.deltaTimes:
+    state.cachedValue += dt
 
-    state.cachedValue /= float(averageWindow)
+  state.cachedValue /= float(averageWindow)
 
   state.cachedValue
 

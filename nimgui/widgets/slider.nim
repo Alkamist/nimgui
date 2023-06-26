@@ -6,8 +6,10 @@ type
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
-proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minValue = 0.0, maxValue = 1.0) =
+proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minValue = 0.0, maxValue = 1.0): GuiSlider {.discardable.} =
   let slider = gui.getState(id, GuiSlider)
+  if not slider.firstAccessThisFrame:
+    return slider
 
   gui.pushId(slider.id)
   gui.pushOffset(position)
@@ -52,5 +54,7 @@ proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minVal
   gui.popOffset()
   gui.popId()
 
-proc slider*(gui: Gui, id: string, position, size: Vec2, value: var float, minValue = 0.0, maxValue = 1.0) =
+  slider
+
+proc slider*(gui: Gui, id: string, position, size: Vec2, value: var float, minValue = 0.0, maxValue = 1.0): GuiSlider {.discardable.} =
   gui.slider(gui.getId(id), position, size, value, minValue, maxValue)

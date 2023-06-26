@@ -4,6 +4,7 @@ import std/algorithm
 import ./common; export common
 import ./vec2; export vec2
 import ./color; export color
+import ./paint; export paint
 import ./implnanovg; export implnanovg
 import ./imploswindow; export imploswindow
 
@@ -84,6 +85,21 @@ proc `strokeColor=`*(gui: Gui, color: Color) =
 proc `strokeWidth=`*(gui: Gui, width: float) =
   gui.commands.add(DrawCommand(kind: StrokeWidth, strokeWidth: StrokeWidthCommand(width: width)))
 
+proc `fillPaint=`*(gui: Gui, paint: Paint) =
+  gui.commands.add(DrawCommand(kind: FillPaint, fillPaint: FillPaintCommand(paint: paint)))
+
+proc `strokePaint=`*(gui: Gui, paint: Paint) =
+  gui.commands.add(DrawCommand(kind: StrokePaint, strokePaint: StrokePaintCommand(paint: paint)))
+
+proc `pathWinding=`*(gui: Gui, winding: PathWinding) =
+  gui.commands.add(DrawCommand(kind: DcPathWinding, pathWinding: PathWindingCommand(winding: winding)))
+
+proc `pathWinding=`*(gui: Gui, solidity: PathSolidity) =
+  let winding = case solidity:
+    of Solid: CounterClockwise
+    of Hole: Clockwise
+  gui.commands.add(DrawCommand(kind: DcPathWinding, pathWinding: PathWindingCommand(winding: winding)))
+
 proc updateTextMetrics(gui: Gui) =
   gui.vgCtx.setFont(gui.currentFont)
   gui.vgCtx.setFontSize(gui.currentFontSize)
@@ -109,9 +125,6 @@ proc `font=`*(gui: Gui, font: GuiFont) =
 proc `fontSize=`*(gui: Gui, size: float) =
   gui.currentFontSize = size
   gui.updateTextMetrics()
-
-# template textGlyphs*(gui: Gui, text: openArray[char]): untyped =
-#   gui.vgCtx.textGlyphs(text)
 
 proc measureText*(gui: Gui, position: Vec2, text: openArray[char]): seq[GuiTextMeasurement] =
   gui.vgCtx.measureText(position, text)
@@ -285,7 +298,10 @@ proc endFrame*(gui: Gui) =
   assert(gui.offsetStack.len == 0)
   assert(gui.clipStack.len == 0)
 
-  gui.zLayers.reverse() # The zLayers are in reverse order because they were added in popZIndex.
+  # The layers are in reverse order because they were added in popZIndex.
+  # Sort preserves the order of layers with the same z-index, so they
+  # must first be reversed and then sorted to keep that ordering in tact.
+  gui.zLayers.reverse()
   gui.zLayers.sort do (x, y: GuiZLayer) -> int:
     cmp(x.zIndex, y.zIndex)
 

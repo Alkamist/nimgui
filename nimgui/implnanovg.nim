@@ -1,6 +1,18 @@
 import ./common
 import ./nanovg
 
+proc toNvgColor(color: Color): NVGcolor =
+  NVGcolor(r: color.r, g: color.g, b: color.b, a: color.a)
+
+proc toNvgPaint(paint: Paint): NVGpaint =
+  for i, value in paint.transform: result.xform[i] = value
+  for i, value in paint.extent: result.extent[i] = value
+  result.radius = paint.radius
+  result.feather = paint.feather
+  result.innerColor = paint.innerColor.toNvgColor
+  result.outerColor = paint.outerColor.toNvgColor
+  result.image = cint(paint.image)
+
 proc saveState*(ctx: GuiVectorGraphicsContext) =
   nvgSave(ctx.nvgCtx)
 
@@ -60,9 +72,6 @@ proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
 
 proc renderDrawCommands*(gui: Gui, commands: openArray[DrawCommand]) =
   let nvgCtx = gui.vgCtx.nvgCtx
-
-  # nvgSave(nvgCtx)
-
   for command in commands:
     case command.kind:
     of BeginPath: nvgBeginPath(nvgCtx)
@@ -81,10 +90,10 @@ proc renderDrawCommands*(gui: Gui, commands: openArray[DrawCommand]) =
       nvgScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
     of StrokeColor:
       let c = command.strokeColor
-      nvgStrokeColor(nvgCtx, NVGcolor(r: c.color.r, g: c.color.g, b: c.color.b, a: c.color.a))
+      nvgStrokeColor(nvgCtx, c.color.toNvgColor)
     of FillColor:
       let c = command.fillColor
-      nvgFillColor(nvgCtx, NVGcolor(r: c.color.r, g: c.color.g, b: c.color.b, a: c.color.a))
+      nvgFillColor(nvgCtx, c.color.toNvgColor)
     of StrokeWidth:
       let c = command.strokeWidth
       nvgStrokeWidth(nvgCtx, c.width)
@@ -105,5 +114,15 @@ proc renderDrawCommands*(gui: Gui, commands: openArray[DrawCommand]) =
       nvgFontFaceId(nvgCtx, cint(c.font))
       nvgFontSize(nvgCtx, c.fontSize)
       renderTextRaw(nvgCtx, c.position.x, c.position.y, c.data)
-
-  # nvgRestore(nvgCtx)
+    of FillPaint:
+      let c = command.fillPaint
+      nvgFillPaint(nvgCtx, c.paint.toNvgPaint)
+    of StrokePaint:
+      let c = command.strokePaint
+      nvgStrokePaint(nvgCtx, c.paint.toNvgPaint)
+    of DcPathWinding:
+      let c = command.pathWinding
+      let value = case c.winding:
+        of CounterClockwise: cint(1)
+        of Clockwise: cint(2)
+      nvgPathWinding(nvgCtx, value)

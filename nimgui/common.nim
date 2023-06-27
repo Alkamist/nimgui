@@ -105,7 +105,8 @@ type
     hover*: GuiId
     currentId*: GuiId
     retainedState*: Table[GuiId, GuiState]
-    idStack*: seq[GuiId]
+    parentIdStack*: seq[GuiId]
+    activeIds*: seq[GuiId]
     activeState*: seq[GuiState]
 
     # Z index
@@ -157,7 +158,7 @@ type
     # RestoreState
     # Reset
     ResetTransform
-    DcPathWinding
+    DcPathWinding # Avoid naming conflict
     # ShapeAntiAlias
     FillPaint
     StrokePaint

@@ -140,16 +140,26 @@ proc getGlobalId*(gui: Gui, x: auto): GuiId =
   gui.currentId = result
 
 proc getId*(gui: Gui, x: auto): GuiId =
-  if gui.idStack.len > 0:
-    result = !$(gui.idStack[^1] !& hash(x))
+  if gui.parentIdStack.len > 0:
+    result = !$(gui.parentIdStack[^1] !& hash(x))
   else:
     result = hash(x)
   gui.currentId = result
+  gui.activeIds.add(result)
 
-proc pushId*(gui: Gui, id: GuiId) = gui.idStack.add(id)
-proc pushId*(gui: Gui, id: string) = gui.idStack.add(gui.getId(id))
-proc popId*(gui: Gui) = discard gui.idStack.pop()
-proc stackId*(gui: Gui): GuiId = gui.idStack[gui.idStack.len - 1]
+proc pushParentId*(gui: Gui, id: GuiId) = gui.parentIdStack.add(id)
+proc pushParentId*(gui: Gui, id: string) = gui.parentIdStack.add(gui.getId(id))
+proc popParentId*(gui: Gui) = discard gui.parentIdStack.pop()
+proc parentId*(gui: Gui): GuiId = gui.parentIdStack[gui.parentIdStack.len - 1]
+
+iterator childIds*(gui: Gui): GuiId =
+  if gui.activeIds.len > 0:
+    let parentId = gui.parentId
+    for i in countdown(gui.activeIds.len - 1, 0, 1):
+      let id = gui.activeIds[i]
+      yield id
+      if id == parentId:
+        break
 
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   if gui.retainedState.hasKey(id):
@@ -275,7 +285,7 @@ proc new*(_: typedesc[Gui]): Gui =
 proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
   gui.cursorStyle = Arrow
-  gui.pushId("Root")
+  gui.pushParentId("Root")
   gui.pushZIndex(0)
   gui.pushClip(vec2(0, 0), gui.size)
   gui.pushOffset(vec2(0, 0))
@@ -291,9 +301,9 @@ proc endFrame*(gui: Gui) =
   gui.popOffset()
   gui.popClip()
   gui.popZIndex()
-  gui.popId()
+  gui.popParentId()
 
-  assert(gui.idStack.len == 0)
+  assert(gui.parentIdStack.len == 0)
   assert(gui.zLayerStack.len == 0)
   assert(gui.offsetStack.len == 0)
   assert(gui.clipStack.len == 0)
@@ -320,6 +330,7 @@ proc endFrame*(gui: Gui) =
     state.accessCount = 0
 
   gui.globalPositionOffset = vec2(0, 0)
+  gui.activeIds.setLen(0)
   gui.activeState.setLen(0)
   gui.zLayers.setLen(0)
   gui.mousePresses.setLen(0)

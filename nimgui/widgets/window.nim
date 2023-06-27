@@ -343,7 +343,7 @@ proc beginWindow*(gui: Gui, id: GuiId, position, size: Vec2, minSize = vec2(300,
   window.visualPosition = window.position
   window.visualSize = window.size
 
-  gui.pushId(window.id)
+  gui.pushParentId(window.id)
   gui.pushZIndex(window.zIndex)
   gui.pushOffset(window.position)
   gui.drawShadow(window)
@@ -356,7 +356,7 @@ proc beginWindow*(gui: Gui, id: string, position, size: Vec2, minSize = vec2(300
   gui.beginWindow(gui.getId(id), position, size, minSize, zIndex)
 
 proc endWindow*(gui: Gui) =
-  let window = gui.getState(gui.stackId, GuiWindow)
+  let window = gui.getState(gui.parentId, GuiWindow)
 
   gui.moveButton(window)
   gui.resizeLeftButton(window)
@@ -368,9 +368,14 @@ proc endWindow*(gui: Gui) =
   gui.resizeBottomLeftButton(window)
   gui.resizeBottomRightButton(window)
 
+  for id in gui.childIds:
+    if gui.hover == id and gui.windowInteraction:
+      gui.bringToFront(window)
+      break
+
   gui.popOffset()
   gui.popZIndex()
-  gui.popId()
+  gui.popParentId()
 
 proc beginHeader*(gui: Gui, window: GuiWindow): tuple[position, size: Vec2] {.discardable.} =
   result.position = vec2(

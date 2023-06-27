@@ -11,7 +11,7 @@ proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minVal
   if not slider.firstAccessThisFrame:
     return slider
 
-  gui.pushId(slider.id)
+  gui.pushParentId(slider.id)
   gui.pushOffset(position)
 
   let handleWidth = 16.0
@@ -52,7 +52,7 @@ proc slider*(gui: Gui, id: GuiId, position, size: Vec2, value: var float, minVal
     drawHandle(rgba(255, 255, 255, 8))
 
   gui.popOffset()
-  gui.popId()
+  gui.popParentId()
 
   slider
 

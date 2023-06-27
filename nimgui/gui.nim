@@ -155,11 +155,14 @@ proc parentId*(gui: Gui): GuiId = gui.parentIdStack[gui.parentIdStack.len - 1]
 iterator childIds*(gui: Gui): GuiId =
   if gui.activeIds.len > 0:
     let parentId = gui.parentId
+    var startIndex = 0
     for i in countdown(gui.activeIds.len - 1, 0, 1):
       let id = gui.activeIds[i]
-      yield id
       if id == parentId:
+        startIndex = i
         break
+    for i in startIndex ..< gui.activeIds.len:
+      yield gui.activeIds[i]
 
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   if gui.retainedState.hasKey(id):

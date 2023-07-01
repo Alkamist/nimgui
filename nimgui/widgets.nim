@@ -1,5 +1,3 @@
-import ./widgets/frametime; export frametime
 import ./widgets/button; export button
-import ./widgets/text; export text
-import ./widgets/window; export window
-import ./widgets/slider; export slider
+# import ./widgets/slider; export slider
+# import ./widgets/window; export window

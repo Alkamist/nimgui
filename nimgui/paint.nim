@@ -1,7 +1,18 @@
-import ./common
+import std/math
+import ./vec2
 import ./color
 
 # Ported from nanovg.
+
+type
+  Paint* = object
+    transform*: array[6, float]
+    extent*: array[2, float]
+    radius*: float
+    feather*: float
+    innerColor*: Color
+    outerColor*: Color
+    image*: int
 
 proc transformIdentity(t: var array[6, float]) =
   t[0] = 1.0
@@ -20,6 +31,13 @@ proc transformRotate(t: var array[6, float], angle: float) =
   t[3] = cs
   t[4] = 0.0
   t[5] = 0.0
+
+proc solidColorPaint*(color: Color): Paint =
+  transformIdentity(result.transform)
+  result.radius = 0.0
+  result.feather = 1.0
+  result.innerColor = color
+  result.outerColor = color
 
 proc linearGradient*(start, finish: Vec2, innerColor, outerColor: Color): Paint =
   const large = 1e5

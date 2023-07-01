@@ -1,19 +1,17 @@
 import ../gui
 
 type
-  GuiButton* = ref object of GuiState
+  GuiButton* = ref object of GuiNode
+    position*: Vec2
+    size*: Vec2
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
     inputHeld: bool
 
-proc invisibleButton*(gui: Gui, id: GuiId, hover, press, release: bool): GuiButton {.discardable.} =
-  let button = gui.getState(id, GuiButton)
-  if not button.firstAccessThisFrame:
-    return button
-
-  let isHovered = gui.hover == id
+proc update*(button: GuiButton, hover, press, release: bool) =
+  let isHovered = button.isHovered
 
   if press: button.inputHeld = true
   if release: button.inputHeld = false
@@ -33,43 +31,34 @@ proc invisibleButton*(gui: Gui, id: GuiId, hover, press, release: bool): GuiButt
       button.clicked = true
 
   if hover:
-    gui.requestHover(id)
+    button.requestHover()
 
   if button.inputHeld and not press:
-    gui.clearHover()
+    button.clearHover()
 
-  button
+proc update*(button: GuiButton, mouseButton = MouseButton.Left, invisible = false) =
+  button.register()
 
-proc invisibleButton*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
-  gui.invisibleButton(
-    id,
-    hover = gui.mouseIsOverBox(position, size),
-    press = gui.mousePressed(mouseButton),
-    release = gui.mouseReleased(mouseButton),
+  let position = button.position
+  let size = button.size
+
+  let m = button.mousePosition
+  let mouseHit =
+    m.x >= position.x and m.x <= position.x + size.x and
+    m.y >= position.y and m.y <= position.y + size.y
+
+  button.update(
+    hover = mouseHit,
+    press = button.mousePressed(mouseButton),
+    release = button.mouseReleased(mouseButton),
   )
 
-proc button*(gui: Gui, id: GuiId, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
-  let button = gui.invisibleButton(id, position, size, mouseButton)
+  if not invisible:
+    let path = Path.new()
+    path.roundedRect(position, size, 3)
 
-  template drawBody(color: Color): untyped =
-    gui.beginPath()
-    gui.pathRoundedRect(position, size, 3.0)
-    gui.fillColor = color
-    gui.fill()
-
-  drawBody(rgb(31, 32, 34))
-  if button.isDown:
-    drawBody(rgba(0, 0, 0, 8))
-  elif gui.hover == id:
-    drawBody(rgba(255, 255, 255, 8))
-
-  button
-
-proc invisibleButton*(gui: Gui, id: string, hover, press, release: bool): GuiButton {.discardable.} =
-  gui.invisibleButton(gui.getId(id), hover, press, release)
-
-proc invisibleButton*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
-  gui.invisibleButton(gui.getId(id), position, size, mouseButton)
-
-proc button*(gui: Gui, id: string, position, size: Vec2, mouseButton = MouseButton.Left): GuiButton {.discardable.} =
-  gui.button(gui.getId(id), position, size, mouseButton)
+    button.fillPath(path, rgb(31, 32, 34))
+    if button.isDown:
+      button.fillPath(path, rgba(0, 0, 0, 8))
+    elif button.isHovered:
+      button.fillPath(path, rgba(255, 255, 255, 8))

@@ -1,6 +1,13 @@
-import ./common
+import std/math
+
+type
+  Vec2* = object
+    x*, y*: float
 
 {.push inline.}
+
+func `~=`(a, b: float): bool =
+  abs(a - b) <= 0.000001
 
 func vec2*(x, y = 0.0): Vec2 = Vec2(x: x, y: y)
 

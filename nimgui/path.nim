@@ -48,6 +48,9 @@ type
   Path* = ref object
     commands*: seq[PathCommand]
 
+proc clear*(path: Path) =
+  path.commands.setLen(0)
+
 proc close*(path: Path) =
   path.commands.add(PathCommand(kind: Close))
 
@@ -67,7 +70,9 @@ proc rect*(path: Path, position, size: Vec2, winding = PathWinding.Positive) =
 proc roundedRect*(path: Path, position, size: Vec2, rTopLeft, rTopRight, rBottomRight, rBottomLeft: float, winding = PathWinding.Positive) =
   path.commands.add(PathCommand(kind: RoundedRect, roundedRect: RoundedRectCommand(
     position: position, size: size,
-    rTopLeft: rTopLeft, rTopRight: rTopRight, rBottomRight: rBottomRight, rBottomLeft: rBottomLeft
+    rTopLeft: rTopLeft, rTopRight: rTopRight,
+    rBottomRight: rBottomRight,
+    rBottomLeft: rBottomLeft,
   )))
   path.commands.add(PathCommand(kind: Winding, winding: WindingCommand(winding: winding)))
 

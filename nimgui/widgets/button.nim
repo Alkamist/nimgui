@@ -2,13 +2,15 @@ import ../gui
 
 type
   GuiButton* = ref object of GuiNode
-    position*: Vec2
     size*: Vec2
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
     inputHeld: bool
+
+proc default*(button: GuiButton) =
+  button.size = vec2(32, 96)
 
 proc update*(button: GuiButton, hover, press, release: bool) =
   let isHovered = button.isHovered
@@ -36,16 +38,13 @@ proc update*(button: GuiButton, hover, press, release: bool) =
   if button.inputHeld and not press:
     button.clearHover()
 
-proc update*(button: GuiButton, mouseButton = MouseButton.Left, invisible = false) =
+proc update*(button: GuiButton, mouseButton = MouseButton.Left) =
   button.register()
-
-  let position = button.position
-  let size = button.size
 
   let m = button.mousePosition
   let mouseHit =
-    m.x >= position.x and m.x <= position.x + size.x and
-    m.y >= position.y and m.y <= position.y + size.y
+    m.x >= 0.0 and m.x <= button.size.x and
+    m.y >= 0.0 and m.y <= button.size.y
 
   button.update(
     hover = mouseHit,
@@ -53,12 +52,12 @@ proc update*(button: GuiButton, mouseButton = MouseButton.Left, invisible = fals
     release = button.mouseReleased(mouseButton),
   )
 
-  if not invisible:
-    let path = Path.new()
-    path.roundedRect(position, size, 3)
+proc draw*(button: GuiButton) =
+  let path = Path.new()
+  path.roundedRect(vec2(0, 0), button.size, 3)
 
-    button.fillPath(path, rgb(31, 32, 34))
-    if button.isDown:
-      button.fillPath(path, rgba(0, 0, 0, 8))
-    elif button.isHovered:
-      button.fillPath(path, rgba(255, 255, 255, 8))
+  button.fillPath(path, rgb(31, 32, 34))
+  if button.isDown:
+    button.fillPath(path, rgba(0, 0, 0, 8))
+  elif button.isHovered:
+    button.fillPath(path, rgba(255, 255, 255, 8))

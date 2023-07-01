@@ -37,11 +37,13 @@ type
     Clip
 
   FillPathCommand* = object
-    path*: Path
+    path*: type Path()[]
+    position*: Vec2
     paint*: Paint
 
   StrokePathCommand* = object
-    path*: Path
+    path*: type Path()[]
+    position*: Vec2
     paint*: Paint
     strokeWidth*: float
 
@@ -120,7 +122,7 @@ proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
     cast[cstring](cast[uint64](unsafeAddr(data[data.len - 1])) + 1),
   )
 
-proc processPath(nvgCtx: NVGcontext, path: Path) =
+proc processPath(nvgCtx: NVGcontext, path: type Path()[]) =
   nvgBeginPath(nvgCtx)
   for command in path.commands:
     case command.kind:
@@ -158,15 +160,21 @@ proc renderDrawCommands*(ctx: VectorGraphicsContext, commands: openArray[DrawCom
     case command.kind:
     of FillPath:
       let c = command.fillPath
+      nvgSave(nvgCtx)
+      nvgTranslate(nvgCtx, c.position.x, c.position.y)
       processPath(nvgCtx, c.path)
       nvgFillPaint(nvgCtx, c.paint.toNvgPaint)
       nvgFill(nvgCtx)
+      nvgRestore(nvgCtx)
     of StrokePath:
       let c = command.strokePath
+      nvgSave(nvgCtx)
+      nvgTranslate(nvgCtx, c.position.x, c.position.y)
       processPath(nvgCtx, c.path)
       nvgStrokeWidth(nvgCtx, c.strokeWidth)
       nvgStrokePaint(nvgCtx, c.paint.toNvgPaint)
       nvgStroke(nvgCtx)
+      nvgRestore(nvgCtx)
     of FillText:
       var c = command.fillText
       nvgFontFaceId(nvgCtx, cint(c.font))

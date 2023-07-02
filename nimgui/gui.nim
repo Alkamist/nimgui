@@ -1,4 +1,4 @@
-import std/math
+# import std/math
 import std/tables
 import std/algorithm
 import oswindow; export oswindow
@@ -10,15 +10,14 @@ type
     parent* {.cursor.}: GuiNode
     name*: string
     init*: bool
-    zIndex*: int
-    highestZIndex*: int
     position*: Vec2
+    zIndex*: int
+    wantsHover*: bool
+    accessCount*: int
+    createdThisFrame*: bool
     children*: Table[string, GuiNode]
     activeChildren*: seq[GuiNode]
     drawCommands*: seq[DrawCommand]
-    requestedHover*: bool
-    endUpdateProc*: proc(node: GuiNode)
-    childIsHovered*: bool
 
   GuiRoot* = ref object of GuiNode
     size*: Vec2
@@ -40,11 +39,10 @@ type
 
     # Vector graphics
     vgCtx*: VectorGraphicsContext
-    drawOrder: seq[GuiNode]
 
     # Previous frame state
-    previousTime*: float
-    previousGlobalMousePosition*: Vec2
+    previousTime: float
+    previousGlobalMousePosition: Vec2
 
 proc globalMousePosition*(node: GuiNode): Vec2 = node.root.globalMousePosition
 proc mouseDelta*(node: GuiNode): Vec2 = node.root.globalMousePosition - node.root.previousGlobalMousePosition
@@ -62,30 +60,23 @@ proc keyReleased*(node: GuiNode, key: KeyboardKey): bool = key in node.root.keyR
 proc anyKeyPressed*(node: GuiNode): bool = node.root.keyPresses.len > 0
 proc anyKeyReleased*(node: GuiNode): bool = node.root.keyReleases.len > 0
 
-proc globalPosition*(node: GuiNode): Vec2 =
+proc globalOffset*(node: GuiNode): Vec2 =
   if node.parent != nil:
-    node.parent.globalPosition + node.position
+    node.parent.globalOffset + node.parent.position
   else:
-    node.position
+    vec2(0, 0)
+
+proc globalPosition*(node: GuiNode): Vec2 =
+  node.globalOffset + node.position
 
 proc mousePosition*(node: GuiNode): Vec2 =
   node.globalMousePosition - node.globalPosition
 
-proc cursorStyle*(node: GuiNode): CursorStyle =
-  node.root.cursorStyle
-
-proc `cursorStyle=`*(node: GuiNode, style: CursorStyle) =
-  node.root.cursorStyle = style
-
 proc isHovered*(node: GuiNode): bool =
   node.root.hover == node
 
-proc requestHover*(node: GuiNode) =
-  node.requestedHover = true
-
-proc clearHover*(node: GuiNode) =
-  if node.root.hover == node:
-    node.root.hover = nil
+proc firstAccessThisFrame*(node: GuiNode): bool =
+  node.accessCount == 1
 
 proc getNode*(node: GuiNode, name: string, T: typedesc): T =
   if node.children.hasKey(name):
@@ -98,66 +89,49 @@ proc getNode*(node: GuiNode, name: string, T: typedesc): T =
     result.parent = node
     result.init = true
     result.name = name
+    result.createdThisFrame = true
     node.children[name] = result
+
+  result.accessCount += 1
+
+  if result.firstAccessThisFrame:
+    node.activeChildren.add(result)
 
 proc getNode*(node: GuiNode, name: string): GuiNode =
   node.getNode(name, GuiNode)
 
-proc fullName*(node: GuiNode): string =
-  if node.parent == nil:
-    node.name
-  else:
-    node.parent.fullName & "." & node.name
+# proc pixelAlign*(root: GuiRoot, value: float): float =
+#   let scale = root.scale
+#   round(value * scale) / scale
 
-proc pixelAlign*(node: GuiNode, value: float): float =
-  let scale = node.root.scale
-  round(value * scale) / scale
+# proc pixelAlign*(root: GuiRoot, value: Vec2): Vec2 =
+#   vec2(root.pixelAlign(value.x), root.pixelAlign(value.y))
 
-proc pixelAlign*(node: GuiNode, value: Vec2): Vec2 =
-  vec2(node.pixelAlign(value.x), node.pixelAlign(value.y))
+proc processNode(node: GuiNode) =
+  let root = node.root
 
-proc register*(node: GuiNode) =
-  if node.parent != nil:
-    node.parent.activeChildren.add(node)
+  if not node.createdThisFrame:
+    root.vgCtx.renderDrawCommands(node.drawCommands)
 
-proc bringToFront*(node: GuiNode) =
-  if node.parent == nil: return
-  node.zIndex = node.parent.highestZIndex + 1
-  node.parent.bringToFront()
-
-template endUpdate*(node: GuiNode, code) =
-  node.endUpdateProc = proc(nodeBase: GuiNode) =
-    let `node` {.inject.} = typeof(node)(nodeBase)
-    code
-
-proc flattenDrawOrder(node: GuiNode) =
-  if node.endUpdateProc != nil:
-    node.endUpdateProc(node)
-
-  node.root.drawOrder.add(node)
+  if node.wantsHover:
+    root.hover = node
 
   node.activeChildren.sort(proc(x, y: GuiNode): int =
     cmp(x.zIndex, y.zIndex)
   )
 
   for child in node.activeChildren:
-    child.flattenDrawOrder()
+    child.processNode()
 
-  if node.activeChildren.len > 0:
-    node.highestZIndex = node.activeChildren[^1].zIndex
-
+  node.createdThisFrame = false
+  node.accessCount = 0
+  node.drawCommands.setLen(0)
   node.activeChildren.setLen(0)
-
-proc updateChildIsHoveredForParents(node: GuiNode) =
-  if node.parent != nil:
-    node.parent.childIsHovered = true
-    node.parent.updateChildIsHoveredForParents()
 
 proc new*(_: typedesc[GuiRoot]): GuiRoot =
   result = GuiRoot()
-  result.root = result
   result.name = "root"
-  result.init = true
+  result.root = result
   result.vgCtx = VectorGraphicsContext.new()
 
 proc beginFrame*(root: GuiRoot) =
@@ -165,24 +139,9 @@ proc beginFrame*(root: GuiRoot) =
   root.cursorStyle = Arrow
 
 proc endFrame*(root: GuiRoot) =
-  root.flattenDrawOrder()
-
-  let vgCtx = root.vgCtx
-
   root.hover = nil
+  root.processNode()
 
-  for node in root.drawOrder:
-    vgCtx.renderDrawCommands(node.drawCommands)
-    node.drawCommands.setLen(0)
-    if node.requestedHover:
-      root.hover = node
-      node.requestedHover = false
-    node.childIsHovered = false
-
-  if root.hover != nil:
-    root.hover.updateChildIsHoveredForParents()
-
-  root.drawOrder.setLen(0)
   root.mousePresses.setLen(0)
   root.mouseReleases.setLen(0)
   root.keyPresses.setLen(0)
@@ -192,7 +151,7 @@ proc endFrame*(root: GuiRoot) =
   root.previousGlobalMousePosition = root.globalMousePosition
   root.previousTime = root.time
 
-  vgCtx.endFrame()
+  root.vgCtx.endFrame()
 
 
 # ======================================================================
@@ -225,13 +184,13 @@ proc fillTextLine*(node: GuiNode, position: Vec2, text: string, color: Color, fo
   node.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
-    position: position,
+    position: node.globalPosition + position,
     text: text,
     color: color,
   )))
 
 proc measureText*(node: GuiNode, position: Vec2, text: openArray[char]): seq[TextMeasurement] =
-  node.root.vgCtx.measureText(position, text)
+  node.root.vgCtx.measureText(node.globalPosition + position, text)
 
 proc addFont*(node: GuiNode, data: string): Font {.discardable.} =
   node.root.vgCtx.addFont(data)

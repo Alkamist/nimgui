@@ -12,11 +12,16 @@ type
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
-proc default*(slider: GuiSlider) =
-  slider.size = vec2(300, 24)
-
 proc handle*(slider: GuiSlider): GuiButton =
-  slider.getNode("Handle", GuiButton)
+  slider.button("Handle", draw = proc(handle: GuiButton) =
+    let path = Path.new()
+    path.roundedRect(vec2(0, 0), handle.size, 3)
+    handle.fillPath(path, rgb(49, 51, 56).lighten(0.3))
+    if handle.isDown:
+      handle.fillPath(path, rgba(0, 0, 0, 8))
+    elif handle.isHovered:
+      handle.fillPath(path, rgba(255, 255, 255, 8))
+  )
 
 proc value*(slider: GuiSlider): float =
   slider.currentValue
@@ -40,9 +45,12 @@ proc `maxValue=`*(slider: GuiSlider, maxValue: float) =
   if slider.currentMinValue > maxValue: slider.currentMinValue = maxValue
   if slider.currentValue > maxValue: slider.currentValue = maxValue
 
-proc update*(slider: GuiSlider) =
-  slider.register()
+proc defaultDraw(slider: GuiSlider) =
+  let path = Path.new()
+  path.roundedRect(vec2(0, 0), slider.size, 3)
+  slider.fillPath(path, rgb(31, 32, 34))
 
+proc update(slider: GuiSlider) =
   let size = slider.size
   let value = slider.value
   let minValue = slider.minValue
@@ -51,7 +59,6 @@ proc update*(slider: GuiSlider) =
   let handle = slider.handle
   handle.position = vec2((size.x - handleLength) * (value - minValue) / (maxValue - minValue), 0.0)
   handle.size = vec2(handleLength, size.y)
-  handle.update()
 
   if handle.pressed or slider.keyPressed(LeftControl) or slider.keyReleased(LeftControl):
     slider.valueWhenHandleGrabbed = value
@@ -65,17 +72,19 @@ proc update*(slider: GuiSlider) =
     let grabDelta = slider.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
     slider.value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handle.size.x)
 
-proc draw*(slider: GuiSlider) =
-  let path = Path.new()
-  path.roundedRect(vec2(0, 0), slider.size, 3)
-  slider.fillPath(path, rgb(31, 32, 34))
-  path.clear()
+proc slider*(node: GuiNode, name: string, draw = defaultDraw): GuiSlider =
+  let slider = node.getNode(name, GuiSlider)
+  if not slider.firstAccessThisFrame:
+    return slider
 
-  let handle = slider.handle
-  path.roundedRect(vec2(0, 0), handle.size, 3)
+  if draw != nil:
+    slider.draw()
 
-  handle.fillPath(path, rgb(49, 51, 56).lighten(0.3))
-  if handle.isDown:
-    handle.fillPath(path, rgba(0, 0, 0, 8))
-  elif handle.isHovered:
-    handle.fillPath(path, rgba(255, 255, 255, 8))
+  slider.update()
+
+  if slider.init:
+    slider.size = vec2(300, 24)
+    slider.minValue = 0.0
+    slider.maxValue = 1.0
+
+  slider

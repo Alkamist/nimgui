@@ -12,6 +12,8 @@ type
     position*: Vec2
     size*: Vec2
     zIndex*: int
+    highestChildZIndex*: int
+    childIsHovered*: bool
     clipChildren*: bool
     accessCount*: int
     createdThisFrame*: bool
@@ -84,9 +86,6 @@ proc isHovered*(node: GuiNode): bool =
 proc mouseOver*(node: GuiNode): bool =
   node.root.mouseOver == node
 
-proc firstAccessThisFrame*(node: GuiNode): bool =
-  node.accessCount == 1
-
 proc cursorStyle*(node: GuiNode): CursorStyle =
   node.root.cursorStyle
 
@@ -126,7 +125,7 @@ proc getNode*(node: GuiNode, name: string, T: typedesc): T =
 
   result.accessCount += 1
 
-  if result.firstAccessThisFrame:
+  if result.accessCount == 1:
     node.activeChildren.add(result)
 
 proc getNode*(node: GuiNode, name: string): GuiNode =
@@ -175,8 +174,17 @@ proc unpackDrawOrder(node: GuiNode) =
   node.activeChildren.sort(proc(x, y: GuiNode): int =
     cmp(x.zIndex, y.zIndex)
   )
+  node.highestChildZIndex = low(int)
   for child in node.activeChildren:
+    if child.zIndex > node.highestChildZIndex:
+      node.highestChildZIndex = child.zIndex
     child.unpackDrawOrder()
+
+proc informParentOfHoverStatus(node: GuiNode) =
+  if node.parent == nil:
+    return
+  node.parent.childIsHovered = true
+  node.parent.informParentOfHoverStatus()
 
 proc new*(_: typedesc[GuiRoot]): GuiRoot =
   result = GuiRoot()
@@ -216,6 +224,7 @@ proc endFrame*(root: GuiRoot) =
     if node.requestedHover and node.mouseIsInBounds:
       mouseOver = node
 
+    node.childIsHovered = false
     node.requestedHover = false
     node.createdThisFrame = false
     node.accessCount = 0
@@ -223,6 +232,9 @@ proc endFrame*(root: GuiRoot) =
     node.activeChildren.setLen(0)
 
   root.hover = hover
+  if root.hover != nil:
+    root.hover.informParentOfHoverStatus()
+
   root.mouseOver = mouseOver
 
   root.drawOrder.setLen(0)

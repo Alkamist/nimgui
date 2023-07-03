@@ -73,7 +73,7 @@ proc update(slider: GuiSlider) =
 
 proc slider*(node: GuiNode, name: string, draw = defaultDraw): GuiSlider =
   let slider = node.getNode(name, GuiSlider)
-  if not slider.firstAccessThisFrame:
+  if slider.accessCount > 1:
     return slider
 
   if draw != nil:

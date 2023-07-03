@@ -15,6 +15,11 @@ const windowBorderThickness = 1.0
 const windowCornerRadius = 3.0
 const windowRoundingInset = ceil((1.0 - sin(45.0.degToRad)) * windowCornerRadius)
 
+proc bringToFront*(window: GuiWindow) =
+  window.zIndex = window.parent.highestChildZIndex + 1
+  if window.parent is GuiWindow:
+    GuiWindow(window.parent).bringToFront()
+
 proc minSize*(window: GuiWindow): Vec2 =
   window.currentMinSize
 
@@ -311,6 +316,10 @@ proc update(window: GuiWindow) =
   window.size.y = max(window.size.y, window.currentMinSize.y)
   window.updateBackgroundButton()
 
+  if window.childIsHovered and
+    (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
+    window.bringToFront()
+
   window.endUpdate:
     window.updateMoveButton()
     window.updateResizeLeftButton()
@@ -322,13 +331,9 @@ proc update(window: GuiWindow) =
     window.updateResizeBottomLeftButton()
     window.updateResizeBottomRightButton()
 
-    # if window.childIsHovered and
-    #     (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
-    #   window.bringToFront()
-
 proc window*(node: GuiNode, name: string, draw = defaultDraw): GuiWindow =
   let window = node.getNode(name, GuiWindow)
-  if not window.firstAccessThisFrame:
+  if window.accessCount > 1:
     return window
 
   if draw != nil:
@@ -344,7 +349,7 @@ proc window*(node: GuiNode, name: string, draw = defaultDraw): GuiWindow =
 
 proc header*(window: GuiWindow): GuiNode =
   let header = window.getNode("Header", GuiNode)
-  if not header.firstAccessThisFrame:
+  if header.accessCount > 1:
     return header
 
   header.position = vec2(
@@ -363,7 +368,7 @@ proc header*(window: GuiWindow): GuiNode =
 
 proc body*(window: GuiWindow): GuiNode =
   let body = window.getNode("Body", GuiNode)
-  if not body.firstAccessThisFrame:
+  if body.accessCount > 1:
     return body
 
   body.position = vec2(

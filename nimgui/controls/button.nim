@@ -47,7 +47,7 @@ proc defaultDraw(button: GuiButton) =
 
 proc button*(node: GuiNode, name: string, hover, press, release: bool, draw = defaultDraw): GuiButton =
   let button = node.getNode(name, GuiButton)
-  if not button.firstAccessThisFrame:
+  if button.accessCount > 1:
     return button
 
   if draw != nil:
@@ -62,7 +62,7 @@ proc button*(node: GuiNode, name: string, hover, press, release: bool, draw = de
 
 proc button*(node: GuiNode, name: string, mouseButton = MouseButton.Left, draw = defaultDraw): GuiButton =
   let button = node.getNode(name, GuiButton)
-  if not button.firstAccessThisFrame:
+  if button.accessCount > 1:
     return button
 
   if draw != nil:

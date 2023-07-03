@@ -14,13 +14,10 @@ root.attachToOsWindow(osWindow)
 const fontData = readFile("consola.ttf")
 root.addFont(fontData)
 
-osWindow.onFrame = proc(osWindow: OsWindow) =
-  root.time = osWindow.time
-  root.beginFrame()
-
-  let window = root.window("Window")
-  if window.init:
-    window.position = vec2(300, 300)
+proc exampleWindow(node: GuiNode, name: string): GuiWindow =
+  let window = node.window(name)
+  if window.accessCount > 2:
+    return window
 
   let button = window.body.button("Button")
   if button.init:
@@ -37,14 +34,29 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   if button.clicked:
     slider.value = slider.value + 10.0
 
-  # let path = Path.new()
-  # path.roundedRect(vec2(50, 50), vec2(200, 100), 5)
-  # root.fillPath(path, rgb(255, 0, 0))
+  window
+
+osWindow.onFrame = proc(osWindow: OsWindow) =
+  root.time = osWindow.time
+  root.beginFrame()
+
+  let window1 = root.exampleWindow("Window1")
+  if window1.init:
+    window1.position = vec2(100, 200)
+
+  let window2 = window1.body.exampleWindow("Window2")
+  if window2.init:
+    window2.position = vec2(50, 50)
+
+  let window3 = root.exampleWindow("Window3")
+  if window3.init:
+    window3.position = vec2(500, 200)
+
+  let window4 = window3.exampleWindow("Window4")
+  if window4.init:
+    window4.position = vec2(50, 50)
 
   root.endFrame()
-
-  if osWindow.isHovered:
-    osWindow.setCursorStyle(root.cursorStyle)
 
   osWindow.swapBuffers()
 

@@ -76,6 +76,9 @@ proc resizeBottom(window: GuiWindow) =
 
 proc updateMoveButton(window: GuiWindow) =
   let button = window.button("MoveButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(windowResizeHitSize, windowResizeHitSize)
   button.size = vec2(window.size.x - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize)
 
@@ -87,6 +90,9 @@ proc updateMoveButton(window: GuiWindow) =
 
 proc updateResizeLeftButton(window: GuiWindow) =
   let button = window.button("ResizeLeftButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(0, windowResizeHitSize)
   button.size = vec2(windowResizeHitSize, window.size.y - windowResizeHitSize * 2.0)
 
@@ -102,6 +108,9 @@ proc updateResizeLeftButton(window: GuiWindow) =
 
 proc updateResizeRightButton(window: GuiWindow) =
   let button = window.button("ResizeRightButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(window.size.x - windowResizeHitSize, windowResizeHitSize)
   button.size = vec2(windowResizeHitSize, window.size.y - windowResizeHitSize * 2.0)
 
@@ -117,6 +126,9 @@ proc updateResizeRightButton(window: GuiWindow) =
 
 proc updateResizeTopButton(window: GuiWindow) =
   let button = window.button("ResizeTopButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(windowResizeHitSize * 2.0, 0)
   button.size = vec2(window.size.x - windowResizeHitSize * 4.0, windowResizeHitSize)
 
@@ -132,6 +144,9 @@ proc updateResizeTopButton(window: GuiWindow) =
 
 proc updateResizeBottomButton(window: GuiWindow) =
   let button = window.button("ResizeBottomButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(windowResizeHitSize * 2.0, window.size.y - windowResizeHitSize)
   button.size = vec2(window.size.x - windowResizeHitSize * 4.0, windowResizeHitSize)
 
@@ -147,6 +162,9 @@ proc updateResizeBottomButton(window: GuiWindow) =
 
 proc updateResizeTopLeftButton(window: GuiWindow) =
   let button = window.button("ResizeTopLeftButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(0, 0)
   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
@@ -163,6 +181,9 @@ proc updateResizeTopLeftButton(window: GuiWindow) =
 
 proc updateResizeTopRightButton(window: GuiWindow) =
   let button = window.button("ResizeTopRightButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(window.size.x - windowResizeHitSize * 2.0, 0)
   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
@@ -179,6 +200,9 @@ proc updateResizeTopRightButton(window: GuiWindow) =
 
 proc updateResizeBottomLeftButton(window: GuiWindow) =
   let button = window.button("ResizeBottomLeftButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(0, window.size.y - windowResizeHitSize)
   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
@@ -195,6 +219,9 @@ proc updateResizeBottomLeftButton(window: GuiWindow) =
 
 proc updateResizeBottomRightButton(window: GuiWindow) =
   let button = window.button("ResizeBottomRightButton", draw = nil)
+  if button.init:
+    button.zIndex = 1
+
   button.position = vec2(window.size.x - windowResizeHitSize * 2.0, window.size.y - windowResizeHitSize)
   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
@@ -320,16 +347,15 @@ proc update(window: GuiWindow) =
     (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
     window.bringToFront()
 
-  window.endUpdate:
-    window.updateMoveButton()
-    window.updateResizeLeftButton()
-    window.updateResizeRightButton()
-    window.updateResizeTopButton()
-    window.updateResizeBottomButton()
-    window.updateResizeTopLeftButton()
-    window.updateResizeTopRightButton()
-    window.updateResizeBottomLeftButton()
-    window.updateResizeBottomRightButton()
+  window.updateMoveButton()
+  window.updateResizeLeftButton()
+  window.updateResizeRightButton()
+  window.updateResizeTopButton()
+  window.updateResizeBottomButton()
+  window.updateResizeTopLeftButton()
+  window.updateResizeTopRightButton()
+  window.updateResizeBottomLeftButton()
+  window.updateResizeBottomRightButton()
 
 proc window*(node: GuiNode, name: string, draw = defaultDraw): GuiWindow =
   let window = node.getNode(name, GuiWindow)

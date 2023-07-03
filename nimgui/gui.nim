@@ -20,7 +20,6 @@ type
     children*: Table[string, GuiNode]
     activeChildren*: seq[GuiNode]
     drawCommands*: seq[DrawCommand]
-    endUpdateProc*: proc(node: GuiNode)
     requestedHover: bool
     cachedGlobalPosition: Vec2
     cachedGlobalClipRect: tuple[position, size: Vec2]
@@ -131,12 +130,6 @@ proc getNode*(node: GuiNode, name: string, T: typedesc): T =
 proc getNode*(node: GuiNode, name: string): GuiNode =
   node.getNode(name, GuiNode)
 
-template endUpdate*(node: GuiNode, code) =
-  node.endUpdateProc = proc(baseNode: GuiNode) =
-    {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    let `node` {.inject.} = typeof(node)(baseNode)
-    code
-
 proc intersect(a, b: tuple[position, size: Vec2]): tuple[position, size: Vec2] =
   let x1 = max(a.position.x, b.position.x)
   let y1 = max(a.position.y, b.position.y)
@@ -168,8 +161,6 @@ proc mouseIsInBounds(node: GuiNode): bool =
   node.cachedGlobalClipRect.contains(node.globalMousePosition)
 
 proc unpackDrawOrder(node: GuiNode) =
-  if node.endUpdateProc != nil:
-    node.endUpdateProc(node)
   node.root.drawOrder.add(node)
   node.activeChildren.sort(proc(x, y: GuiNode): int =
     cmp(x.zIndex, y.zIndex)

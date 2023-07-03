@@ -57,6 +57,7 @@ type
   ClipCommand* = object
     position*: Vec2
     size*: Vec2
+    intersect*: bool
 
   DrawCommand* = object
     case kind*: DrawCommandKind
@@ -183,6 +184,9 @@ proc renderDrawCommands*(ctx: VectorGraphicsContext, commands: openArray[DrawCom
       renderTextRaw(nvgCtx, c.position.x, c.position.y, c.text)
     of Clip:
       let c = command.clip
-      nvgScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
+      if c.intersect:
+        nvgIntersectScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
+      else:
+        nvgScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
 
   # nvgRestore(nvgCtx)

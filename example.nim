@@ -18,15 +18,16 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   root.time = osWindow.time
   root.beginFrame()
 
-  # let window = root.window("Window")
-  # window.position = vec2(300, 300)
+  let window = root.window("Window")
+  if window.init:
+    window.position = vec2(300, 300)
 
-  let button = root.button("Button")
+  let button = window.body.button("Button")
   if button.init:
     button.position = vec2(100, 100)
     button.size = vec2(96, 32)
 
-  let slider = root.slider("Slider")
+  let slider = window.body.slider("Slider")
   if slider.init:
     slider.position = vec2(200, 200)
     slider.minValue = 200.0

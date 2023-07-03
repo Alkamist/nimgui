@@ -5,7 +5,6 @@ const handleLength = 16.0
 
 type
   GuiSlider* = ref object of GuiNode
-    size*: Vec2
     currentMinValue: float
     currentMaxValue: float
     currentValue: float

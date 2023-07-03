@@ -1,4 +1,3 @@
-# import std/math
 import std/tables
 import std/algorithm
 import oswindow; export oswindow
@@ -11,20 +10,26 @@ type
     name*: string
     init*: bool
     position*: Vec2
+    size*: Vec2
     zIndex*: int
-    wantsHover*: bool
+    clipChildren*: bool
     accessCount*: int
     createdThisFrame*: bool
     children*: Table[string, GuiNode]
     activeChildren*: seq[GuiNode]
     drawCommands*: seq[DrawCommand]
+    endUpdateProc*: proc(node: GuiNode)
+    requestedHover: bool
+    cachedGlobalPosition: Vec2
+    cachedGlobalClipRect: tuple[position, size: Vec2]
 
   GuiRoot* = ref object of GuiNode
-    size*: Vec2
     scale*: float
     time*: float
     cursorStyle*: CursorStyle
     hover*: GuiNode
+    mouseOver*: GuiNode
+    hoverCapture*: GuiNode
 
     # Input
     globalMousePosition*: Vec2
@@ -39,6 +44,7 @@ type
 
     # Vector graphics
     vgCtx*: VectorGraphicsContext
+    drawOrder: seq[GuiNode]
 
     # Previous frame state
     previousTime: float
@@ -75,8 +81,34 @@ proc mousePosition*(node: GuiNode): Vec2 =
 proc isHovered*(node: GuiNode): bool =
   node.root.hover == node
 
+proc mouseOver*(node: GuiNode): bool =
+  node.root.mouseOver == node
+
 proc firstAccessThisFrame*(node: GuiNode): bool =
   node.accessCount == 1
+
+proc cursorStyle*(node: GuiNode): CursorStyle =
+  node.root.cursorStyle
+
+proc `cursorStyle=`*(node: GuiNode, style: CursorStyle) =
+  node.root.cursorStyle = style
+
+proc requestHover*(node: GuiNode) =
+  node.requestedHover = true
+
+proc captureHover*(node: GuiNode) =
+  if node.root.hoverCapture == nil:
+    node.root.hoverCapture = node
+
+proc releaseHover*(node: GuiNode) =
+  if node.root.hoverCapture == node:
+    node.root.hoverCapture = nil
+
+proc fullName*(node: GuiNode): string =
+  if node.parent != nil:
+    node.parent.fullName & "." & node.name
+  else:
+    node.name
 
 proc getNode*(node: GuiNode, name: string, T: typedesc): T =
   if node.children.hasKey(name):
@@ -100,38 +132,57 @@ proc getNode*(node: GuiNode, name: string, T: typedesc): T =
 proc getNode*(node: GuiNode, name: string): GuiNode =
   node.getNode(name, GuiNode)
 
-# proc pixelAlign*(root: GuiRoot, value: float): float =
-#   let scale = root.scale
-#   round(value * scale) / scale
+template endUpdate*(node: GuiNode, code) =
+  node.endUpdateProc = proc(baseNode: GuiNode) =
+    {.hint[ConvFromXtoItselfNotNeeded]: off.}
+    let `node` {.inject.} = typeof(node)(baseNode)
+    code
 
-# proc pixelAlign*(root: GuiRoot, value: Vec2): Vec2 =
-#   vec2(root.pixelAlign(value.x), root.pixelAlign(value.y))
+proc intersect(a, b: tuple[position, size: Vec2]): tuple[position, size: Vec2] =
+  let x1 = max(a.position.x, b.position.x)
+  let y1 = max(a.position.y, b.position.y)
+  var x2 = min(a.position.x + a.size.x, b.position.x + b.size.x)
+  var y2 = min(a.position.y + a.size.y, b.position.y + b.size.y)
+  if x2 < x1: x2 = x1
+  if y2 < y1: y2 = y1
+  (vec2(x1, y1), vec2(x2 - x1, y2 - y1))
 
-proc processNode(node: GuiNode) =
-  let root = node.root
+proc contains(a: tuple[position, size: Vec2], b: Vec2): bool =
+  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
+  b.y >= a.position.y and b.y <= a.position.y + a.size.y
 
-  if not node.createdThisFrame:
-    root.vgCtx.renderDrawCommands(node.drawCommands)
+proc updateCachedInfo(node: GuiNode) =
+  let parent = node.parent
+  if parent == nil:
+    node.cachedGlobalPosition = node.position
+    node.cachedGlobalClipRect = (node.position, node.size)
+    return
 
-  if node.wantsHover:
-    root.hover = node
+  node.cachedGlobalPosition = parent.cachedGlobalPosition + node.position
 
+  if node.clipChildren:
+    node.cachedGlobalClipRect = parent.cachedGlobalClipRect.intersect((node.cachedGlobalPosition, node.size))
+  else:
+    node.cachedGlobalClipRect = parent.cachedGlobalClipRect
+
+proc mouseIsInBounds(node: GuiNode): bool =
+  node.cachedGlobalClipRect.contains(node.globalMousePosition)
+
+proc unpackDrawOrder(node: GuiNode) =
+  if node.endUpdateProc != nil:
+    node.endUpdateProc(node)
+  node.root.drawOrder.add(node)
   node.activeChildren.sort(proc(x, y: GuiNode): int =
     cmp(x.zIndex, y.zIndex)
   )
-
   for child in node.activeChildren:
-    child.processNode()
-
-  node.createdThisFrame = false
-  node.accessCount = 0
-  node.drawCommands.setLen(0)
-  node.activeChildren.setLen(0)
+    child.unpackDrawOrder()
 
 proc new*(_: typedesc[GuiRoot]): GuiRoot =
   result = GuiRoot()
-  result.name = "root"
+  result.name = "Root"
   result.root = result
+  result.clipChildren = true
   result.vgCtx = VectorGraphicsContext.new()
 
 proc beginFrame*(root: GuiRoot) =
@@ -139,9 +190,42 @@ proc beginFrame*(root: GuiRoot) =
   root.cursorStyle = Arrow
 
 proc endFrame*(root: GuiRoot) =
-  root.hover = nil
-  root.processNode()
+  root.unpackDrawOrder()
 
+  let vgCtx = root.vgCtx
+  var hover: GuiNode = nil
+  var mouseOver: GuiNode = nil
+
+  for node in root.drawOrder:
+    node.updateCachedInfo()
+
+    if not node.createdThisFrame:
+      vgCtx.renderDrawCommands [DrawCommand(kind: Clip, clip: ClipCommand(
+        position: node.cachedGlobalClipRect.position,
+        size: node.cachedGlobalClipRect.size,
+        intersect: false,
+      ))]
+      vgCtx.renderDrawCommands(node.drawCommands)
+
+    if root.hoverCapture == node:
+      hover = node
+
+    if root.hoverCapture == nil and node.requestedHover and node.mouseIsInBounds:
+      hover = node
+
+    if node.requestedHover and node.mouseIsInBounds:
+      mouseOver = node
+
+    node.requestedHover = false
+    node.createdThisFrame = false
+    node.accessCount = 0
+    node.drawCommands.setLen(0)
+    node.activeChildren.setLen(0)
+
+  root.hover = hover
+  root.mouseOver = mouseOver
+
+  root.drawOrder.setLen(0)
   root.mousePresses.setLen(0)
   root.mouseReleases.setLen(0)
   root.keyPresses.setLen(0)
@@ -158,6 +242,13 @@ proc endFrame*(root: GuiRoot) =
 # Vector graphics
 # ======================================================================
 
+
+# proc pixelAlign*(root: GuiRoot, value: float): float =
+#   let scale = root.scale
+#   round(value * scale) / scale
+
+# proc pixelAlign*(root: GuiRoot, value: Vec2): Vec2 =
+#   vec2(root.pixelAlign(value.x), root.pixelAlign(value.y))
 
 proc fillPath*(node: GuiNode, path: Path, paint: Paint) =
   node.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(

@@ -2,7 +2,6 @@ import ../gui
 
 type
   GuiButton* = ref object of GuiNode
-    size*: Vec2
     isDown*: bool
     pressed*: bool
     released*: bool
@@ -10,8 +9,6 @@ type
     inputHeld: bool
 
 proc update(button: GuiButton, hover, press, release: bool) =
-  let isHovered = button.isHovered
-
   if press: button.inputHeld = true
   if release: button.inputHeld = false
 
@@ -19,17 +16,24 @@ proc update(button: GuiButton, hover, press, release: bool) =
   button.released = false
   button.clicked = false
 
-  if isHovered and not button.isDown and press:
+  if button.isHovered and not button.isDown and press:
     button.isDown = true
     button.pressed = true
 
   if button.isDown and release:
     button.isDown = false
     button.released = true
-    if isHovered:
+    if button.mouseOver:
       button.clicked = true
 
-  button.wantsHover = hover
+  if button.pressed:
+    button.captureHover()
+
+  if button.released:
+    button.releaseHover()
+
+  if hover:
+    button.requestHover()
 
 proc defaultDraw(button: GuiButton) =
   let path = Path.new()

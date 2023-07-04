@@ -6,20 +6,21 @@ import ./vectorgraphics; export vectorgraphics
 type
   GuiNode* = ref object of RootObj
     root* {.cursor.}: GuiRoot
+    owner* {.cursor.}: GuiNode
     parent* {.cursor.}: GuiNode
     name*: string
-    init*: bool
     position*: Vec2
     size*: Vec2
     zIndex*: int
     highestChildZIndex*: int
+    accessCount*: int
+    init*: bool
     childIsHovered*: bool
     clipChildren*: bool
-    accessCount*: int
-    createdThisFrame*: bool
-    children*: Table[string, GuiNode]
+    ownedChildren*: Table[string, GuiNode]
     activeChildren*: seq[GuiNode]
     drawCommands*: seq[DrawCommand]
+    createdThisFrame: bool
     requestedHover: bool
     cachedGlobalPosition: Vec2
     cachedGlobalClipRect: tuple[position, size: Vec2]
@@ -109,23 +110,24 @@ proc fullName*(node: GuiNode): string =
     node.name
 
 proc getNode*(node: GuiNode, name: string, T: typedesc): T =
-  if node.children.hasKey(name):
+  if node.ownedChildren.hasKey(name):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    result = T(node.children[name])
+    result = T(node.ownedChildren[name])
     result.init = false
   else:
     result = T()
     result.root = node.root
+    result.owner = node
     result.parent = node
     result.init = true
     result.name = name
     result.createdThisFrame = true
-    node.children[name] = result
+    node.ownedChildren[name] = result
 
   result.accessCount += 1
 
   if result.accessCount == 1:
-    node.activeChildren.add(result)
+    result.parent.activeChildren.add(result)
 
 proc getNode*(node: GuiNode, name: string): GuiNode =
   node.getNode(name, GuiNode)
@@ -196,9 +198,9 @@ proc endFrame*(root: GuiRoot) =
   var mouseOver: GuiNode = nil
 
   for node in root.drawOrder:
-    node.updateCachedInfo()
-
     if not node.createdThisFrame:
+      node.updateCachedInfo()
+
       vgCtx.renderDrawCommands [DrawCommand(kind: Clip, clip: ClipCommand(
         position: node.cachedGlobalClipRect.position,
         size: node.cachedGlobalClipRect.size,
@@ -206,19 +208,19 @@ proc endFrame*(root: GuiRoot) =
       ))]
       vgCtx.renderDrawCommands(node.drawCommands)
 
-    if root.hoverCapture == node:
-      hover = node
+      if root.hoverCapture == node:
+        hover = node
 
-    if root.hoverCapture == nil and node.requestedHover and node.mouseIsInBounds:
-      hover = node
+      if root.hoverCapture == nil and node.requestedHover and node.mouseIsInBounds:
+        hover = node
 
-    if node.requestedHover and node.mouseIsInBounds:
-      mouseOver = node
+      if node.requestedHover and node.mouseIsInBounds:
+        mouseOver = node
 
-    node.childIsHovered = false
-    node.requestedHover = false
     node.createdThisFrame = false
     node.accessCount = 0
+    node.childIsHovered = false
+    node.requestedHover = false
     node.drawCommands.setLen(0)
     node.activeChildren.setLen(0)
 

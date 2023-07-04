@@ -12,15 +12,7 @@ type
     globalMousePositionWhenHandleGrabbed: Vec2
 
 proc handle*(slider: GuiSlider): GuiButton =
-  slider.button("Handle", draw = proc(handle: GuiButton) =
-    let path = Path.new()
-    path.roundedRect(vec2(0, 0), handle.size, 3)
-    handle.fillPath(path, rgb(49, 51, 56).lighten(0.3))
-    if handle.isDown:
-      handle.fillPath(path, rgba(0, 0, 0, 8))
-    elif handle.isHovered:
-      handle.fillPath(path, rgba(255, 255, 255, 8))
-  )
+  slider.button("Handle", draw = false)
 
 proc value*(slider: GuiSlider): float =
   slider.currentValue
@@ -44,12 +36,16 @@ proc `maxValue=`*(slider: GuiSlider, maxValue: float) =
   if slider.currentMinValue > maxValue: slider.currentMinValue = maxValue
   if slider.currentValue > maxValue: slider.currentValue = maxValue
 
-proc defaultDraw(slider: GuiSlider) =
-  let path = Path.new()
-  path.roundedRect(vec2(0, 0), slider.size, 3)
-  slider.fillPath(path, rgb(31, 32, 34))
+proc slider*(node: GuiNode, name: string, draw = true): GuiSlider =
+  let slider = node.getNode(name, GuiSlider)
+  if slider.accessCount > 1:
+    return slider
 
-proc update(slider: GuiSlider) =
+  if slider.init:
+    slider.size = vec2(300, 24)
+    slider.minValue = 0.0
+    slider.maxValue = 1.0
+
   let size = slider.size
   let value = slider.value
   let minValue = slider.minValue
@@ -71,19 +67,17 @@ proc update(slider: GuiSlider) =
     let grabDelta = slider.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
     slider.value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handle.size.x)
 
-proc slider*(node: GuiNode, name: string, draw = defaultDraw): GuiSlider =
-  let slider = node.getNode(name, GuiSlider)
-  if slider.accessCount > 1:
-    return slider
+  if draw:
+    let path = Path.new()
+    path.roundedRect(vec2(0, 0), slider.size, 3)
+    slider.fillPath(path, rgb(31, 32, 34))
+    path.clear()
 
-  if draw != nil:
-    slider.draw()
-
-  slider.update()
-
-  if slider.init:
-    slider.size = vec2(300, 24)
-    slider.minValue = 0.0
-    slider.maxValue = 1.0
+    path.roundedRect(vec2(0, 0), handle.size, 3)
+    handle.fillPath(path, rgb(49, 51, 56).lighten(0.3))
+    if handle.isDown:
+      handle.fillPath(path, rgba(0, 0, 0, 8))
+    elif handle.isHovered:
+      handle.fillPath(path, rgba(255, 255, 255, 8))
 
   slider

@@ -17,7 +17,7 @@ const windowRoundingInset = ceil((1.0 - sin(45.0.degToRad)) * windowCornerRadius
 
 proc bringToFront*(window: GuiWindow) =
   window.zIndex = window.parent.highestChildZIndex + 1
-  if window.parent is GuiWindow:
+  if window.parent of GuiWindow:
     GuiWindow(window.parent).bringToFront()
 
 proc minSize*(window: GuiWindow): Vec2 =
@@ -75,7 +75,7 @@ proc resizeBottom(window: GuiWindow) =
     window.size.y -= correction
 
 proc updateMoveButton(window: GuiWindow) =
-  let button = window.button("MoveButton", draw = nil)
+  let button = window.button("MoveButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -89,7 +89,7 @@ proc updateMoveButton(window: GuiWindow) =
     window.move()
 
 proc updateResizeLeftButton(window: GuiWindow) =
-  let button = window.button("ResizeLeftButton", draw = nil)
+  let button = window.button("ResizeLeftButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -107,7 +107,7 @@ proc updateResizeLeftButton(window: GuiWindow) =
     window.resizeLeft()
 
 proc updateResizeRightButton(window: GuiWindow) =
-  let button = window.button("ResizeRightButton", draw = nil)
+  let button = window.button("ResizeRightButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -125,7 +125,7 @@ proc updateResizeRightButton(window: GuiWindow) =
     window.resizeRight()
 
 proc updateResizeTopButton(window: GuiWindow) =
-  let button = window.button("ResizeTopButton", draw = nil)
+  let button = window.button("ResizeTopButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -143,7 +143,7 @@ proc updateResizeTopButton(window: GuiWindow) =
     window.resizeTop()
 
 proc updateResizeBottomButton(window: GuiWindow) =
-  let button = window.button("ResizeBottomButton", draw = nil)
+  let button = window.button("ResizeBottomButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -161,7 +161,7 @@ proc updateResizeBottomButton(window: GuiWindow) =
     window.resizeBottom()
 
 proc updateResizeTopLeftButton(window: GuiWindow) =
-  let button = window.button("ResizeTopLeftButton", draw = nil)
+  let button = window.button("ResizeTopLeftButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -180,7 +180,7 @@ proc updateResizeTopLeftButton(window: GuiWindow) =
     window.resizeTop()
 
 proc updateResizeTopRightButton(window: GuiWindow) =
-  let button = window.button("ResizeTopRightButton", draw = nil)
+  let button = window.button("ResizeTopRightButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -199,7 +199,7 @@ proc updateResizeTopRightButton(window: GuiWindow) =
     window.resizeTop()
 
 proc updateResizeBottomLeftButton(window: GuiWindow) =
-  let button = window.button("ResizeBottomLeftButton", draw = nil)
+  let button = window.button("ResizeBottomLeftButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -218,7 +218,7 @@ proc updateResizeBottomLeftButton(window: GuiWindow) =
     window.resizeBottom()
 
 proc updateResizeBottomRightButton(window: GuiWindow) =
-  let button = window.button("ResizeBottomRightButton", draw = nil)
+  let button = window.button("ResizeBottomRightButton", draw = false)
   if button.init:
     button.zIndex = 1
 
@@ -237,7 +237,7 @@ proc updateResizeBottomRightButton(window: GuiWindow) =
     window.resizeBottom()
 
 proc updateBackgroundButton(window: GuiWindow) =
-  let button = window.button("BackgroundButton", draw = nil)
+  let button = window.button("BackgroundButton", draw = false)
   button.position = vec2(0, 0)
   button.size = window.size
 
@@ -334,19 +334,29 @@ proc drawBackground(window: GuiWindow) =
   window.strokePath(path, headerBorderColor, borderThickness)
   path.clear()
 
-proc defaultDraw(window: GuiWindow) =
-  window.drawShadow()
-  window.drawBackground()
+proc setDefault*(window: GuiWindow) =
+  window.zIndex = 1
+  window.size = vec2(400, 300)
+  window.minSize = vec2(300, windowHeaderHeight * 2.0)
 
-proc update(window: GuiWindow) =
+proc window*(node: GuiNode, name: string, draw = true): GuiWindow =
+  let window = node.getNode(name, GuiWindow)
+  if window.accessCount > 1:
+    return window
+
+  if window.init:
+    window.zIndex = 1
+    window.size = vec2(400, 300)
+    window.minSize = vec2(300, windowHeaderHeight * 2.0)
+
   window.size.x = max(window.size.x, window.currentMinSize.x)
   window.size.y = max(window.size.y, window.currentMinSize.y)
-  window.updateBackgroundButton()
 
   if window.childIsHovered and
     (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
     window.bringToFront()
 
+  window.updateBackgroundButton()
   window.updateMoveButton()
   window.updateResizeLeftButton()
   window.updateResizeRightButton()
@@ -357,26 +367,19 @@ proc update(window: GuiWindow) =
   window.updateResizeBottomLeftButton()
   window.updateResizeBottomRightButton()
 
-proc window*(node: GuiNode, name: string, draw = defaultDraw): GuiWindow =
-  let window = node.getNode(name, GuiWindow)
-  if window.accessCount > 1:
-    return window
-
-  if draw != nil:
-    window.draw()
-
-  window.update()
-
-  if window.init:
-    window.size = vec2(400, 300)
-    window.minSize = vec2(300, windowHeaderHeight * 2.0)
+  if draw:
+    window.drawShadow()
+    window.drawBackground()
 
   window
 
 proc header*(window: GuiWindow): GuiNode =
-  let header = window.getNode("Header", GuiNode)
+  let header = window.getNode("Header")
   if header.accessCount > 1:
     return header
+
+  if header.init:
+    header.clipChildren = true
 
   header.position = vec2(
     windowBorderThickness + windowRoundingInset,
@@ -387,15 +390,15 @@ proc header*(window: GuiWindow): GuiNode =
     windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
   )
 
-  if header.init:
-    header.clipChildren = true
-
   header
 
 proc body*(window: GuiWindow): GuiNode =
-  let body = window.getNode("Body", GuiNode)
+  let body = window.getNode("Body")
   if body.accessCount > 1:
     return body
+
+  if body.init:
+    body.clipChildren = true
 
   body.position = vec2(
     windowBorderThickness + windowRoundingInset,
@@ -405,8 +408,5 @@ proc body*(window: GuiWindow): GuiNode =
     window.size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
     window.size.y - windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
   )
-
-  if body.init:
-    body.clipChildren = true
 
   body

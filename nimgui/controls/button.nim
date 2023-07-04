@@ -35,38 +35,13 @@ proc update(button: GuiButton, hover, press, release: bool) =
   if hover:
     button.requestHover()
 
-proc defaultDraw(button: GuiButton) =
-  let path = Path.new()
-  path.roundedRect(vec2(0, 0), button.size, 3)
-
-  button.fillPath(path, rgb(31, 32, 34))
-  if button.isDown:
-    button.fillPath(path, rgba(0, 0, 0, 8))
-  elif button.isHovered:
-    button.fillPath(path, rgba(255, 255, 255, 8))
-
-proc button*(node: GuiNode, name: string, hover, press, release: bool, draw = defaultDraw): GuiButton =
+proc button*(node: GuiNode, name: string, mouseButton = MouseButton.Left, draw = true): GuiButton =
   let button = node.getNode(name, GuiButton)
   if button.accessCount > 1:
     return button
-
-  if draw != nil:
-    button.draw()
-
-  button.update(hover, press, release)
 
   if button.init:
     button.size = vec2(96, 32)
-
-  button
-
-proc button*(node: GuiNode, name: string, mouseButton = MouseButton.Left, draw = defaultDraw): GuiButton =
-  let button = node.getNode(name, GuiButton)
-  if button.accessCount > 1:
-    return button
-
-  if draw != nil:
-    button.draw()
 
   let m = button.mousePosition
   let mouseHit =
@@ -79,7 +54,14 @@ proc button*(node: GuiNode, name: string, mouseButton = MouseButton.Left, draw =
     release = button.mouseReleased(mouseButton),
   )
 
-  if button.init:
-    button.size = vec2(96, 32)
+  if draw:
+    let path = Path.new()
+    path.roundedRect(vec2(0, 0), button.size, 3)
+
+    button.fillPath(path, rgb(31, 32, 34))
+    if button.isDown:
+      button.fillPath(path, rgba(0, 0, 0, 8))
+    elif button.isHovered:
+      button.fillPath(path, rgba(255, 255, 255, 8))
 
   button

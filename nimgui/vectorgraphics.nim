@@ -115,32 +115,28 @@ proc textMetrics*(ctx: VectorGraphicsContext, font: Font, fontSize: float): Text
   result.descender = float(descender)
   result.lineHeight = float(lineHeight)
 
-proc measureText*(ctx: VectorGraphicsContext, text: openArray[char], position: Vec2, font: Font, fontSize: float): seq[TextMeasurement] =
-  if text.len == 0:
-    return
+iterator measureText*(ctx: VectorGraphicsContext, text: openArray[char], font: Font, fontSize: float): TextMeasurement =
+  if text.len > 0:
+    ctx.setFont(font)
+    ctx.setFontSize(fontSize)
 
-  ctx.setFont(font)
-  ctx.setFontSize(fontSize)
-
-  var nvgPositions = newSeq[NVGglyphPosition](text.len)
-  let positionCount = nvgTextGlyphPositions(
-    ctx.nvgCtx, position.x, position.y,
-    cast[cstring](unsafeAddr(text[0])),
-    nil,
-    addr(nvgPositions[0]),
-    cint(text.len),
-  )
-
-  result.setLen(positionCount)
-
-  for i in 0 ..< positionCount:
-    let nvgPosition = nvgPositions[i]
-    result[i] = TextMeasurement(
-      byteIndex: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
-      x: nvgPosition.x,
-      left: nvgPosition.minx,
-      right: nvgPosition.maxx,
+    var nvgPositions = newSeq[NVGglyphPosition](text.len)
+    let positionCount = nvgTextGlyphPositions(
+      ctx.nvgCtx, 0, 0,
+      cast[cstring](unsafeAddr(text[0])),
+      nil,
+      addr(nvgPositions[0]),
+      cint(text.len),
     )
+
+    for i in 0 ..< positionCount:
+      let nvgPosition = nvgPositions[i]
+      yield TextMeasurement(
+        byteIndex: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
+        x: nvgPosition.x,
+        left: nvgPosition.minx,
+        right: nvgPosition.maxx,
+      )
 
 proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
   if data.len == 0:

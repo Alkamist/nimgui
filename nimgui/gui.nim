@@ -291,8 +291,8 @@ proc fillTextRaw*(node: GuiNode, text: string, position: Vec2, color: Color, fon
 proc addFont*(node: GuiNode, data: string): Font {.discardable.} =
   node.root.vgCtx.addFont(data)
 
-proc measureText*(node: GuiNode, text: openArray[char], position: Vec2, font: Font, fontSize: float): seq[TextMeasurement] =
-  node.root.vgCtx.measureText(text, node.globalPosition + position, font, fontSize)
+template measureText*(node: GuiNode, text: openArray[char], font: Font, fontSize: float): untyped =
+  node.root.vgCtx.measureText(text, font, fontSize)
 
 
 # ======================================================================

@@ -71,16 +71,16 @@ proc update(window: ExampleWindow) =
     text.color = rgb(255, 255, 0)
     text.wordWrap = true
 
-  text.position = vec2(
-    padding,
-    button.size.y + padding * 2,
-  )
+  # text.position = vec2(
+  #   padding,
+  #   button.size.y + padding * 2,
+  # )
+  text.position = childWindowBody.mousePosition
   text.size = vec2(
     childWindowBody.size.x - padding * 2,
     childWindowBody.size.y - padding - text.position.y,
   )
   text.alignment = slider.value
-
   text.update()
 
   let textOutline = Path.new()
@@ -91,11 +91,11 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   root.time = osWindow.time
   root.beginFrame()
 
-  let window1 = root.getExampleWindow("Window1")
-  if window1.init:
-    window1.position = vec2(100, 100)
+  # let window1 = root.getExampleWindow("Window1")
+  # if window1.init:
+  #   window1.position = vec2(100, 100)
 
-  window1.update()
+  # window1.update()
 
   let window2 = root.getExampleWindow("Window2")
   if window2.init:

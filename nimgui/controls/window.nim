@@ -372,6 +372,8 @@ proc getWindow*(node: GuiNode, id: string): GuiWindow =
     result.setDefault()
 
 proc update*(window: GuiWindow, draw = true) =
+  GuiNode(window).update()
+
   window.size.x = max(window.size.x, window.currentMinSize.x)
   window.size.y = max(window.size.y, window.currentMinSize.y)
 
@@ -399,6 +401,7 @@ proc update*(window: GuiWindow, draw = true) =
     window.size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
     window.size.y - windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
   )
+  body.update()
 
   let header = window.header
   header.position = vec2(
@@ -409,7 +412,10 @@ proc update*(window: GuiWindow, draw = true) =
     window.size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
     windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
   )
+  header.update()
 
-  if draw:
-    window.drawShadow()
-    window.drawBackground()
+  if not draw:
+    return
+
+  window.drawShadow()
+  window.drawBackground()

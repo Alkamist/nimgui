@@ -13,14 +13,12 @@ type
     size*: Vec2
     zIndex*: int
     highestChildZIndex*: int
-    accessCount*: int
     init*: bool
     childIsHovered*: bool
     clipChildren*: bool
     ownedChildren*: Table[string, GuiNode]
     activeChildren*: seq[GuiNode]
     drawCommands*: seq[DrawCommand]
-    createdThisFrame: bool
     requestedHover: bool
     cachedGlobalPosition: Vec2
     cachedGlobalClipRect: tuple[position, size: Vec2]
@@ -109,6 +107,9 @@ proc fullName*(node: GuiNode): string =
   else:
     node.name
 
+proc update*(node: GuiNode) =
+  node.parent.activeChildren.add(node)
+
 proc getNode*(node: GuiNode, name: string, T: typedesc): T =
   if node.ownedChildren.hasKey(name):
     {.hint[ConvFromXtoItselfNotNeeded]: off.}
@@ -121,13 +122,7 @@ proc getNode*(node: GuiNode, name: string, T: typedesc): T =
     result.parent = node
     result.init = true
     result.name = name
-    result.createdThisFrame = true
     node.ownedChildren[name] = result
-
-  result.accessCount += 1
-
-  if result.accessCount == 1:
-    result.parent.activeChildren.add(result)
 
 proc getNode*(node: GuiNode, name: string): GuiNode =
   node.getNode(name, GuiNode)
@@ -198,27 +193,24 @@ proc endFrame*(root: GuiRoot) =
   var mouseOver: GuiNode = nil
 
   for node in root.drawOrder:
-    if not node.createdThisFrame:
-      node.updateCachedInfo()
+    node.updateCachedInfo()
 
-      vgCtx.renderDrawCommands [DrawCommand(kind: Clip, clip: ClipCommand(
-        position: node.cachedGlobalClipRect.position,
-        size: node.cachedGlobalClipRect.size,
-        intersect: false,
-      ))]
-      vgCtx.renderDrawCommands(node.drawCommands)
+    vgCtx.renderDrawCommands [DrawCommand(kind: Clip, clip: ClipCommand(
+      position: node.cachedGlobalClipRect.position,
+      size: node.cachedGlobalClipRect.size,
+      intersect: false,
+    ))]
+    vgCtx.renderDrawCommands(node.drawCommands)
 
-      if root.hoverCapture == node:
-        hover = node
+    if root.hoverCapture == node:
+      hover = node
 
-      if root.hoverCapture == nil and node.requestedHover and node.mouseIsInBounds:
-        hover = node
+    if root.hoverCapture == nil and node.requestedHover and node.mouseIsInBounds:
+      hover = node
 
-      if node.requestedHover and node.mouseIsInBounds:
-        mouseOver = node
+    if node.requestedHover and node.mouseIsInBounds:
+      mouseOver = node
 
-    node.createdThisFrame = false
-    node.accessCount = 0
     node.childIsHovered = false
     node.requestedHover = false
     node.drawCommands.setLen(0)

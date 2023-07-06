@@ -47,6 +47,8 @@ proc getSlider*(node: GuiNode, id: string): GuiSlider =
     result.setDefault()
 
 proc update*(slider: GuiSlider, draw = true) =
+  GuiNode(slider).update()
+
   let size = slider.size
   let value = slider.value
   let minValue = slider.minValue
@@ -69,15 +71,17 @@ proc update*(slider: GuiSlider, draw = true) =
     let grabDelta = slider.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
     slider.value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handle.size.x)
 
-  if draw:
-    let path = Path.new()
-    path.roundedRect(vec2(0, 0), slider.size, 3)
-    slider.fillPath(path, rgb(31, 32, 34))
-    path.clear()
+  if not draw:
+    return
 
-    path.roundedRect(vec2(0, 0), handle.size, 3)
-    handle.fillPath(path, rgb(49, 51, 56).lighten(0.3))
-    if handle.isDown:
-      handle.fillPath(path, rgba(0, 0, 0, 8))
-    elif handle.isHovered:
-      handle.fillPath(path, rgba(255, 255, 255, 8))
+  let path = Path.new()
+  path.roundedRect(vec2(0, 0), slider.size, 3)
+  slider.fillPath(path, rgb(31, 32, 34))
+  path.clear()
+
+  path.roundedRect(vec2(0, 0), handle.size, 3)
+  handle.fillPath(path, rgb(49, 51, 56).lighten(0.3))
+  if handle.isDown:
+    handle.fillPath(path, rgba(0, 0, 0, 8))
+  elif handle.isHovered:
+    handle.fillPath(path, rgba(255, 255, 255, 8))

@@ -50,16 +50,16 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   root.beginFrame()
 
   let window1 = root.getExampleWindow("Window1")
-  if window1.init:
-    window1.position = vec2(100, 100)
+  # if window1.init:
+  #   window1.position = vec2(100, 100)
 
   window1.update()
 
-  let window2 = root.getExampleWindow("Window2")
-  if window2.init:
-    window2.position = vec2(600, 100)
+  # let window2 = root.getExampleWindow("Window2")
+  # if window2.init:
+  #   window2.position = vec2(600, 100)
 
-  window2.update()
+  # window2.update()
 
   root.endFrame()
 

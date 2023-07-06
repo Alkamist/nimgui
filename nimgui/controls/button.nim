@@ -8,7 +8,15 @@ type
     clicked*: bool
     inputHeld: bool
 
-proc update(button: GuiButton, hover, press, release: bool) =
+proc setDefault*(button: GuiButton) =
+  button.size = vec2(96, 32)
+
+proc getButton*(node: GuiNode, id: string): GuiButton =
+  result = node.getNode(id, GuiButton)
+  if result.init:
+    result.setDefault()
+
+proc update*(button: GuiButton, hover, press, release: bool, draw = true) =
   if press: button.inputHeld = true
   if release: button.inputHeld = false
 
@@ -35,25 +43,6 @@ proc update(button: GuiButton, hover, press, release: bool) =
   if hover:
     button.requestHover()
 
-proc button*(node: GuiNode, name: string, mouseButton = MouseButton.Left, draw = true): GuiButton =
-  let button = node.getNode(name, GuiButton)
-  if button.accessCount > 1:
-    return button
-
-  if button.init:
-    button.size = vec2(96, 32)
-
-  let m = button.mousePosition
-  let mouseHit =
-    m.x >= 0.0 and m.x <= button.size.x and
-    m.y >= 0.0 and m.y <= button.size.y
-
-  button.update(
-    hover = mouseHit,
-    press = button.mousePressed(mouseButton),
-    release = button.mouseReleased(mouseButton),
-  )
-
   if draw:
     let path = Path.new()
     path.roundedRect(vec2(0, 0), button.size, 3)
@@ -64,4 +53,15 @@ proc button*(node: GuiNode, name: string, mouseButton = MouseButton.Left, draw =
     elif button.isHovered:
       button.fillPath(path, rgba(255, 255, 255, 8))
 
-  button
+proc update*(button: GuiButton, mouseButton = MouseButton.Left, draw = true) =
+  let m = button.mousePosition
+  let mouseHit =
+    m.x >= 0.0 and m.x <= button.size.x and
+    m.y >= 0.0 and m.y <= button.size.y
+
+  button.update(
+    hover = mouseHit,
+    press = button.mousePressed(mouseButton),
+    release = button.mouseReleased(mouseButton),
+    draw = draw,
+  )

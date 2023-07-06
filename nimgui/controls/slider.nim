@@ -12,7 +12,7 @@ type
     globalMousePositionWhenHandleGrabbed: Vec2
 
 proc handle*(slider: GuiSlider): GuiButton =
-  slider.button("Handle", draw = false)
+  slider.getNode("Handle", GuiButton)
 
 proc value*(slider: GuiSlider): float =
   slider.currentValue
@@ -36,16 +36,17 @@ proc `maxValue=`*(slider: GuiSlider, maxValue: float) =
   if slider.currentMinValue > maxValue: slider.currentMinValue = maxValue
   if slider.currentValue > maxValue: slider.currentValue = maxValue
 
-proc slider*(node: GuiNode, name: string, draw = true): GuiSlider =
-  let slider = node.getNode(name, GuiSlider)
-  if slider.accessCount > 1:
-    return slider
+proc setDefault*(slider: GuiSlider) =
+  slider.size = vec2(300, 24)
+  slider.minValue = 0.0
+  slider.maxValue = 1.0
 
-  if slider.init:
-    slider.size = vec2(300, 24)
-    slider.minValue = 0.0
-    slider.maxValue = 1.0
+proc getSlider*(node: GuiNode, id: string): GuiSlider =
+  result = node.getNode(id, GuiSlider)
+  if result.init:
+    result.setDefault()
 
+proc update*(slider: GuiSlider, draw = true) =
   let size = slider.size
   let value = slider.value
   let minValue = slider.minValue
@@ -54,6 +55,7 @@ proc slider*(node: GuiNode, name: string, draw = true): GuiSlider =
   let handle = slider.handle
   handle.position = vec2((size.x - handleLength) * (value - minValue) / (maxValue - minValue), 0.0)
   handle.size = vec2(handleLength, size.y)
+  handle.update(draw = false)
 
   if handle.pressed or slider.keyPressed(LeftControl) or slider.keyReleased(LeftControl):
     slider.valueWhenHandleGrabbed = value
@@ -79,5 +81,3 @@ proc slider*(node: GuiNode, name: string, draw = true): GuiSlider =
       handle.fillPath(path, rgba(0, 0, 0, 8))
     elif handle.isHovered:
       handle.fillPath(path, rgba(255, 255, 255, 8))
-
-  slider

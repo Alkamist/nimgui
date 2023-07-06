@@ -2,55 +2,55 @@ import ../gui
 
 type
   Glyph* = object
-    byteIndex*: int
+    byteStart*: int
+    byteEnd*: int
     position*: Vec2
     size*: Vec2
     drawX*: float
 
   TextLine* = object
-    data*: string
     glyphs*: seq[Glyph]
 
 proc position*(line: TextLine): Vec2 =
   if line.glyphs.len > 0:
     return vec2(line.glyphs[0].drawX, line.glyphs[0].position.y)
 
-proc trimGlyphs*(line: TextLine, left, right: float): TextLine =
-  if right < left:
-    return
+# proc trimGlyphs*(line: TextLine, left, right: float): TextLine =
+#   if right < left:
+#     return
 
-  var insideBox = false
-  var startOfLine = 0
-  var endOfLine = line.glyphs.len
+#   var insideBox = false
+#   var startOfLine = 0
+#   var endOfLine = line.glyphs.len
 
-  for i, glyph in line.glyphs:
-    if not insideBox and glyph.position.x + glyph.size.x > left:
-      startOfLine = i
-      insideBox = true
+#   for i, glyph in line.glyphs:
+#     if not insideBox and glyph.position.x + glyph.size.x > left:
+#       startOfLine = i
+#       insideBox = true
 
-    if glyph.position.x > right:
-      endOfLine = i
-      break
+#     if glyph.position.x > right:
+#       endOfLine = i
+#       break
 
-  # The entire line is to the left of the trim range.
-  if not insideBox:
-    return
+#   # The entire line is to the left of the trim range.
+#   if not insideBox:
+#     return
 
-  # The entire line is to the right of the trim range.
-  if endOfLine == 0:
-    return
+#   # The entire line is to the right of the trim range.
+#   if endOfLine == 0:
+#     return
 
-  let endOfLineByteIndex =
-    if endOfLine >= line.glyphs.len: line.data.len
-    else: line.glyphs[endOfLine].byteIndex
+#   let endOfLineByteIndex =
+#     if endOfLine >= line.glyphs.len: line.data.len
+#     else: line.glyphs[endOfLine].byteIndex
 
-  result.glyphs = line.glyphs[startOfLine ..< endOfLine]
-  result.data = line.data[result.glyphs[0].byteIndex ..< endOfLineByteIndex]
+#   result.glyphs = line.glyphs[startOfLine ..< endOfLine]
+#   result.data = line.data[result.glyphs[0].byteIndex ..< endOfLineByteIndex]
 
-  # The intent here is to keep the byte indices matched with the new
-  # sub string, however I haven't checked if this works.
-  for i in 0 ..< result.glyphs.len:
-    result.glyphs[i].byteIndex -= startOfLine
+#   # The intent here is to keep the byte indices matched with the new
+#   # sub string, however I haven't checked if this works.
+#   for i in 0 ..< result.glyphs.len:
+#     result.glyphs[i].byteIndex -= startOfLine
 
 type
   Text* = ref object of GuiNode
@@ -153,13 +153,9 @@ proc refreshLines*(text: Text) =
         endOfLine = i + 1
         startOfNextLine = i + 2
 
-    let endOfLineByteIndex =
-      if endOfLine >= measurements.len: text.data.len
-      else: measurements[endOfLine].byteIndex
-
     # Create a new line, preallocate the glyph buffer.
     var line = TextLine(
-      data: text.data[measurements[startOfLine].byteIndex ..< endOfLineByteIndex],
+      # data: text.data[measurements[startOfLine].byteIndex ..< endOfLineByteIndex],
       glyphs: newSeq[Glyph](endOfLine - startOfLine),
     )
 
@@ -170,12 +166,20 @@ proc refreshLines*(text: Text) =
         let leftOverSpaceAtEndOfLine = rangeRight - (measurements[i].right - lineXOffsetForGlyph)
         alignmentXOffset = alignment * leftOverSpaceAtEndOfLine
 
-      line.glyphs[i - startOfLine] = Glyph(
-        byteIndex: measurements[i].byteIndex - measurements[startOfLine].byteIndex,
+      let relativeIndex = i - startOfLine
+      line.glyphs[relativeIndex] = Glyph(
+        byteStart: measurements[i].byteIndex,
         position: vec2(alignmentXOffset + measurements[i].left - lineXOffsetForGlyph, lineY),
         size: vec2(measurements[i].right - measurements[i].left, lineHeight),
         drawX: alignmentXOffset + measurements[i].x - lineXOffsetForGlyph,
       )
+      if relativeIndex > 0:
+        line.glyphs[relativeIndex - 1].byteEnd = measurements[i].byteIndex - 1
+
+    if line.glyphs.len > 0:
+      line.glyphs[^1].byteEnd =
+        if endOfLine >= measurements.len: text.data.len - 1
+        else: measurements[endOfLine].byteIndex - 1
 
     text.lines.add(line)
 
@@ -194,7 +198,8 @@ proc update*(text: Text) =
   let clipRect = text.clipRect
 
   for line in text.lines:
+    if line.glyphs.len == 0: continue
     if line.position.y + lineHeight < clipRect.position.y: continue
     if line.position.y > clipRect.position.y + clipRect.size.y: break
-    let line = line.trimGlyphs(clipRect.position.x, clipRect.position.x + clipRect.size.x)
-    text.fillTextRaw(line.data, line.position, color, font, fontSize)
+    # let line = line.trimGlyphs(clipRect.position.x, clipRect.position.x + clipRect.size.x)
+    text.fillTextRaw(text.data[line.glyphs[0].byteStart .. line.glyphs[^1].byteEnd], line.position, color, font, fontSize)

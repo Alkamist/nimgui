@@ -5,9 +5,14 @@ import ./paint; export paint
 import ./path; export path
 
 type
+  Font* = int
+
+type
   VectorGraphicsContext* = ref VectorGraphicsContextObj
   VectorGraphicsContextObj* = object
     nvgCtx*: NVGcontext
+    currentFont: Font
+    currentFontSize: float
 
 proc `=destroy`*(ctx: var VectorGraphicsContextObj) =
   nvgDelete(ctx.nvgCtx)
@@ -22,9 +27,19 @@ proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, scale: float) =
 proc endFrame*(ctx: VectorGraphicsContext) =
   nvgEndFrame(ctx.nvgCtx)
 
-type
-  Font* = int
+proc setFont(ctx: VectorGraphicsContext, font: Font) =
+  if font == ctx.currentFont:
+    return
+  nvgFontFaceId(ctx.nvgCtx, cint(font))
+  ctx.currentFont = font
 
+proc setFontSize(ctx: VectorGraphicsContext, fontSize: float) =
+  if fontSize == ctx.currentFontSize:
+    return
+  nvgFontSize(ctx.nvgCtx, fontSize)
+  ctx.currentFontSize = fontSize
+
+type
   TextMetrics* = object
     ascender*: float
     descender*: float
@@ -90,10 +105,8 @@ proc addFont*(ctx: VectorGraphicsContext, data: string): Font =
   font
 
 proc textMetrics*(ctx: VectorGraphicsContext, font: Font, fontSize: float): TextMetrics =
-  let nvgCtx = ctx.nvgCtx
-
-  nvgFontFaceId(nvgCtx, cint(font))
-  nvgFontSize(nvgCtx, fontSize)
+  ctx.setFont(font)
+  ctx.setFontSize(fontSize)
 
   var ascender, descender, lineHeight: cfloat
   nvgTextMetrics(ctx.nvgCtx, addr(ascender), addr(descender), addr(lineHeight))
@@ -103,31 +116,31 @@ proc textMetrics*(ctx: VectorGraphicsContext, font: Font, fontSize: float): Text
   result.lineHeight = float(lineHeight)
 
 proc measureText*(ctx: VectorGraphicsContext, text: openArray[char], position: Vec2, font: Font, fontSize: float): seq[TextMeasurement] =
-  if text.len > 0:
-    let nvgCtx = ctx.nvgCtx
+  if text.len == 0:
+    return
 
-    nvgFontFaceId(nvgCtx, cint(font))
-    nvgFontSize(nvgCtx, fontSize)
+  ctx.setFont(font)
+  ctx.setFontSize(fontSize)
 
-    var nvgPositions = newSeq[NVGglyphPosition](text.len)
-    let positionCount = nvgTextGlyphPositions(
-      nvgCtx, position.x, position.y,
-      cast[cstring](unsafeAddr(text[0])),
-      nil,
-      addr(nvgPositions[0]),
-      cint(text.len),
+  var nvgPositions = newSeq[NVGglyphPosition](text.len)
+  let positionCount = nvgTextGlyphPositions(
+    ctx.nvgCtx, position.x, position.y,
+    cast[cstring](unsafeAddr(text[0])),
+    nil,
+    addr(nvgPositions[0]),
+    cint(text.len),
+  )
+
+  result.setLen(positionCount)
+
+  for i in 0 ..< positionCount:
+    let nvgPosition = nvgPositions[i]
+    result[i] = TextMeasurement(
+      byteIndex: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
+      x: nvgPosition.x,
+      left: nvgPosition.minx,
+      right: nvgPosition.maxx,
     )
-
-    result.setLen(positionCount)
-
-    for i in 0 ..< positionCount:
-      let nvgPosition = nvgPositions[i]
-      result[i] = TextMeasurement(
-        byteIndex: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
-        x: nvgPosition.x,
-        left: nvgPosition.minx,
-        right: nvgPosition.maxx,
-      )
 
 proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
   if data.len == 0:
@@ -190,8 +203,8 @@ proc renderDrawCommands*(ctx: VectorGraphicsContext, commands: openArray[DrawCom
       nvgRestore(nvgCtx)
     of FillText:
       var c = command.fillText
-      nvgFontFaceId(nvgCtx, cint(c.font))
-      nvgFontSize(nvgCtx, c.fontSize)
+      ctx.setFont(c.font)
+      ctx.setFontSize(c.fontSize)
       nvgFillColor(nvgCtx, c.color.toNvgColor)
       renderTextRaw(nvgCtx, c.position.x, c.position.y, c.text)
     of Clip:

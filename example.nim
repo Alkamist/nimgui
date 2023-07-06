@@ -1,18 +1,23 @@
 {.experimental: "overloadableEnums".}
 
+import std/strutils
 import nimgui
 import nimgui/widgets
 
-const sampleText = """
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consectetur metus et porta elementum. Donec eget feugiat velit, in tincidunt velit. Mauris et porta turpis, fringilla dapibus dolor. Vestibulum vulputate faucibus velit, a facilisis tellus egestas eu. Nullam ultricies sem vitae nisi finibus, elementum sollicitudin turpis placerat. Curabitur ultricies ante scelerisque placerat fermentum. Maecenas mattis dui eros, eget faucibus leo feugiat quis. Nunc ultricies, enim a euismod tempus, risus erat rutrum diam, sed iaculis elit sapien at ante. Nam vulputate arcu et bibendum aliquet. Nulla eget urna ligula. Proin sollicitudin cursus enim, eu suscipit odio suscipit vitae. Pellentesque a turpis nulla.
+# const sampleText = """
+# Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consectetur metus et porta elementum. Donec eget feugiat velit, in tincidunt velit. Mauris et porta turpis, fringilla dapibus dolor. Vestibulum vulputate faucibus velit, a facilisis tellus egestas eu. Nullam ultricies sem vitae nisi finibus, elementum sollicitudin turpis placerat. Curabitur ultricies ante scelerisque placerat fermentum. Maecenas mattis dui eros, eget faucibus leo feugiat quis. Nunc ultricies, enim a euismod tempus, risus erat rutrum diam, sed iaculis elit sapien at ante. Nam vulputate arcu et bibendum aliquet. Nulla eget urna ligula. Proin sollicitudin cursus enim, eu suscipit odio suscipit vitae. Pellentesque a turpis nulla.
 
-Morbi cursus condimentum nisl, quis pulvinar mauris feugiat id. Ut non ipsum tempor, dapibus libero nec, molestie purus. Proin vitae dui odio. Proin tristique ipsum sit amet felis varius egestas. Curabitur finibus massa fringilla, dictum eros quis, aliquet metus. Integer condimentum ipsum eget nibh hendrerit, in fermentum ligula hendrerit. Fusce scelerisque eu velit eu feugiat. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Morbi lectus dui, gravida in semper at, semper a urna.
+# Morbi cursus condimentum nisl, quis pulvinar mauris feugiat id. Ut non ipsum tempor, dapibus libero nec, molestie purus. Proin vitae dui odio. Proin tristique ipsum sit amet felis varius egestas. Curabitur finibus massa fringilla, dictum eros quis, aliquet metus. Integer condimentum ipsum eget nibh hendrerit, in fermentum ligula hendrerit. Fusce scelerisque eu velit eu feugiat. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Morbi lectus dui, gravida in semper at, semper a urna.
 
-Nam eu porttitor lectus, in sagittis lorem. Morbi vel ex vel erat rutrum imperdiet. Ut porttitor, nisi quis imperdiet faucibus, turpis elit posuere erat, at ullamcorper mi nisi tincidunt dui. Aenean gravida, dolor quis sagittis accumsan, urna purus fringilla dolor, nec mattis diam arcu at lorem. Mauris suscipit lacus non ligula placerat, a iaculis leo commodo. Aliquam nec nisl pretium, dignissim risus sit amet, viverra nunc. Donec eget venenatis ante. Nullam sollicitudin eros semper commodo rutrum. Integer ultricies ex ac magna fringilla tempus. Donec pulvinar at enim ut elementum.
+# Nam eu porttitor lectus, in sagittis lorem. Morbi vel ex vel erat rutrum imperdiet. Ut porttitor, nisi quis imperdiet faucibus, turpis elit posuere erat, at ullamcorper mi nisi tincidunt dui. Aenean gravida, dolor quis sagittis accumsan, urna purus fringilla dolor, nec mattis diam arcu at lorem. Mauris suscipit lacus non ligula placerat, a iaculis leo commodo. Aliquam nec nisl pretium, dignissim risus sit amet, viverra nunc. Donec eget venenatis ante. Nullam sollicitudin eros semper commodo rutrum. Integer ultricies ex ac magna fringilla tempus. Donec pulvinar at enim ut elementum.
 
-Nam vel sagittis lorem. Donec pretium et nisi eget vehicula. Maecenas feugiat felis sit amet libero dapibus bibendum. Proin fringilla ligula tellus, ac euismod leo pretium vel. Aenean viverra, tortor nec tristique tincidunt, purus massa euismod enim, ut fringilla felis velit in mi. Nullam hendrerit urna a odio ullamcorper iaculis. Donec tempus laoreet neque, eget condimentum ligula tempor a. Nunc tempus pellentesque tellus et porttitor. Nulla sollicitudin sem tellus, vitae egestas leo suscipit eget. In viverra vestibulum elit, at ornare nulla dictum vitae. Sed elementum feugiat purus, at interdum mauris consequat non.
+# Nam vel sagittis lorem. Donec pretium et nisi eget vehicula. Maecenas feugiat felis sit amet libero dapibus bibendum. Proin fringilla ligula tellus, ac euismod leo pretium vel. Aenean viverra, tortor nec tristique tincidunt, purus massa euismod enim, ut fringilla felis velit in mi. Nullam hendrerit urna a odio ullamcorper iaculis. Donec tempus laoreet neque, eget condimentum ligula tempor a. Nunc tempus pellentesque tellus et porttitor. Nulla sollicitudin sem tellus, vitae egestas leo suscipit eget. In viverra vestibulum elit, at ornare nulla dictum vitae. Sed elementum feugiat purus, at interdum mauris consequat non.
 
-Maecenas maximus lacinia orci, ac pharetra eros tincidunt et. Ut vel eleifend elit. Quisque ac accumsan nisl. In erat velit, eleifend nec ultrices dictum, pretium eget dui. Nullam posuere massa est, et condimentum nisi consectetur nec. Fusce euismod quis nisl ac finibus. Donec sed ornare neque. Duis pretium, neque euismod egestas scelerisque, elit tortor faucibus quam, quis tristique ex ante sit amet risus. Mauris cursus iaculis nulla eget placerat."""
+# Maecenas maximus lacinia orci, ac pharetra eros tincidunt et. Ut vel eleifend elit. Quisque ac accumsan nisl. In erat velit, eleifend nec ultrices dictum, pretium eget dui. Nullam posuere massa est, et condimentum nisi consectetur nec. Fusce euismod quis nisl ac finibus. Donec sed ornare neque. Duis pretium, neque euismod egestas scelerisque, elit tortor faucibus quam, quis tristique ex ante sit amet risus. Mauris cursus iaculis nulla eget placerat."""
+
+var sampleText = ""
+for i in 0 ..< 1000:
+  sampleText &= "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
 
 let osWindow = OsWindow.new()
 osWindow.setBackgroundColor(49 / 255, 51 / 255, 56 / 255)
@@ -23,6 +28,8 @@ root.attachToOsWindow(osWindow)
 
 const fontData = readFile("consola.ttf")
 root.addFont(fontData)
+
+var performance = Performance()
 
 type
   ExampleWindow = ref object of Window
@@ -95,6 +102,13 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     window2.position = vec2(600, 100)
 
   window2.update()
+
+  performance.update(root.deltaTime)
+  # let fps = root.getText("Fps")
+  # fps.data = "Fps: " & performance.fps.formatFloat(ffDecimal, 4)
+  # fps.update()
+
+  root.fillTextRaw("Fps: " & performance.fps.formatFloat(ffDecimal, 4), vec2(0, 0), rgb(255, 255, 255), 0, 13)
 
   root.endFrame()
 

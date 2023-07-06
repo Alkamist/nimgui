@@ -25,6 +25,11 @@ proc endFrame*(ctx: VectorGraphicsContext) =
 type
   Font* = int
 
+  TextMetrics* = object
+    ascender*: float
+    descender*: float
+    lineHeight*: float
+
   TextMeasurement* = object
     byteIndex*: int
     x*: float
@@ -84,14 +89,25 @@ proc addFont*(ctx: VectorGraphicsContext, data: string): Font =
     echo "Failed to load font: " & $font
   font
 
-proc calculateTextMetrics*(ctx: VectorGraphicsContext): tuple[ascender, descender, lineHeight: float] =
+proc textMetrics*(ctx: VectorGraphicsContext, font: Font, fontSize: float): TextMetrics =
+  let nvgCtx = ctx.nvgCtx
+
+  nvgFontFaceId(nvgCtx, cint(font))
+  nvgFontSize(nvgCtx, fontSize)
+
   var ascender, descender, lineHeight: cfloat
   nvgTextMetrics(ctx.nvgCtx, addr(ascender), addr(descender), addr(lineHeight))
-  (float(ascender), float(descender), float(lineHeight))
 
-proc measureText*(ctx: VectorGraphicsContext, position: Vec2, text: openArray[char]): seq[TextMeasurement] =
+  result.ascender = float(ascender)
+  result.descender = float(descender)
+  result.lineHeight = float(lineHeight)
+
+proc measureText*(ctx: VectorGraphicsContext, text: openArray[char], position: Vec2, font: Font, fontSize: float): seq[TextMeasurement] =
   if text.len > 0:
     let nvgCtx = ctx.nvgCtx
+
+    nvgFontFaceId(nvgCtx, cint(font))
+    nvgFontSize(nvgCtx, fontSize)
 
     var nvgPositions = newSeq[NVGglyphPosition](text.len)
     let positionCount = nvgTextGlyphPositions(

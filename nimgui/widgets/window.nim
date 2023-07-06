@@ -3,7 +3,7 @@ import ../gui
 import ./button
 
 type
-  GuiWindow* = ref object of GuiNode
+  Window* = ref object of GuiNode
     currentMinSize: Vec2
     globalMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
@@ -15,34 +15,34 @@ const windowBorderThickness = 1.0
 const windowCornerRadius = 3.0
 const windowRoundingInset = ceil((1.0 - sin(45.0.degToRad)) * windowCornerRadius)
 
-proc bringToFront*(window: GuiWindow) =
+proc bringToFront*(window: Window) =
   window.zIndex = window.parent.highestChildZIndex + 1
-  if window.parent of GuiWindow:
-    GuiWindow(window.parent).bringToFront()
+  if window.parent of Window:
+    Window(window.parent).bringToFront()
 
-proc minSize*(window: GuiWindow): Vec2 =
+proc minSize*(window: Window): Vec2 =
   window.currentMinSize
 
-proc `minSize=`*(window: GuiWindow, value: Vec2) =
+proc `minSize=`*(window: Window, value: Vec2) =
   window.currentMinSize = value
   if window.size.x < window.currentMinSize.x:
     window.size.x = window.currentMinSize.x
   if window.size.y < window.currentMinSize.y:
     window.size.y = window.currentMinSize.y
 
-proc updateGrabState(window: GuiWindow) =
+proc updateGrabState(window: Window) =
   window.globalMousePositionWhenGrabbed = window.globalMousePosition
   window.positionWhenGrabbed = window.position
   window.sizeWhenGrabbed = window.size
 
-proc calculateGrabDelta(window: GuiWindow): Vec2 =
+proc calculateGrabDelta(window: Window): Vec2 =
   window.globalMousePosition - window.globalMousePositionWhenGrabbed
 
-proc move(window: GuiWindow) =
+proc move(window: Window) =
   let grabDelta = window.calculateGrabDelta()
   window.position = window.positionWhenGrabbed + grabDelta
 
-proc resizeLeft(window: GuiWindow) =
+proc resizeLeft(window: Window) =
   let grabDelta = window.calculateGrabDelta()
   window.position.x = window.positionWhenGrabbed.x + grabDelta.x
   window.size.x = window.sizeWhenGrabbed.x - grabDelta.x
@@ -51,14 +51,14 @@ proc resizeLeft(window: GuiWindow) =
     window.position.x += correction
     window.size.x -= correction
 
-proc resizeRight(window: GuiWindow) =
+proc resizeRight(window: Window) =
   let grabDelta = window.calculateGrabDelta()
   window.size.x = window.sizeWhenGrabbed.x + grabDelta.x
   if window.size.x < window.currentMinSize.x:
     let correction = window.size.x - window.currentMinSize.x
     window.size.x -= correction
 
-proc resizeTop(window: GuiWindow) =
+proc resizeTop(window: Window) =
   let grabDelta = window.calculateGrabDelta()
   window.position.y = window.positionWhenGrabbed.y + grabDelta.y
   window.size.y = window.sizeWhenGrabbed.y - grabDelta.y
@@ -67,15 +67,15 @@ proc resizeTop(window: GuiWindow) =
     window.position.y += correction
     window.size.y -= correction
 
-proc resizeBottom(window: GuiWindow) =
+proc resizeBottom(window: Window) =
   let grabDelta = window.calculateGrabDelta()
   window.size.y = window.sizeWhenGrabbed.y + grabDelta.y
   if window.size.y < window.currentMinSize.y:
     let correction = window.size.y - window.currentMinSize.y
     window.size.y -= correction
 
-proc updateMoveButton(window: GuiWindow) =
-  let button = window.getNode("MoveButton", GuiButton)
+proc updateMoveButton(window: Window) =
+  let button = window.getNode("MoveButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -90,8 +90,8 @@ proc updateMoveButton(window: GuiWindow) =
   if button.isDown:
     window.move()
 
-proc updateResizeLeftButton(window: GuiWindow) =
-  let button = window.getNode("ResizeLeftButton", GuiButton)
+proc updateResizeLeftButton(window: Window) =
+  let button = window.getNode("ResizeLeftButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -110,8 +110,8 @@ proc updateResizeLeftButton(window: GuiWindow) =
     window.cursorStyle = ResizeLeftRight
     window.resizeLeft()
 
-proc updateResizeRightButton(window: GuiWindow) =
-  let button = window.getNode("ResizeRightButton", GuiButton)
+proc updateResizeRightButton(window: Window) =
+  let button = window.getNode("ResizeRightButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -130,8 +130,8 @@ proc updateResizeRightButton(window: GuiWindow) =
     window.cursorStyle = ResizeLeftRight
     window.resizeRight()
 
-proc updateResizeTopButton(window: GuiWindow) =
-  let button = window.getNode("ResizeTopButton", GuiButton)
+proc updateResizeTopButton(window: Window) =
+  let button = window.getNode("ResizeTopButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -150,8 +150,8 @@ proc updateResizeTopButton(window: GuiWindow) =
     window.cursorStyle = ResizeTopBottom
     window.resizeTop()
 
-proc updateResizeBottomButton(window: GuiWindow) =
-  let button = window.getNode("ResizeBottomButton", GuiButton)
+proc updateResizeBottomButton(window: Window) =
+  let button = window.getNode("ResizeBottomButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -170,8 +170,8 @@ proc updateResizeBottomButton(window: GuiWindow) =
     window.cursorStyle = ResizeTopBottom
     window.resizeBottom()
 
-proc updateResizeTopLeftButton(window: GuiWindow) =
-  let button = window.getNode("ResizeTopLeftButton", GuiButton)
+proc updateResizeTopLeftButton(window: Window) =
+  let button = window.getNode("ResizeTopLeftButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -191,8 +191,8 @@ proc updateResizeTopLeftButton(window: GuiWindow) =
     window.resizeLeft()
     window.resizeTop()
 
-proc updateResizeTopRightButton(window: GuiWindow) =
-  let button = window.getNode("ResizeTopRightButton", GuiButton)
+proc updateResizeTopRightButton(window: Window) =
+  let button = window.getNode("ResizeTopRightButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -212,8 +212,8 @@ proc updateResizeTopRightButton(window: GuiWindow) =
     window.resizeRight()
     window.resizeTop()
 
-proc updateResizeBottomLeftButton(window: GuiWindow) =
-  let button = window.getNode("ResizeBottomLeftButton", GuiButton)
+proc updateResizeBottomLeftButton(window: Window) =
+  let button = window.getNode("ResizeBottomLeftButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -233,8 +233,8 @@ proc updateResizeBottomLeftButton(window: GuiWindow) =
     window.resizeLeft()
     window.resizeBottom()
 
-proc updateResizeBottomRightButton(window: GuiWindow) =
-  let button = window.getNode("ResizeBottomRightButton", GuiButton)
+proc updateResizeBottomRightButton(window: Window) =
+  let button = window.getNode("ResizeBottomRightButton", Button)
   if button.init:
     button.zIndex = 1
 
@@ -254,13 +254,13 @@ proc updateResizeBottomRightButton(window: GuiWindow) =
     window.resizeRight()
     window.resizeBottom()
 
-proc updateBackgroundButton(window: GuiWindow) =
-  let button = window.getNode("BackgroundButton", GuiButton)
+proc updateBackgroundButton(window: Window) =
+  let button = window.getNode("BackgroundButton", Button)
   button.position = vec2(0, 0)
   button.size = window.size
   button.update(draw = false)
 
-proc drawShadow(window: GuiWindow) =
+proc drawShadow(window: Window) =
   let position = vec2(0, 0)
   let size = window.size
 
@@ -278,7 +278,7 @@ proc drawShadow(window: GuiWindow) =
     rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
   ))
 
-proc drawBackground(window: GuiWindow) =
+proc drawBackground(window: Window) =
   const bodyColor = rgb(49, 51, 56)
   const bodyBorderColor = rgb(49, 51, 56).lighten(0.1)
   const headerColor = rgb(30, 31, 34)
@@ -353,25 +353,25 @@ proc drawBackground(window: GuiWindow) =
   window.strokePath(path, headerBorderColor, borderThickness)
   path.clear()
 
-proc header*(window: GuiWindow): GuiNode =
+proc header*(window: Window): GuiNode =
   window.getNode("Header")
 
-proc body*(window: GuiWindow): GuiNode =
+proc body*(window: Window): GuiNode =
   window.getNode("Body")
 
-proc setDefault*(window: GuiWindow) =
+proc setDefault*(window: Window) =
   window.zIndex = 1
   window.size = vec2(400, 300)
   window.minSize = vec2(300, windowHeaderHeight * 2.0)
   window.header.clipChildren = true
   window.body.clipChildren = true
 
-proc getWindow*(node: GuiNode, id: string): GuiWindow =
-  result = node.getNode(id, GuiWindow)
+proc getWindow*(node: GuiNode, name: string): Window =
+  result = node.getNode(name, Window)
   if result.init:
     result.setDefault()
 
-proc update*(window: GuiWindow, draw = true) =
+proc update*(window: Window, draw = true) =
   GuiNode(window).update()
 
   window.size.x = max(window.size.x, window.currentMinSize.x)

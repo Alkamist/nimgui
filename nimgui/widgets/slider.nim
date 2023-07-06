@@ -4,49 +4,49 @@ import ./button
 const handleLength = 16.0
 
 type
-  GuiSlider* = ref object of GuiNode
+  Slider* = ref object of GuiNode
     currentMinValue: float
     currentMaxValue: float
     currentValue: float
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
-proc handle*(slider: GuiSlider): GuiButton =
-  slider.getNode("Handle", GuiButton)
+proc handle*(slider: Slider): Button =
+  slider.getNode("Handle", Button)
 
-proc value*(slider: GuiSlider): float =
+proc value*(slider: Slider): float =
   slider.currentValue
 
-proc `value=`*(slider: GuiSlider, value: float) =
+proc `value=`*(slider: Slider, value: float) =
   slider.currentValue = value.clamp(slider.currentMinValue, slider.currentMaxValue)
 
-proc minValue*(slider: GuiSlider): float =
+proc minValue*(slider: Slider): float =
   slider.currentMinValue
 
-proc `minValue=`*(slider: GuiSlider, minValue: float) =
+proc `minValue=`*(slider: Slider, minValue: float) =
   slider.currentMinValue = minValue
   if slider.currentMaxValue < minValue: slider.currentMaxValue = minValue
   if slider.currentValue < minValue: slider.currentValue = minValue
 
-proc maxValue*(slider: GuiSlider): float =
+proc maxValue*(slider: Slider): float =
   slider.currentMaxValue
 
-proc `maxValue=`*(slider: GuiSlider, maxValue: float) =
+proc `maxValue=`*(slider: Slider, maxValue: float) =
   slider.currentMaxValue = maxValue
   if slider.currentMinValue > maxValue: slider.currentMinValue = maxValue
   if slider.currentValue > maxValue: slider.currentValue = maxValue
 
-proc setDefault*(slider: GuiSlider) =
+proc setDefault*(slider: Slider) =
   slider.size = vec2(300, 24)
   slider.minValue = 0.0
   slider.maxValue = 1.0
 
-proc getSlider*(node: GuiNode, id: string): GuiSlider =
-  result = node.getNode(id, GuiSlider)
+proc getSlider*(node: GuiNode, name: string): Slider =
+  result = node.getNode(name, Slider)
   if result.init:
     result.setDefault()
 
-proc update*(slider: GuiSlider, draw = true) =
+proc update*(slider: Slider, draw = true) =
   GuiNode(slider).update()
 
   let size = slider.size

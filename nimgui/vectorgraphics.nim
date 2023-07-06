@@ -169,10 +169,6 @@ proc processPath(nvgCtx: NVGcontext, path: type Path()[]) =
 
 proc renderDrawCommands*(ctx: VectorGraphicsContext, commands: openArray[DrawCommand]) =
   let nvgCtx = ctx.nvgCtx
-
-  # nvgSave(nvgCtx)
-  # nvgTranslate(nvgCtx, offset.x, offset.y)
-
   for command in commands:
     case command.kind:
     of FillPath:
@@ -204,5 +200,3 @@ proc renderDrawCommands*(ctx: VectorGraphicsContext, commands: openArray[DrawCom
         nvgIntersectScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
       else:
         nvgScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
-
-  # nvgRestore(nvgCtx)

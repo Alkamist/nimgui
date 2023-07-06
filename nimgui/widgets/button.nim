@@ -1,21 +1,21 @@
 import ../gui
 
 type
-  GuiButton* = ref object of GuiNode
+  Button* = ref object of GuiNode
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
 
-proc setDefault*(button: GuiButton) =
+proc setDefault*(button: Button) =
   button.size = vec2(96, 32)
 
-proc getButton*(node: GuiNode, id: string): GuiButton =
-  result = node.getNode(id, GuiButton)
+proc getButton*(node: GuiNode, name: string): Button =
+  result = node.getNode(name, Button)
   if result.init:
     result.setDefault()
 
-proc update*(button: GuiButton, hover, press, release: bool, draw = true) =
+proc update*(button: Button, hover, press, release: bool, draw = true) =
   GuiNode(button).update()
 
   button.pressed = false
@@ -53,7 +53,7 @@ proc update*(button: GuiButton, hover, press, release: bool, draw = true) =
   elif button.isHovered:
     button.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(button: GuiButton, mouseButton = MouseButton.Left, draw = true) =
+proc update*(button: Button, mouseButton = MouseButton.Left, draw = true) =
   let m = button.mousePosition
   let mouseHit =
     m.x >= 0.0 and m.x <= button.size.x and

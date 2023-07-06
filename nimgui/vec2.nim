@@ -9,7 +9,7 @@ type
 func `~=`(a, b: float): bool =
   abs(a - b) <= 0.000001
 
-func vec2*(x, y = 0.0): Vec2 = Vec2(x: x, y: y)
+func vec2*(x, y: float): Vec2 = Vec2(x: x, y: y)
 
 func `+`*(v: Vec2): Vec2 = v
 func `-`*(v: Vec2): Vec2 = vec2(-v.x, -v.y)

@@ -51,36 +51,26 @@ proc getText*(node: GuiNode, name: string): Text =
   if result.init:
     result.setDefault()
 
-proc getTextLine(text: Text, firstByte, lastByte: int, position: Vec2, clipLeft, clipRight: float): TextLine =
-  if clipRight <= clipLeft:
-    return
-
+proc getTextLine(text: Text, firstByte, lastByte: int, position: Vec2): TextLine =
   let data = text.data[firstByte .. lastByte]
 
   let font = text.font
   let fontSize = text.fontSize
   let lineHeight = text.lineHeight
 
-  var start = false
-  var lastMeasurement: TextMeasurement
-
   for measurement in text.measureText(data, font, fontSize):
-    if start:
-      result.glyphs.add Glyph(
-        firstByte: firstByte + lastMeasurement.byteIndex,
-        lastByte: firstByte + measurement.byteIndex - 1,
-        position: vec2(position.x + lastMeasurement.left, position.y),
-        size: vec2(lastMeasurement.right - lastMeasurement.left, lineHeight),
-        drawX: position.x + lastMeasurement.x,
-      )
+    if result.glyphs.len > 0:
+      result.glyphs[^1].lastByte = firstByte + measurement.byteIndex - 1
 
-    if not start and position.x + measurement.right > clipLeft:
-      start = true
+    result.glyphs.add Glyph(
+      firstByte: firstByte + measurement.byteIndex,
+      position: vec2(position.x + measurement.left, position.y),
+      size: vec2(measurement.right - measurement.left, lineHeight),
+      drawX: position.x + measurement.x,
+    )
 
-    if position.x + measurement.left > clipRight:
-      return
-
-    lastMeasurement = measurement
+  if result.glyphs.len > 0:
+    result.glyphs[^1].lastByte = lastByte
 
 iterator splitLinesByteIndices(s: string): tuple[first, last: int] =
   var first = 0
@@ -136,7 +126,7 @@ proc update*(text: Text) =
       if startByte >= lastByte:
         break
 
-      var line = text.getTextLine(startByte, lastByte, vec2(0, lineY), clipLeft, clipRight)
+      var line = text.getTextLine(startByte, lastByte, vec2(0, lineY))
       if line.glyphs.len == 0:
         break
 

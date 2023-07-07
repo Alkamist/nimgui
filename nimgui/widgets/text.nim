@@ -132,6 +132,10 @@ proc update*(text: Text) =
   var lineY = 0.0
 
   for firstByte, lastByte in text.data.splitLinesByteIndices:
+    if text.data[firstByte .. lastByte] == "":
+      lineY += lineHeight
+      continue
+
     var startByte = firstByte
 
     while true:

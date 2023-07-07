@@ -1,16 +1,15 @@
-import std/strutils
+# import std/strutils
 import ../gui
 
 type
   Glyph* = object
-    byteStart*: int
-    byteEnd*: int
+    firstByte*: int
+    lastByte*: int
     position*: Vec2
     size*: Vec2
     drawX*: float
 
   TextLine* = object
-    data*: string
     glyphs*: seq[Glyph]
 
 proc position*(line: TextLine): Vec2 =
@@ -52,38 +51,58 @@ proc getText*(node: GuiNode, name: string): Text =
   if result.init:
     result.setDefault()
 
-proc trimTextLine(text: Text, data: string, position: Vec2, clipLeft, clipRight: float, wordWrap: bool): TextLine =
+proc getTextLine(text: Text, firstByte, lastByte: int, position: Vec2, clipLeft, clipRight: float): TextLine =
   if clipRight <= clipLeft:
     return
+
+  let data = text.data[firstByte .. lastByte]
 
   let font = text.font
   let fontSize = text.fontSize
   let lineHeight = text.lineHeight
 
+  var start = false
+  var lastMeasurement: TextMeasurement
+
   for measurement in text.measureText(data, font, fontSize):
-    let left = position.x + measurement.left
-    let right = position.x + measurement.right
+    if start:
+      result.glyphs.add Glyph(
+        firstByte: firstByte + lastMeasurement.byteIndex,
+        lastByte: firstByte + measurement.byteIndex - 1,
+        position: vec2(position.x + lastMeasurement.left, position.y),
+        size: vec2(lastMeasurement.right - lastMeasurement.left, lineHeight),
+        drawX: position.x + lastMeasurement.x,
+      )
 
-    if result.glyphs.len > 1:
-      result.glyphs[result.glyphs.len - 1].byteEnd = measurement.byteIndex - 1
+    if not start and position.x + measurement.right > clipLeft:
+      start = true
 
-    if left > clipRight:
-      if result.glyphs.len == 1:
-        result.glyphs[result.glyphs.len - 1].byteEnd = measurement.byteIndex - 1
+    if position.x + measurement.left > clipRight:
+      return
+
+    lastMeasurement = measurement
+
+iterator splitLinesByteIndices(s: string): tuple[first, last: int] =
+  var first = 0
+  var last = 0
+  var eolpos = 0
+  while true:
+    while last < s.len and s[last] notin {'\c', '\l'}: inc(last)
+
+    eolpos = last
+    if last < s.len:
+      if s[last] == '\l': inc(last)
+      elif s[last] == '\c':
+        inc(last)
+        if last < s.len and s[last] == '\l': inc(last)
+
+    yield (first, eolpos - 1)
+
+    # no eol characters consumed means that the string is over
+    if eolpos == last:
       break
 
-    if right > clipLeft:
-      result.glyphs.add(Glyph(
-        byteStart: measurement.byteIndex,
-        position: vec2(left, position.y),
-        size: vec2(measurement.right - measurement.left, lineHeight),
-        drawX: position.x + measurement.x,
-      ))
-
-  if result.glyphs.len == 0:
-    return
-
-  result.data = data[result.glyphs[0].byteStart .. result.glyphs[^1].byteEnd]
+    first = last
 
 proc update*(text: Text) =
   GuiNode(text).update()
@@ -96,6 +115,8 @@ proc update*(text: Text) =
   let font = text.font
   let fontSize = text.fontSize
   let lineHeight = text.lineHeight
+  let wordWrap = text.wordWrap
+  let wrapRight = text.size.x
   let color = text.color
   let clipRect = text.clipRect
   let clipLeft = clipRect.position.x
@@ -105,21 +126,98 @@ proc update*(text: Text) =
 
   var lineY = 0.0
 
-  for lineData in text.data.splitLines:
-    if lineY + lineHeight < clipTop:
+  for firstByte, lastByte in text.data.splitLinesByteIndices:
+    var startByte = firstByte
+
+    while true:
+      if lineY >= clipBottom:
+        break
+
+      if startByte >= lastByte:
+        break
+
+      var line = text.getTextLine(startByte, lastByte, vec2(0, lineY), clipLeft, clipRight)
+      if line.glyphs.len == 0:
+        break
+
+      if wordWrap:
+        var wordIsEntireLine = true
+
+        block lastWordSearch:
+          # Look back for a space (the previous word will start somewhere before it).
+          for lookback in countdown(line.glyphs.len - 1, 0, 1):
+            if text.data[line.glyphs[lookback].firstByte .. line.glyphs[lookback].lastByte] == " ":
+              # Look back further for anything other than a space (should be where the previous word ends).
+              for lookbackMore in countdown(lookback - 1, 0, 1):
+                if text.data[line.glyphs[lookbackMore].firstByte .. line.glyphs[lookbackMore].lastByte] != " ":
+                  startByte = line.glyphs[lookback].lastByte + 1
+                  line.glyphs.setLen(lookbackMore + 1)
+                  wordIsEntireLine = false
+                  break lastWordSearch
+
+        if wordIsEntireLine:
+          startByte = line.glyphs[^1].lastByte + 1
+
+      if lineY + lineHeight >= clipTop:
+        let subString = text.data[line.glyphs[0].firstByte .. line.glyphs[^1].lastByte]
+        text.fillTextRaw(subString, line.position, color, font, fontSize)
+
       lineY += lineHeight
-      continue
 
-    if lineY >= clipBottom:
-      break
-
-    let line = text.trimTextLine(lineData, vec2(0, lineY), clipLeft, clipRight, false)
-    text.fillTextRaw(line.data, line.position, color, font, fontSize)
-
-    lineY += lineHeight
+      if not wordWrap:
+        break
 
 
 
+
+
+
+
+# proc update*(text: Text) =
+#   GuiNode(text).update()
+
+#   text.lines.setLen(0)
+
+#   if text.data.len == 0:
+#     return
+
+#   let font = text.font
+#   let fontSize = text.fontSize
+#   let lineHeight = text.lineHeight
+#   let wordWrap = text.wordWrap
+#   let color = text.color
+#   let clipRect = text.clipRect
+#   let clipLeft = clipRect.position.x
+#   let clipRight = clipRect.position.x + clipRect.size.x
+#   let clipTop = clipRect.position.y
+#   let clipBottom = clipRect.position.y + clipRect.size.y
+
+#   var lineY = 0.0
+
+#   for firstByte, lastByte in text.data.splitLinesByteIndices:
+#     var startByte = firstByte
+
+#     while true:
+#       if lineY >= clipBottom:
+#         break
+
+#       if startByte >= lastByte:
+#         break
+
+#       let line = text.getTextLine(startByte, lastByte, vec2(0, lineY), clipLeft, clipRight)
+#       if line.glyphs.len == 0:
+#         break
+
+#       if lineY + lineHeight >= clipTop:
+#         let subString = text.data[line.glyphs[0].firstByte .. line.glyphs[^1].lastByte]
+#         text.fillTextRaw(subString, line.position, color, font, fontSize)
+
+#       lineY += lineHeight
+
+#       if wordWrap:
+#         startByte = line.glyphs[^1].lastByte + 1
+#       else:
+#         break
 
 
 

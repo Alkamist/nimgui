@@ -60,6 +60,7 @@ proc mouseDelta*(node: GuiNode): Vec2 = node.root.globalMousePosition - node.roo
 proc deltaTime*(node: GuiNode): float = node.root.time - node.root.previousTime
 proc mouseDown*(node: GuiNode, button: MouseButton): bool = node.root.mouseDownStates[button]
 proc keyDown*(node: GuiNode, key: KeyboardKey): bool = node.root.keyDownStates[key]
+proc mouseWheel*(node: GuiNode): Vec2 = node.root.mouseWheel
 proc mouseMoved*(node: GuiNode): bool = node.root.mouseDelta != vec2(0, 0)
 proc mouseWheelMoved*(node: GuiNode): bool = node.root.mouseWheel != vec2(0, 0)
 proc mousePressed*(node: GuiNode, button: MouseButton): bool = button in node.root.mousePresses

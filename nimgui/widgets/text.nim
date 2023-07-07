@@ -9,7 +9,7 @@ type
 
 proc drawPosition*(line: TextLine): Vec2 =
   if line.glyphs.len > 0:
-    line.position + vec2(line.glyphs[0].left + line.glyphs[0].logicalXOffset, 0)
+    line.position + vec2(line.glyphs[0].logicalXOffset, 0)
   else:
     line.position
 
@@ -21,13 +21,24 @@ proc size*(line: TextLine): Vec2 =
     result.x = 0.0
 
 proc trim*(line: TextLine, left, right: float): TextLine =
+  let left = left - line.position.x
+  let right = right - line.position.x
+
   result.position = line.position
   result.height = line.height
+
   for glyph in line.glyphs:
     if glyph.left > right:
       break
     if glyph.right > left:
       result.glyphs.add(glyph)
+
+  if result.glyphs.len > 0:
+    let adjustment = result.glyphs[0].left
+    result.position.x += adjustment
+    for glyph in result.glyphs.mitems:
+      glyph.left -= adjustment
+      glyph.right -= adjustment
 
 type
   Text* = ref object of GuiNode
@@ -132,7 +143,7 @@ proc refreshLinesWithoutWordWrap(text: Text) =
       position: vec2(alignmentXOffset, lineY),
       height: lineHeight,
       glyphs: glyphs,
-    ).trim(clipLeft - alignmentXOffset, clipRight - alignmentXOffset))
+    ).trim(clipLeft, clipRight))
 
     lineY += lineHeight
 

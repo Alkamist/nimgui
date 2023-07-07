@@ -23,6 +23,8 @@ proc new*(_: typedesc[VectorGraphicsContext]): VectorGraphicsContext =
 proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, scale: float) =
   nvgBeginFrame(ctx.nvgCtx, size.x / scale, size.y / scale, scale)
   nvgTextAlign(ctx.nvgCtx, NVG_ALIGN_LEFT or NVG_ALIGN_TOP)
+  ctx.currentFont = 0
+  ctx.currentFontSize = 16.0
 
 proc endFrame*(ctx: VectorGraphicsContext) =
   nvgEndFrame(ctx.nvgCtx)
@@ -45,10 +47,12 @@ type
     descender*: float
     lineHeight*: float
 
-  TextMeasurement* = object
-    byteIndex*: int
-    x*: float
+  Glyph* = object
+    runeIndex*: int
+    firstByte*: int
+    lastByte*: int
     left*, right*: float
+    logicalXOffset*: float
 
   DrawCommandKind* = enum
     FillPath
@@ -115,28 +119,41 @@ proc textMetrics*(ctx: VectorGraphicsContext, font: Font, fontSize: float): Text
   result.descender = float(descender)
   result.lineHeight = float(lineHeight)
 
-iterator measureText*(ctx: VectorGraphicsContext, text: openArray[char], font: Font, fontSize: float): TextMeasurement =
-  if text.len > 0:
-    ctx.setFont(font)
-    ctx.setFontSize(fontSize)
+proc measureLineGlyphs*(ctx: VectorGraphicsContext, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
+  if text.len == 0:
+    return
 
-    var nvgPositions = newSeq[NVGglyphPosition](text.len)
-    let positionCount = nvgTextGlyphPositions(
-      ctx.nvgCtx, 0, 0,
-      cast[cstring](unsafeAddr(text[0])),
-      nil,
-      addr(nvgPositions[0]),
-      cint(text.len),
+  ctx.setFont(font)
+  ctx.setFontSize(fontSize)
+
+  var nvgPositions = newSeq[NVGglyphPosition](text.len)
+  let positionCount = nvgTextGlyphPositions(
+    ctx.nvgCtx, 0, 0,
+    cast[cstring](unsafeAddr(text[0])),
+    cast[cstring](cast[uint64](unsafeAddr(text[text.len - 1])) + 1),
+    addr(nvgPositions[0]),
+    cint(text.len),
+  )
+
+  result = newSeq[Glyph](positionCount)
+
+  for i in 0 ..< positionCount:
+    let byteOffset = cast[uint64](unsafeAddr(text[0]))
+
+    let lastByte =
+      if i == positionCount - 1:
+        text.len - 1
+      else:
+        int(cast[uint64](nvgPositions[i + 1].str) - byteOffset - 1)
+
+    result[i] = Glyph(
+      runeIndex: i,
+      firstByte: int(cast[uint64](nvgPositions[i].str) - byteOffset),
+      lastByte: lastByte,
+      left: nvgPositions[i].minx,
+      right: nvgPositions[i].maxx,
+      logicalXOffset: nvgPositions[i].x - nvgPositions[i].minx,
     )
-
-    for i in 0 ..< positionCount:
-      let nvgPosition = nvgPositions[i]
-      yield TextMeasurement(
-        byteIndex: int(cast[uint64](nvgPosition.str) - cast[uint64](unsafeAddr(text[0]))),
-        x: nvgPosition.x,
-        left: nvgPosition.minx,
-        right: nvgPosition.maxx,
-      )
 
 proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
   if data.len == 0:

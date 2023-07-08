@@ -85,7 +85,7 @@ proc update(window: ExampleWindow) =
     text.clipChildren = false
     text.data = sampleText
     text.color = rgb(255, 255, 0)
-    text.wordWrap = false
+    text.wordWrap = true
     text.size = vec2(300, 300)
     text.fontSize = 13.0
 
@@ -110,10 +110,11 @@ proc update(window: ExampleWindow) =
   textOutline.roundedRect(vec2(0.5, 0.5), text.size - vec2(-1.0, -1.0), 3)
   text.strokePath(textOutline, rgb(0, 255, 0))
 
-  for line in text.lines:
-    let lineOutline = Path.new()
-    lineOutline.rect(line.position + vec2(0.5, 0.5), line.size - vec2(-1.0, -1.0))
-    text.strokePath(lineOutline, rgb(255, 0, 0))
+  # for line in text.lines:
+  #   if line.glyphs.len == 0: continue
+  #   let lineOutline = Path.new()
+  #   lineOutline.rect(line.position + vec2(0.5, 0.5), line.size - vec2(-1.0, -1.0))
+  #   text.strokePath(lineOutline, rgb(255, 0, 0))
 
   # for line in text.lines:
   #   for glyph in line.glyphs:

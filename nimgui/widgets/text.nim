@@ -147,101 +147,116 @@ proc refreshLinesWithoutWordWrap(text: Text) =
 
     lineY += lineHeight
 
-# proc glyphString(text: Text, glyph: Glyph): string =
-#   text.data[glyph.firstByte .. glyph.lastByte]
+proc glyphString(text: Text, glyph: Glyph): string =
+  text.data[glyph.firstByte .. glyph.lastByte]
 
-# proc refreshLinesWithWordWrap(text: Text) =
-#   let lineHeight = text.lineHeight
-#   let alignment = text.alignment
-#   let rangeRight = text.size.x
+proc refreshLinesWithWordWrap(text: Text) =
+  let font = text.font
+  let fontSize = text.fontSize
+  let lineHeight = text.lineHeight
+  let alignment = text.alignment
+  let rangeRight = text.size.x
 
-#   let clipRect = text.clipRect
-#   let clipLeft = clipRect.position.x
-#   let clipRight = clipRect.position.x + clipRect.size.x
-#   let clipTop = clipRect.position.y
-#   let clipBottom = clipRect.position.y + clipRect.size.y
+  let clipRect = text.clipRect
+  let clipLeft = clipRect.position.x
+  let clipRight = clipRect.position.x + clipRect.size.x
+  let clipTop = clipRect.position.y
+  let clipBottom = clipRect.position.y + clipRect.size.y
 
-#   var lineY = 0.0
+  var lineY = 0.0
 
-#   for firstByte, lastByte in text.data.splitLinesByteIndices:
-#     if lineY >= clipBottom:
-#       return
+  for firstByte, lastByte in text.data.splitLinesByteIndices:
+    if lineY >= clipBottom:
+      return
 
-#     # Empty line.
-#     if text.data[firstByte .. lastByte] == "":
-#       if lineY + lineHeight >= clipTop:
-#         text.lines.add(TextLine(lineHeight: lineHeight))
-#       lineY += lineHeight
-#       continue
+    # Empty line.
+    if text.data[firstByte .. lastByte] == "":
+      if lineY + lineHeight >= clipTop:
+        let alignmentXOffset = alignment * rangeRight
+        text.lines.add(TextLine(
+          position: vec2(alignmentXOffset, lineY),
+          height: lineHeight,
+        ))
+      lineY += lineHeight
+      continue
 
-#     var startByte = firstByte
+    var startByte = firstByte
 
-#     while true:
-#       if lineY >= clipBottom:
-#         break
+    while true:
+      if lineY >= clipBottom:
+        break
 
-#       if startByte >= lastByte:
-#         break
+      if startByte >= lastByte:
+        break
 
-#       var line = text.getTextLine(startByte, lastByte, vec2(0, lineY))
-#       if line.glyphs.len == 0:
-#         continue
+      var glyphs = text.measureLineGlyphs(text.data.toOpenArray(startByte, lastByte), font, fontSize)
+      if glyphs.len == 0:
+        continue
 
-#       var endOfLastWord = -1
-#       var startOfNextLine = -1
+      for glyph in glyphs.mitems:
+        glyph.firstByte += startByte
+        glyph.lastByte += startByte
 
-#       if line.glyphs.len > 0 and
-#           line.glyphs[^1].position.x + line.glyphs[^1].size.x < rangeRight:
-#         startByte = line.glyphs[^1].lastByte + 1
+      var endOfLastWord = -1
+      var startOfNextLine = -1
 
-#       else:
-#         for i in 0 ..< line.glyphs.len - 1:
-#           let glyph = line.glyphs[i]
-#           let glyphIsWhitespace = text.glyphString(glyph) == " "
-#           let glyphInBounds = glyph.position.x + glyph.size.x < rangeRight
+      if glyphs[^1].right < rangeRight:
+        startByte = glyphs[^1].lastByte + 1
 
-#           let nextGlyph = line.glyphs[i + 1]
-#           let nextGlyphIsWhitespace = text.glyphString(nextGlyph) == " "
-#           let nextGlyphInBounds = nextGlyph.position.x + nextGlyph.size.x < rangeRight
+      else:
+        for i in 0 ..< glyphs.len - 1:
+          let glyph = glyphs[i]
+          let glyphIsWhitespace = text.glyphString(glyph) == " "
+          let glyphInBounds = glyph.right < rangeRight
 
-#           if glyphInBounds and nextGlyphIsWhitespace and not glyphIsWhitespace:
-#             endOfLastWord = i
+          let nextGlyph = glyphs[i + 1]
+          let nextGlyphIsWhitespace = text.glyphString(nextGlyph) == " "
+          let nextGlyphInBounds = nextGlyph.right < rangeRight
 
-#           if glyphIsWhitespace and not nextGlyphIsWhitespace:
-#             startOfNextLine = i + 1
+          if glyphInBounds and nextGlyphIsWhitespace and not glyphIsWhitespace:
+            endOfLastWord = i
 
-#           if not nextGlyphInBounds and not nextGlyphIsWhitespace:
-#             if startOfNextLine == -1:
-#               startOfNextLine = i + 1
+          if glyphIsWhitespace and not nextGlyphIsWhitespace:
+            startOfNextLine = i + 1
 
-#             startByte = line.glyphs[startOfNextLine].firstByte
+          if not nextGlyphInBounds and not nextGlyphIsWhitespace:
+            if startOfNextLine == -1:
+              startOfNextLine = i + 1
 
-#             if endOfLastWord == -1:
-#               line.glyphs.setLen(i + 1)
-#             else:
-#               line.glyphs.setLen(endOfLastWord + 1)
+            startByte = glyphs[startOfNextLine].firstByte
 
-#             break
+            if endOfLastWord == -1:
+              glyphs.setLen(i + 1)
+            else:
+              glyphs.setLen(endOfLastWord + 1)
 
-#       # Adjust glyph positions based on alignment.
-#       let leftOverSpaceAtEndOfLine = rangeRight - (line.glyphs[^1].position.x + line.glyphs[^1].size.x)
-#       let alignmentXOffset = alignment * leftOverSpaceAtEndOfLine
-#       for i in 0 ..< line.glyphs.len:
-#         line.glyphs[i].position.x += alignmentXOffset
+            break
 
-#       text.lines.add(line.trim(clipLeft, clipRight))
+      if lineY + lineHeight >= clipTop:
+        let leftOverSpaceAtEndOfLine = rangeRight - glyphs[^1].right
+        let alignmentXOffset = alignment * leftOverSpaceAtEndOfLine
+        text.lines.add(TextLine(
+          position: vec2(alignmentXOffset, lineY),
+          height: lineHeight,
+          glyphs: glyphs,
+        ).trim(clipLeft, clipRight))
 
-#       lineY += lineHeight
+      lineY += lineHeight
+
+proc refreshLines*(text: Text) =
+  if text.wordWrap:
+    text.refreshLinesWithWordWrap()
+  else:
+    text.refreshLinesWithoutWordWrap()
 
 proc update*(text: Text) =
   GuiNode(text).update()
 
   text.lines.setLen(0)
-
   if text.data.len == 0:
     return
 
-  text.refreshLinesWithoutWordWrap()
+  text.refreshLines()
 
   let font = text.font
   let fontSize = text.fontSize

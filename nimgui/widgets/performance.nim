@@ -1,17 +1,13 @@
+import ../gui
+
 type
-  Performance* = object
+  Performance = object
     index: int
     deltaTimes: seq[float]
     currentFrameTime: float
     previousAverageWindow: int
 
-proc frameTime*(performance: Performance): float =
-  performance.currentFrameTime
-
-proc fps*(performance: Performance): float =
-  1.0 / performance.currentFrameTime
-
-proc update*(performance: var Performance, deltaTime: float, averageWindow = 100) =
+proc update(performance: var Performance, deltaTime: float, averageWindow: int) =
   if averageWindow != performance.previousAverageWindow:
     performance.index = 0
     performance.deltaTimes = newSeq[float](averageWindow)
@@ -28,3 +24,16 @@ proc update*(performance: var Performance, deltaTime: float, averageWindow = 100
 
   performance.currentFrameTime /= float(averageWindow)
   performance.previousAverageWindow = averageWindow
+
+proc frameTime*(gui: Gui, averageWindow = 100, update = true): float =
+  let id = gui.getGlobalId("GUI_PERFORMANCE")
+  var performance = gui.getState(id, Performance())
+
+  if update:
+    performance.update(gui.deltaTime, averageWindow)
+    gui.setState(id, performance)
+
+  performance.currentFrameTime
+
+proc fps*(gui: Gui, averageWindow = 100, update = true): float =
+  1.0 / gui.frameTime(averageWindow, update)

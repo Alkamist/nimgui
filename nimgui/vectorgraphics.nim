@@ -119,7 +119,7 @@ proc textMetrics*(ctx: VectorGraphicsContext, font: Font, fontSize: float): Text
   result.descender = float(descender)
   result.lineHeight = float(lineHeight)
 
-proc measureLineGlyphs*(ctx: VectorGraphicsContext, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
+proc measureGlyphs*(ctx: VectorGraphicsContext, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
   if text.len == 0:
     return
 

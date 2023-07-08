@@ -1,6 +1,8 @@
 import std/math
+import std/hashes
 import std/tables
-import std/algorithm
+# import std/strutils
+# import std/algorithm
 import oswindow; export oswindow
 import ./vectorgraphics; export vectorgraphics
 
@@ -8,134 +10,6 @@ type
   ClipRect* = object
     position*: Vec2
     size*: Vec2
-
-  GuiNode* = ref object of RootObj
-    root* {.cursor.}: GuiRoot
-    owner* {.cursor.}: GuiNode
-    parent* {.cursor.}: GuiNode
-    name*: string
-    position*: Vec2
-    size*: Vec2
-    zIndex*: int
-    highestChildZIndex*: int
-    init*: bool
-    childIsHovered*: bool
-    clipChildren*: bool
-    ownedChildren*: Table[string, GuiNode]
-    activeChildren*: seq[GuiNode]
-    drawCommands*: seq[DrawCommand]
-    requestedHover: bool
-    cachedGlobalPosition: Vec2
-    cachedGlobalClipRect: ClipRect
-
-  GuiRoot* = ref object of GuiNode
-    scale*: float
-    time*: float
-    cursorStyle*: CursorStyle
-    hover*: GuiNode
-    mouseOver*: GuiNode
-    hoverCapture*: GuiNode
-
-    # Input
-    globalMousePosition*: Vec2
-    mouseWheel*: Vec2
-    mousePresses*: seq[MouseButton]
-    mouseReleases*: seq[MouseButton]
-    mouseDownStates*: array[MouseButton, bool]
-    keyPresses*: seq[KeyboardKey]
-    keyReleases*: seq[KeyboardKey]
-    keyDownStates*: array[KeyboardKey, bool]
-    textInput*: string
-
-    # Vector graphics
-    vgCtx*: VectorGraphicsContext
-    drawOrder: seq[GuiNode]
-
-    # Previous frame state
-    previousTime: float
-    previousGlobalMousePosition: Vec2
-
-proc globalMousePosition*(node: GuiNode): Vec2 = node.root.globalMousePosition
-proc mouseDelta*(node: GuiNode): Vec2 = node.root.globalMousePosition - node.root.previousGlobalMousePosition
-proc deltaTime*(node: GuiNode): float = node.root.time - node.root.previousTime
-proc mouseDown*(node: GuiNode, button: MouseButton): bool = node.root.mouseDownStates[button]
-proc keyDown*(node: GuiNode, key: KeyboardKey): bool = node.root.keyDownStates[key]
-proc mouseWheel*(node: GuiNode): Vec2 = node.root.mouseWheel
-proc mouseMoved*(node: GuiNode): bool = node.root.mouseDelta != vec2(0, 0)
-proc mouseWheelMoved*(node: GuiNode): bool = node.root.mouseWheel != vec2(0, 0)
-proc mousePressed*(node: GuiNode, button: MouseButton): bool = button in node.root.mousePresses
-proc mouseReleased*(node: GuiNode, button: MouseButton): bool = button in node.root.mouseReleases
-proc anyMousePressed*(node: GuiNode): bool = node.root.mousePresses.len > 0
-proc anyMouseReleased*(node: GuiNode): bool = node.root.mouseReleases.len > 0
-proc keyPressed*(node: GuiNode, key: KeyboardKey): bool = key in node.root.keyPresses
-proc keyReleased*(node: GuiNode, key: KeyboardKey): bool = key in node.root.keyReleases
-proc anyKeyPressed*(node: GuiNode): bool = node.root.keyPresses.len > 0
-proc anyKeyReleased*(node: GuiNode): bool = node.root.keyReleases.len > 0
-
-proc globalOffset*(node: GuiNode): Vec2 =
-  if node.parent != nil:
-    node.parent.globalOffset + node.parent.position
-  else:
-    vec2(0, 0)
-
-proc globalPosition*(node: GuiNode): Vec2 =
-  node.globalOffset + node.position
-
-proc mousePosition*(node: GuiNode): Vec2 =
-  node.globalMousePosition - node.globalPosition
-
-proc isHovered*(node: GuiNode): bool =
-  node.root.hover == node
-
-proc mouseOver*(node: GuiNode): bool =
-  node.root.mouseOver == node
-
-proc cursorStyle*(node: GuiNode): CursorStyle =
-  node.root.cursorStyle
-
-proc `cursorStyle=`*(node: GuiNode, style: CursorStyle) =
-  node.root.cursorStyle = style
-
-proc requestHover*(node: GuiNode) =
-  node.requestedHover = true
-
-proc captureHover*(node: GuiNode) =
-  if node.root.hoverCapture == nil:
-    node.root.hoverCapture = node
-
-proc releaseHover*(node: GuiNode) =
-  if node.root.hoverCapture == node:
-    node.root.hoverCapture = nil
-
-proc fullName*(node: GuiNode): string =
-  if node.parent != nil:
-    node.parent.fullName & "." & node.name
-  else:
-    node.name
-
-proc clipRect*(node: GuiNode): ClipRect =
-  result = node.cachedGlobalClipRect
-  result.position -= node.cachedGlobalPosition
-
-proc update*(node: GuiNode) =
-  node.parent.activeChildren.add(node)
-
-proc getNode*(node: GuiNode, name: string, T: typedesc[GuiNode]): T =
-  if node.ownedChildren.hasKey(name):
-    {.hint[ConvFromXtoItselfNotNeeded]: off.}
-    result = T(node.ownedChildren[name])
-    result.init = false
-  else:
-    result = T()
-    result.root = node.root
-    result.owner = node
-    result.parent = node
-    result.init = true
-    result.name = name
-    node.ownedChildren[name] = result
-
-proc getNode*(node: GuiNode, name: string): GuiNode =
-  node.getNode(name, GuiNode)
 
 proc intersect*(a, b: ClipRect): ClipRect =
   let x1 = max(a.position.x, b.position.x)
@@ -150,101 +24,140 @@ proc contains*(a: ClipRect, b: Vec2): bool =
   b.x >= a.position.x and b.x <= a.position.x + a.size.x and
   b.y >= a.position.y and b.y <= a.position.y + a.size.y
 
-proc updateCachedInfo(node: GuiNode) =
-  let parent = node.parent
-  if parent == nil:
-    node.cachedGlobalPosition = node.position
-    node.cachedGlobalClipRect = ClipRect(position: node.position, size: node.size)
-    return
+type
+  GuiId* = Hash
 
-  node.cachedGlobalPosition = parent.cachedGlobalPosition + node.position
+  GuiStateHolder*[T] = ref object of RootRef
+    value*: T
 
-  if node.clipChildren:
-    node.cachedGlobalClipRect = parent.cachedGlobalClipRect.intersect(
-      ClipRect(position: node.cachedGlobalPosition, size: node.size),
-    )
+  Gui* = ref object
+    size*: Vec2
+    scale*: float
+    time*: float
+    cursorStyle*: CursorStyle
+
+    # Input
+    globalMousePosition*: Vec2
+    mouseWheel*: Vec2
+    mousePresses*: seq[MouseButton]
+    mouseReleases*: seq[MouseButton]
+    mouseDownStates*: array[MouseButton, bool]
+    keyPresses*: seq[KeyboardKey]
+    keyReleases*: seq[KeyboardKey]
+    keyDownStates*: array[KeyboardKey, bool]
+    textInput*: string
+
+    # State and ids
+    hover*: GuiId
+    mouseOver*: GuiId
+    hoverCapture*: GuiId
+    retainedState*: Table[GuiId, RootRef]
+    idStack*: seq[GuiId]
+
+    finalHoverRequest: GuiId
+
+    # Vector graphics
+    vgCtx*: VectorGraphicsContext
+    drawCommands: seq[DrawCommand]
+
+    # Previous frame state
+    previousTime: float
+    previousGlobalMousePosition: Vec2
+
+proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
+proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
+proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
+proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
+proc mouseWheel*(gui: Gui): Vec2 = gui.mouseWheel
+proc mouseMoved*(gui: Gui): bool = gui.mouseDelta != vec2(0, 0)
+proc mouseWheelMoved*(gui: Gui): bool = gui.mouseWheel != vec2(0, 0)
+proc mousePressed*(gui: Gui, button: MouseButton): bool = button in gui.mousePresses
+proc mouseReleased*(gui: Gui, button: MouseButton): bool = button in gui.mouseReleases
+proc anyMousePressed*(gui: Gui): bool = gui.mousePresses.len > 0
+proc anyMouseReleased*(gui: Gui): bool = gui.mouseReleases.len > 0
+proc keyPressed*(gui: Gui, key: KeyboardKey): bool = key in gui.keyPresses
+proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
+proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
+proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
+
+proc mousePosition*(gui: Gui): Vec2 =
+  gui.globalMousePosition
+
+proc isHovered*(gui: Gui, id: GuiId): bool =
+  gui.hover == id
+
+proc mouseIsOver*(gui: Gui, id: GuiId): bool =
+  gui.mouseOver == id
+
+proc requestHover*(gui: Gui, id: GuiId) =
+  gui.finalHoverRequest = id
+
+proc captureHover*(gui: Gui, id: GuiId) =
+  if gui.hoverCapture == 0:
+    gui.hoverCapture = id
+
+proc releaseHover*(gui: Gui, id: GuiId) =
+  if gui.hoverCapture == id:
+    gui.hoverCapture = 0
+
+proc getGlobalId*(gui: Gui, x: auto): GuiId =
+  hash(x)
+
+proc getId*(gui: Gui, x: auto): GuiId =
+  if gui.idStack.len > 0:
+    result = !$(gui.idStack[^1] !& hash(x))
   else:
-    node.cachedGlobalClipRect = parent.cachedGlobalClipRect
+    result = hash(x)
 
-proc mouseIsInBounds(node: GuiNode): bool =
-  node.cachedGlobalClipRect.contains(node.globalMousePosition)
+proc pushId*(gui: Gui, id: GuiId) = gui.idStack.add(id)
+proc popId*(gui: Gui) = discard gui.idStack.pop()
 
-proc unpackDrawOrder(node: GuiNode) =
-  node.root.drawOrder.add(node)
-  node.activeChildren.sort(proc(x, y: GuiNode): int =
-    cmp(x.zIndex, y.zIndex)
-  )
-  node.highestChildZIndex = low(int)
-  for child in node.activeChildren:
-    if child.zIndex > node.highestChildZIndex:
-      node.highestChildZIndex = child.zIndex
-    child.unpackDrawOrder()
+proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
+  if gui.retainedState.hasKey(id):
+    GuiStateHolder[T](gui.retainedState[id]).value
+  else:
+    gui.retainedState[id] = GuiStateHolder[T](value: initialValue)
+    initialValue
 
-proc informParentOfHoverStatus(node: GuiNode) =
-  if node.parent == nil:
-    return
-  node.parent.childIsHovered = true
-  node.parent.informParentOfHoverStatus()
+proc setState*[T](gui: Gui, id: GuiId, value: T) =
+  GuiStateHolder[T](gui.retainedState[id]).value = value
 
-proc new*(_: typedesc[GuiRoot]): GuiRoot =
-  result = GuiRoot()
-  result.name = "Root"
-  result.root = result
-  result.clipChildren = true
+proc new*(_: typedesc[Gui]): Gui =
+  result = Gui()
   result.vgCtx = VectorGraphicsContext.new()
 
-proc beginFrame*(root: GuiRoot) =
-  root.vgCtx.beginFrame(root.size, root.scale)
-  root.cursorStyle = Arrow
+proc beginFrame*(gui: Gui) =
+  gui.vgCtx.beginFrame(gui.size, gui.scale)
+  gui.cursorStyle = Arrow
+  gui.finalHoverRequest = 0
 
-proc endFrame*(root: GuiRoot) =
-  root.unpackDrawOrder()
+  gui.pushId(gui.getGlobalId("Root"))
 
-  let vgCtx = root.vgCtx
-  var hover: GuiNode = nil
-  var mouseOver: GuiNode = nil
+proc endFrame*(gui: Gui) =
+  gui.popId()
 
-  for node in root.drawOrder:
-    node.updateCachedInfo()
+  gui.vgCtx.renderDrawCommands(gui.drawCommands)
 
-    # vgCtx.renderDrawCommands [DrawCommand(kind: Clip, clip: ClipCommand(
-    #   position: node.cachedGlobalClipRect.position,
-    #   size: node.cachedGlobalClipRect.size,
-    #   intersect: false,
-    # ))]
-    vgCtx.renderDrawCommands(node.drawCommands)
+  let hoverRequest = gui.finalHoverRequest
 
-    if root.hoverCapture == node:
-      hover = node
+  if gui.hoverCapture != 0:
+    gui.hover = gui.hoverCapture
+  else:
+    gui.hover = hoverRequest
 
-    if root.hoverCapture == nil and node.requestedHover and node.mouseIsInBounds:
-      hover = node
+  gui.mouseOver = hoverRequest
 
-    if node.requestedHover and node.mouseIsInBounds:
-      mouseOver = node
+  gui.drawCommands.setLen(0)
+  gui.mousePresses.setLen(0)
+  gui.mouseReleases.setLen(0)
+  gui.keyPresses.setLen(0)
+  gui.keyReleases.setLen(0)
+  gui.textInput.setLen(0)
+  gui.mouseWheel = vec2(0, 0)
+  gui.previousGlobalMousePosition = gui.globalMousePosition
+  gui.previousTime = gui.time
 
-    node.childIsHovered = false
-    node.requestedHover = false
-    node.drawCommands.setLen(0)
-    node.activeChildren.setLen(0)
-
-  root.hover = hover
-  if root.hover != nil:
-    root.hover.informParentOfHoverStatus()
-
-  root.mouseOver = mouseOver
-
-  root.drawOrder.setLen(0)
-  root.mousePresses.setLen(0)
-  root.mouseReleases.setLen(0)
-  root.keyPresses.setLen(0)
-  root.keyReleases.setLen(0)
-  root.textInput.setLen(0)
-  root.mouseWheel = vec2(0, 0)
-  root.previousGlobalMousePosition = root.globalMousePosition
-  root.previousTime = root.time
-
-  root.vgCtx.endFrame()
+  gui.vgCtx.endFrame()
 
 
 # ======================================================================
@@ -252,48 +165,74 @@ proc endFrame*(root: GuiRoot) =
 # ======================================================================
 
 
-proc pixelAlign*(root: GuiRoot, globalValue: float): float =
-  let scale = root.scale
+proc pixelAlign*(gui: Gui, globalValue: float): float =
+  let scale = gui.scale
   round(globalValue * scale) / scale
 
-proc pixelAlign*(root: GuiRoot, globalPosition: Vec2): Vec2 =
-  vec2(root.pixelAlign(globalPosition.x), root.pixelAlign(globalPosition.y))
+proc pixelAlign*(gui: Gui, globalPosition: Vec2): Vec2 =
+  vec2(gui.pixelAlign(globalPosition.x), gui.pixelAlign(globalPosition.y))
 
-proc fillPath*(node: GuiNode, path: Path, paint: Paint) =
-  node.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
+proc fillPath*(gui: Gui, path: Path, paint: Paint) =
+  gui.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
     path: path[],
     paint: paint,
-    position: node.root.pixelAlign(node.globalPosition),
+    position: vec2(0, 0),
   )))
 
-proc fillPath*(node: GuiNode, path: Path, color: Color) =
-  node.fillPath(path, solidColorPaint(color))
+proc fillPath*(gui: Gui, path: Path, color: Color) =
+  gui.fillPath(path, solidColorPaint(color))
 
-proc strokePath*(node: GuiNode, path: Path, paint: Paint, strokeWidth = 1.0) =
-  node.drawCommands.add(DrawCommand(kind: StrokePath, strokePath: StrokePathCommand(
+proc strokePath*(gui: Gui, path: Path, paint: Paint, strokeWidth = 1.0) =
+  gui.drawCommands.add(DrawCommand(kind: StrokePath, strokePath: StrokePathCommand(
     path: path[],
     paint: paint,
     strokeWidth: strokeWidth,
-    position: node.root.pixelAlign(node.globalPosition),
+    position: vec2(0, 0),
   )))
 
-proc strokePath*(node: GuiNode, path: Path, color: Color, strokeWidth = 1.0) =
-  node.strokePath(path, solidColorPaint(color), strokeWidth)
+proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
+  gui.strokePath(path, solidColorPaint(color), strokeWidth)
 
-proc fillTextRaw*(node: GuiNode, text: string, position: Vec2, color: Color, font: Font, fontSize: float) =
-  node.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
+proc addFont*(gui: Gui, data: string): Font {.discardable.} =
+  gui.vgCtx.addFont(data)
+
+proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
+  gui.vgCtx.measureGlyphs(text, font, fontSize)
+
+proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Font, fontSize: float) =
+  gui.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
-    position: node.root.pixelAlign(node.globalPosition) + position,
+    position: position,
     text: text,
     color: color,
   )))
 
-proc addFont*(node: GuiNode, data: string): Font {.discardable.} =
-  node.root.vgCtx.addFont(data)
+# proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255), font = Font(0), fontSize = 13.0) =
+#   if text.len == 0:
+#     return
 
-template measureLineGlyphs*(node: GuiNode, text: openArray[char], font: Font, fontSize: float): untyped =
-  node.root.vgCtx.measureLineGlyphs(text, font, fontSize)
+#   let lineHeight = node.gui.vgCtx.textMetrics(font, fontSize).lineHeight
+
+#   let clipRect = node.clipRect
+#   # let clipLeft = clipRect.position.x
+#   # let clipRight = clipRect.position.x + clipRect.size.x
+#   let clipTop = clipRect.position.y
+#   let clipBottom = clipRect.position.y + clipRect.size.y
+
+#   var linePosition = position
+
+#   for line in text.splitLines:
+#     if linePosition.y >= clipBottom:
+#       return
+
+#     if linePosition.y + lineHeight < clipTop or line == "":
+#       linePosition.y += lineHeight
+#       continue
+
+#     node.fillTextRaw(line, linePosition, color, font, fontSize)
+
+#     linePosition.y += lineHeight
 
 
 # ======================================================================
@@ -309,69 +248,69 @@ proc toScale(dpi: float): float =
 proc toDensityPixels(pixels: int, dpi: float): float =
   float(pixels) * dpi / densityPixelDpi
 
-proc attachToOsWindow*(root: GuiRoot, window: OsWindow) =
-  GcRef(root)
-  window.userData = cast[pointer](root)
+proc attachToOsWindow*(gui: Gui, window: OsWindow) =
+  GcRef(gui)
+  window.userData = cast[pointer](gui)
 
   let dpi = window.dpi
-  root.scale = dpi.toScale
+  gui.scale = dpi.toScale
 
   let (width, height) = window.size
-  root.size.x = width.toDensityPixels(dpi)
-  root.size.y = height.toDensityPixels(dpi)
+  gui.size.x = width.toDensityPixels(dpi)
+  gui.size.y = height.toDensityPixels(dpi)
 
   window.onClose = proc(window: OsWindow) =
-    let root = cast[GuiRoot](window.userData)
-    GcUnref(root)
+    let gui = cast[Gui](window.userData)
+    GcUnref(gui)
 
   window.onResize = proc(window: OsWindow, width, height: int) =
-    let root = cast[GuiRoot](window.userData)
+    let gui = cast[Gui](window.userData)
     let dpi = window.dpi
-    root.size.x = width.toDensityPixels(dpi)
-    root.size.y = height.toDensityPixels(dpi)
+    gui.size.x = width.toDensityPixels(dpi)
+    gui.size.y = height.toDensityPixels(dpi)
 
   window.onMouseMove = proc(window: OsWindow, x, y: int) =
-    let root = cast[GuiRoot](window.userData)
+    let gui = cast[Gui](window.userData)
     let dpi = window.dpi
-    root.globalMousePosition.x = x.toDensityPixels(dpi)
-    root.globalMousePosition.y = y.toDensityPixels(dpi)
-    window.setCursorStyle(root.cursorStyle)
+    gui.globalMousePosition.x = x.toDensityPixels(dpi)
+    gui.globalMousePosition.y = y.toDensityPixels(dpi)
+    window.setCursorStyle(gui.cursorStyle)
 
   window.onMousePress = proc(window: OsWindow, button: MouseButton, x, y: int) =
-    let root = cast[GuiRoot](window.userData)
+    let gui = cast[Gui](window.userData)
     let dpi = window.dpi
-    root.mouseDownStates[button] = true
-    root.mousePresses.add(button)
-    root.globalMousePosition.x = x.toDensityPixels(dpi)
-    root.globalMousePosition.y = y.toDensityPixels(dpi)
+    gui.mouseDownStates[button] = true
+    gui.mousePresses.add(button)
+    gui.globalMousePosition.x = x.toDensityPixels(dpi)
+    gui.globalMousePosition.y = y.toDensityPixels(dpi)
 
   window.onMouseRelease = proc(window: OsWindow, button: oswindow.MouseButton, x, y: int) =
-    let root = cast[GuiRoot](window.userData)
+    let gui = cast[Gui](window.userData)
     let dpi = window.dpi
-    root.mouseDownStates[button] = false
-    root.mouseReleases.add(button)
-    root.globalMousePosition.x = x.toDensityPixels(dpi)
-    root.globalMousePosition.y = y.toDensityPixels(dpi)
+    gui.mouseDownStates[button] = false
+    gui.mouseReleases.add(button)
+    gui.globalMousePosition.x = x.toDensityPixels(dpi)
+    gui.globalMousePosition.y = y.toDensityPixels(dpi)
 
   window.onMouseWheel = proc(window: OsWindow, x, y: float) =
-    let root = cast[GuiRoot](window.userData)
-    root.mouseWheel.x = x
-    root.mouseWheel.y = y
+    let gui = cast[Gui](window.userData)
+    gui.mouseWheel.x = x
+    gui.mouseWheel.y = y
 
   window.onKeyPress = proc(window: OsWindow, key: KeyboardKey) =
-    let root = cast[GuiRoot](window.userData)
-    root.keyDownStates[key] = true
-    root.keyPresses.add(key)
+    let gui = cast[Gui](window.userData)
+    gui.keyDownStates[key] = true
+    gui.keyPresses.add(key)
 
   window.onKeyRelease = proc(window: OsWindow, key: oswindow.KeyboardKey) =
-    let root = cast[GuiRoot](window.userData)
-    root.keyDownStates[key] = false
-    root.keyReleases.add(key)
+    let gui = cast[Gui](window.userData)
+    gui.keyDownStates[key] = false
+    gui.keyReleases.add(key)
 
   window.onTextInput = proc(window: OsWindow, text: string) =
-    let root = cast[GuiRoot](window.userData)
-    root.textInput &= text
+    let gui = cast[Gui](window.userData)
+    gui.textInput &= text
 
   window.onDpiChange = proc(window: OsWindow, dpi: float) =
-    let root = cast[GuiRoot](window.userData)
-    root.scale = dpi.toScale
+    let gui = cast[Gui](window.userData)
+    gui.scale = dpi.toScale

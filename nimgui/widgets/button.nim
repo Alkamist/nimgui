@@ -1,67 +1,72 @@
 import ../gui
 
 type
-  Button* = ref object of GuiNode
+  ButtonState* = object
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
 
-proc setDefault*(button: Button) =
-  button.size = vec2(96, 32)
-
-proc getButton*(node: GuiNode, name: string): Button =
-  result = node.getNode(name, Button)
-  if result.init:
-    result.setDefault()
-
-proc update*(button: Button, hover, press, release: bool, draw = true) =
-  GuiNode(button).update()
-
+proc update*(button: var ButtonState, isHovered, mouseIsOver, press, release: bool) =
   button.pressed = false
   button.released = false
   button.clicked = false
 
-  if button.isHovered and not button.isDown and press:
+  if isHovered and not button.isDown and press:
     button.isDown = true
     button.pressed = true
 
   if button.isDown and release:
     button.isDown = false
     button.released = true
-    if button.mouseOver:
+
+    if mouseIsOver:
       button.clicked = true
 
+proc button*(gui: Gui, id: GuiId,
+  position = vec2(0, 0),
+  size = vec2(96, 32),
+  mouseButton = MouseButton.Left,
+  draw = true,
+): ButtonState {.discardable.} =
+  let isHovered = gui.isHovered(id)
+
+  var button = gui.getState(id, ButtonState())
+  button.update(
+    isHovered = isHovered,
+    mouseIsOver = gui.mouseIsOver(id),
+    press = gui.mousePressed(mouseButton),
+    release = gui.mouseReleased(mouseButton),
+  )
+  gui.setState(id, button)
+
   if button.pressed:
-    button.captureHover()
+    gui.captureHover(id)
 
   if button.released:
-    button.releaseHover()
+    gui.releaseHover(id)
 
-  if hover:
-    button.requestHover()
+  let m = gui.mousePosition
+  if m.x >= position.x and m.x <= position.x + size.x and
+     m.y >= position.y and m.y <= position.y + size.y:
+    gui.requestHover(id)
 
-  if not draw:
-    return
+  if draw:
+    let path = Path.new()
+    path.roundedRect(position, size, 3)
 
-  let path = Path.new()
-  path.roundedRect(vec2(0, 0), button.size, 3)
+    gui.fillPath(path, rgb(31, 32, 34))
+    if button.isDown:
+      gui.fillPath(path, rgba(0, 0, 0, 8))
+    elif isHovered:
+      gui.fillPath(path, rgba(255, 255, 255, 8))
 
-  button.fillPath(path, rgb(31, 32, 34))
-  if button.isDown:
-    button.fillPath(path, rgba(0, 0, 0, 8))
-  elif button.isHovered:
-    button.fillPath(path, rgba(255, 255, 255, 8))
+  button
 
-proc update*(button: Button, mouseButton = MouseButton.Left, draw = true) =
-  let m = button.mousePosition
-  let mouseHit =
-    m.x >= 0.0 and m.x <= button.size.x and
-    m.y >= 0.0 and m.y <= button.size.y
-
-  button.update(
-    hover = mouseHit,
-    press = button.mousePressed(mouseButton),
-    release = button.mouseReleased(mouseButton),
-    draw = draw,
-  )
+proc button*(gui: Gui, id: string,
+  position = vec2(0, 0),
+  size = vec2(96, 32),
+  mouseButton = MouseButton.Left,
+  draw = true,
+): ButtonState {.discardable.} =
+  gui.button(gui.getId(id), position, size, mouseButton, draw)

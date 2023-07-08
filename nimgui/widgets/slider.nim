@@ -2,10 +2,12 @@ import ../gui
 import ./button
 
 type
+  SliderInternalState = object
+    valueWhenHandleGrabbed: float
+    globalMousePositionWhenHandleGrabbed: Vec2
+
   SliderState* = object
     handle*: ButtonState
-    valueWhenHandleGrabbed*: float
-    globalMousePositionWhenHandleGrabbed*: Vec2
 
 proc slider*(gui: Gui, id: GuiId,
   value: var float,
@@ -16,7 +18,7 @@ proc slider*(gui: Gui, id: GuiId,
   handleLength = 16.0,
   draw = true,
 ): SliderState {.discardable.} =
-  var slider = gui.getState(id, SliderState())
+  var state = gui.getState(id, SliderInternalState())
 
   gui.pushId(id)
 
@@ -36,19 +38,17 @@ proc slider*(gui: Gui, id: GuiId,
   )
 
   if handle.pressed or gui.keyPressed(LeftControl) or gui.keyReleased(LeftControl):
-    slider.valueWhenHandleGrabbed = value
-    slider.globalMousePositionWhenHandleGrabbed = gui.globalMousePosition
+    state.valueWhenHandleGrabbed = value
+    state.globalMousePositionWhenHandleGrabbed = gui.globalMousePosition
 
   let sensitivity =
     if gui.keyDown(LeftControl): 0.15
     else: 1.0
 
   if handle.isDown:
-    let grabDelta = gui.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
-    value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handleLength)
+    let grabDelta = gui.globalMousePosition.x - state.globalMousePositionWhenHandleGrabbed.x
+    value = state.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handleLength)
     value = value.clamp(minValue, maxValue)
-
-  gui.setState(id, slider)
 
   if draw:
     let path = Path.new()
@@ -65,7 +65,9 @@ proc slider*(gui: Gui, id: GuiId,
 
   gui.popId()
 
-  slider
+  gui.setState(id, state)
+
+  SliderState(handle: handle)
 
 proc slider*(gui: Gui, id: string,
   value: var float,

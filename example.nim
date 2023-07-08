@@ -14,9 +14,14 @@ gui.attachToOsWindow(osWindow)
 const fontData = readFile("consola.ttf")
 gui.addFont(fontData)
 
+var windowPosition = vec2(100, 100)
+var windowSize = vec2(400, 400)
+
 osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.time = osWindow.time
   gui.beginFrame()
+
+  gui.beginWindow(gui.getId("Window"), windowPosition, windowSize)
 
   let sliderValueId = gui.getId("SliderValue")
   var sliderValue = gui.getState(sliderValueId, 0.0)
@@ -28,6 +33,8 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
     sliderValue += 0.05
 
   gui.setState(sliderValueId, sliderValue)
+
+  gui.endWindow()
 
   gui.fillTextRaw("Fps: " & gui.fps.formatFloat(ffDecimal, 4), vec2(0, 0), rgb(255, 255, 255), 0, 13)
 

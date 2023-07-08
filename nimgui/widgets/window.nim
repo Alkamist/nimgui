@@ -3,8 +3,9 @@ import ../gui
 import ./button
 
 type
-  Window* = ref object of GuiNode
-    currentMinSize: Vec2
+  WindowState = object
+    positionPtr: ptr Vec2
+    sizePtr: ptr Vec2
     globalMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
@@ -15,262 +16,249 @@ const windowBorderThickness = 1.0
 const windowCornerRadius = 3.0
 const windowRoundingInset = ceil((1.0 - sin(45.0.degToRad)) * windowCornerRadius)
 
-proc bringToFront*(window: Window) =
-  window.zIndex = window.parent.highestChildZIndex + 1
-  if window.parent of Window:
-    Window(window.parent).bringToFront()
-
-proc minSize*(window: Window): Vec2 =
-  window.currentMinSize
-
-proc `minSize=`*(window: Window, value: Vec2) =
-  window.currentMinSize = value
-  if window.size.x < window.currentMinSize.x:
-    window.size.x = window.currentMinSize.x
-  if window.size.y < window.currentMinSize.y:
-    window.size.y = window.currentMinSize.y
-
-proc updateGrabState(window: Window) =
-  window.globalMousePositionWhenGrabbed = window.globalMousePosition
-  window.positionWhenGrabbed = window.position
-  window.sizeWhenGrabbed = window.size
-
-proc calculateGrabDelta(window: Window): Vec2 =
-  window.globalMousePosition - window.globalMousePositionWhenGrabbed
-
-proc move(window: Window) =
-  let grabDelta = window.calculateGrabDelta()
-  window.position = window.positionWhenGrabbed + grabDelta
-
-proc resizeLeft(window: Window) =
-  let grabDelta = window.calculateGrabDelta()
-  window.position.x = window.positionWhenGrabbed.x + grabDelta.x
-  window.size.x = window.sizeWhenGrabbed.x - grabDelta.x
-  if window.size.x < window.currentMinSize.x:
-    let correction = window.size.x - window.currentMinSize.x
-    window.position.x += correction
-    window.size.x -= correction
-
-proc resizeRight(window: Window) =
-  let grabDelta = window.calculateGrabDelta()
-  window.size.x = window.sizeWhenGrabbed.x + grabDelta.x
-  if window.size.x < window.currentMinSize.x:
-    let correction = window.size.x - window.currentMinSize.x
-    window.size.x -= correction
-
-proc resizeTop(window: Window) =
-  let grabDelta = window.calculateGrabDelta()
-  window.position.y = window.positionWhenGrabbed.y + grabDelta.y
-  window.size.y = window.sizeWhenGrabbed.y - grabDelta.y
-  if window.size.y < window.currentMinSize.y:
-    let correction = window.size.y - window.currentMinSize.y
-    window.position.y += correction
-    window.size.y -= correction
+# proc bringToFront*(window: Window) =
+#   window.zIndex = window.parent.highestChildZIndex + 1
+#   if window.parent of Window:
+#     Window(window.parent).bringToFront()
+
+# proc updateWindowState(gui: Gui, window: Window) =
+#   window.globalMousePositionWhenGrabbed = window.globalMousePosition
+#   window.positionWhenGrabbed = window.position
+#   window.sizeWhenGrabbed = window.size
+
+# proc calculateGrabDelta(window: Window): Vec2 =
+#   window.globalMousePosition - window.globalMousePositionWhenGrabbed
+
+# proc move(window: Window) =
+#   let grabDelta = window.calculateGrabDelta()
+#   window.position = window.positionWhenGrabbed + grabDelta
+
+# proc resizeLeft(window: Window) =
+#   let grabDelta = window.calculateGrabDelta()
+#   window.position.x = window.positionWhenGrabbed.x + grabDelta.x
+#   window.size.x = window.sizeWhenGrabbed.x - grabDelta.x
+#   if window.size.x < window.currentMinSize.x:
+#     let correction = window.size.x - window.currentMinSize.x
+#     window.position.x += correction
+#     window.size.x -= correction
+
+# proc resizeRight(window: Window) =
+#   let grabDelta = window.calculateGrabDelta()
+#   window.size.x = window.sizeWhenGrabbed.x + grabDelta.x
+#   if window.size.x < window.currentMinSize.x:
+#     let correction = window.size.x - window.currentMinSize.x
+#     window.size.x -= correction
+
+# proc resizeTop(window: Window) =
+#   let grabDelta = window.calculateGrabDelta()
+#   window.position.y = window.positionWhenGrabbed.y + grabDelta.y
+#   window.size.y = window.sizeWhenGrabbed.y - grabDelta.y
+#   if window.size.y < window.currentMinSize.y:
+#     let correction = window.size.y - window.currentMinSize.y
+#     window.position.y += correction
+#     window.size.y -= correction
 
-proc resizeBottom(window: Window) =
-  let grabDelta = window.calculateGrabDelta()
-  window.size.y = window.sizeWhenGrabbed.y + grabDelta.y
-  if window.size.y < window.currentMinSize.y:
-    let correction = window.size.y - window.currentMinSize.y
-    window.size.y -= correction
-
-proc updateMoveButton(window: Window) =
-  let button = window.getNode("MoveButton", Button)
-  if button.init:
-    button.zIndex = 1
+# proc resizeBottom(window: Window) =
+#   let grabDelta = window.calculateGrabDelta()
+#   window.size.y = window.sizeWhenGrabbed.y + grabDelta.y
+#   if window.size.y < window.currentMinSize.y:
+#     let correction = window.size.y - window.currentMinSize.y
+#     window.size.y -= correction
 
-  button.position = vec2(windowResizeHitSize, windowResizeHitSize)
-  button.size = vec2(window.size.x - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize)
+# proc updateMoveButton(window: Window) =
+#   let button = window.getNode("MoveButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(windowResizeHitSize, windowResizeHitSize)
+#   button.size = vec2(window.size.x - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize)
 
-  if button.pressed:
-    window.updateGrabState()
+#   button.update(draw = false)
 
-  if button.isDown:
-    window.move()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeLeftButton(window: Window) =
-  let button = window.getNode("ResizeLeftButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.move()
 
-  button.position = vec2(0, windowResizeHitSize)
-  button.size = vec2(windowResizeHitSize, window.size.y - windowResizeHitSize * 2.0)
+# proc updateResizeLeftButton(window: Window) =
+#   let button = window.getNode("ResizeLeftButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(0, windowResizeHitSize)
+#   button.size = vec2(windowResizeHitSize, window.size.y - windowResizeHitSize * 2.0)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeLeftRight
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeLeftRight
 
-  if button.isDown:
-    window.cursorStyle = ResizeLeftRight
-    window.resizeLeft()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeRightButton(window: Window) =
-  let button = window.getNode("ResizeRightButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeLeftRight
+#     window.resizeLeft()
 
-  button.position = vec2(window.size.x - windowResizeHitSize, windowResizeHitSize)
-  button.size = vec2(windowResizeHitSize, window.size.y - windowResizeHitSize * 2.0)
+# proc updateResizeRightButton(window: Window) =
+#   let button = window.getNode("ResizeRightButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(window.size.x - windowResizeHitSize, windowResizeHitSize)
+#   button.size = vec2(windowResizeHitSize, window.size.y - windowResizeHitSize * 2.0)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeLeftRight
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeLeftRight
 
-  if button.isDown:
-    window.cursorStyle = ResizeLeftRight
-    window.resizeRight()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeTopButton(window: Window) =
-  let button = window.getNode("ResizeTopButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeLeftRight
+#     window.resizeRight()
 
-  button.position = vec2(windowResizeHitSize * 2.0, 0)
-  button.size = vec2(window.size.x - windowResizeHitSize * 4.0, windowResizeHitSize)
+# proc updateResizeTopButton(window: Window) =
+#   let button = window.getNode("ResizeTopButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(windowResizeHitSize * 2.0, 0)
+#   button.size = vec2(window.size.x - windowResizeHitSize * 4.0, windowResizeHitSize)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeTopBottom
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeTopBottom
 
-  if button.isDown:
-    window.cursorStyle = ResizeTopBottom
-    window.resizeTop()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeBottomButton(window: Window) =
-  let button = window.getNode("ResizeBottomButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeTopBottom
+#     window.resizeTop()
 
-  button.position = vec2(windowResizeHitSize * 2.0, window.size.y - windowResizeHitSize)
-  button.size = vec2(window.size.x - windowResizeHitSize * 4.0, windowResizeHitSize)
+# proc updateResizeBottomButton(window: Window) =
+#   let button = window.getNode("ResizeBottomButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(windowResizeHitSize * 2.0, window.size.y - windowResizeHitSize)
+#   button.size = vec2(window.size.x - windowResizeHitSize * 4.0, windowResizeHitSize)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeTopBottom
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeTopBottom
 
-  if button.isDown:
-    window.cursorStyle = ResizeTopBottom
-    window.resizeBottom()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeTopLeftButton(window: Window) =
-  let button = window.getNode("ResizeTopLeftButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeTopBottom
+#     window.resizeBottom()
 
-  button.position = vec2(0, 0)
-  button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
+# proc updateResizeTopLeftButton(window: Window) =
+#   let button = window.getNode("ResizeTopLeftButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(0, 0)
+#   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeTopLeftBottomRight
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeTopLeftBottomRight
 
-  if button.isDown:
-    window.cursorStyle = ResizeTopLeftBottomRight
-    window.resizeLeft()
-    window.resizeTop()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeTopRightButton(window: Window) =
-  let button = window.getNode("ResizeTopRightButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeTopLeftBottomRight
+#     window.resizeLeft()
+#     window.resizeTop()
 
-  button.position = vec2(window.size.x - windowResizeHitSize * 2.0, 0)
-  button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
+# proc updateResizeTopRightButton(window: Window) =
+#   let button = window.getNode("ResizeTopRightButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(window.size.x - windowResizeHitSize * 2.0, 0)
+#   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeTopRightBottomLeft
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeTopRightBottomLeft
 
-  if button.isDown:
-    window.cursorStyle = ResizeTopRightBottomLeft
-    window.resizeRight()
-    window.resizeTop()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeBottomLeftButton(window: Window) =
-  let button = window.getNode("ResizeBottomLeftButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeTopRightBottomLeft
+#     window.resizeRight()
+#     window.resizeTop()
 
-  button.position = vec2(0, window.size.y - windowResizeHitSize)
-  button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
+# proc updateResizeBottomLeftButton(window: Window) =
+#   let button = window.getNode("ResizeBottomLeftButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(0, window.size.y - windowResizeHitSize)
+#   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeTopRightBottomLeft
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeTopRightBottomLeft
 
-  if button.isDown:
-    window.cursorStyle = ResizeTopRightBottomLeft
-    window.resizeLeft()
-    window.resizeBottom()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateResizeBottomRightButton(window: Window) =
-  let button = window.getNode("ResizeBottomRightButton", Button)
-  if button.init:
-    button.zIndex = 1
+#   if button.isDown:
+#     window.cursorStyle = ResizeTopRightBottomLeft
+#     window.resizeLeft()
+#     window.resizeBottom()
 
-  button.position = vec2(window.size.x - windowResizeHitSize * 2.0, window.size.y - windowResizeHitSize)
-  button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
+# proc updateResizeBottomRightButton(window: Window) =
+#   let button = window.getNode("ResizeBottomRightButton", Button)
+#   if button.init:
+#     button.zIndex = 1
 
-  button.update(draw = false)
+#   button.position = vec2(window.size.x - windowResizeHitSize * 2.0, window.size.y - windowResizeHitSize)
+#   button.size = vec2(windowResizeHitSize * 2.0, windowResizeHitSize)
 
-  if button.isHovered:
-    window.cursorStyle = ResizeTopLeftBottomRight
+#   button.update(draw = false)
 
-  if button.pressed:
-    window.updateGrabState()
+#   if button.isHovered:
+#     window.cursorStyle = ResizeTopLeftBottomRight
 
-  if button.isDown:
-    window.cursorStyle = ResizeTopLeftBottomRight
-    window.resizeRight()
-    window.resizeBottom()
+#   if button.pressed:
+#     window.updateGrabState()
 
-proc updateBackgroundButton(window: Window) =
-  let button = window.getNode("BackgroundButton", Button)
-  button.position = vec2(0, 0)
-  button.size = window.size
-  button.update(draw = false)
+#   if button.isDown:
+#     window.cursorStyle = ResizeTopLeftBottomRight
+#     window.resizeRight()
+#     window.resizeBottom()
 
-proc drawShadow(window: Window) =
-  let position = vec2(0, 0)
-  let size = window.size
+# proc updateBackgroundButton(window: Window) =
+#   let button = window.getNode("BackgroundButton", Button)
+#   button.position = vec2(0, 0)
+#   button.size = window.size
+#   button.update(draw = false)
 
+proc drawWindowShadow(gui: Gui, position, size: Vec2) =
   const feather = 10.0
   const feather2 = feather * 2.0
 
   let path = Path.new()
   path.rect(position - vec2(feather, feather), size + feather2)
   path.roundedRect(position, size, windowCornerRadius, Negative)
-  window.fillPath(path, boxGradient(
+  gui.fillPath(path, boxGradient(
     vec2(position.x, position.y + 2),
     size,
     windowCornerRadius * 2.0,
@@ -278,7 +266,7 @@ proc drawShadow(window: Window) =
     rgba(0, 0, 0, 128), rgba(0, 0, 0, 0),
   ))
 
-proc drawBackground(window: Window) =
+proc drawWindowBackground(gui: Gui, position, size: Vec2) =
   const bodyColor = rgb(49, 51, 56)
   const bodyBorderColor = rgb(49, 51, 56).lighten(0.1)
   const headerColor = rgb(30, 31, 34)
@@ -290,10 +278,10 @@ proc drawBackground(window: Window) =
   const cornerRadius = windowCornerRadius
   const borderCornerRadius = windowCornerRadius - borderThicknessHalf
 
-  let x = 0.0
-  let y = 0.0
-  let width = window.size.x
-  let height = window.size.y
+  let x = position.x
+  let y = position.y
+  let width = size.x
+  let height = size.y
 
   let path = Path.new()
 
@@ -304,7 +292,7 @@ proc drawBackground(window: Window) =
     cornerRadius, cornerRadius,
     0, 0,
   )
-  window.fillPath(path, headerColor)
+  gui.fillPath(path, headerColor)
   path.clear()
 
   # Body fill:
@@ -314,7 +302,7 @@ proc drawBackground(window: Window) =
     0, 0,
     cornerRadius, cornerRadius,
   )
-  window.fillPath(path, bodyColor)
+  gui.fillPath(path, bodyColor)
   path.clear()
 
   # Body border:
@@ -332,7 +320,7 @@ proc drawBackground(window: Window) =
     borderCornerRadius,
   )
   path.lineTo(vec2(x + borderThicknessHalf, y + headerHeight))
-  window.strokePath(path, bodyBorderColor, borderThickness)
+  gui.strokePath(path, bodyBorderColor, borderThickness)
   path.clear()
 
   # Header border:
@@ -350,72 +338,66 @@ proc drawBackground(window: Window) =
     borderCornerRadius,
   )
   path.lineTo(vec2(x + width - borderThicknessHalf, y + headerHeight))
-  window.strokePath(path, headerBorderColor, borderThickness)
+  gui.strokePath(path, headerBorderColor, borderThickness)
   path.clear()
 
-proc header*(window: Window): GuiNode =
-  window.getNode("Header")
+proc beginWindow*(gui: Gui, id: GuiId,
+  position, size: var Vec2,
+  minSize = vec2(300, windowHeaderHeight * 2.0),
+  draw = true,
+) =
+  size.x = max(size.x, minSize.x)
+  size.y = max(size.y, minSize.y)
 
-proc body*(window: Window): GuiNode =
-  window.getNode("Body")
+  if draw:
+    gui.drawWindowShadow(position, size)
+    gui.drawWindowBackground(position, size)
 
-proc setDefault*(window: Window) =
-  window.zIndex = 1
-  window.size = vec2(400, 300)
-  window.minSize = vec2(300, windowHeaderHeight * 2.0)
-  window.header.clipChildren = true
-  window.body.clipChildren = true
+  var state = gui.getState(id, WindowState)
+  state.positionPtr = addr(position)
+  state.sizePtr = addr(size)
+  gui.setState(id, state)
 
-proc getWindow*(node: GuiNode, name: string): Window =
-  result = node.getNode(name, Window)
-  if result.init:
-    result.setDefault()
+  gui.pushId(id)
 
-proc update*(window: Window, draw = true) =
-  GuiNode(window).update()
+proc endWindow*(gui: Gui) =
+  let id = gui.popId()
+  var state = gui.getState(id, WindowState)
 
-  window.size.x = max(window.size.x, window.currentMinSize.x)
-  window.size.y = max(window.size.y, window.currentMinSize.y)
+  var position =
+    if state.positionPtr != nil: state.positionPtr[]
+    else: vec2(0, 0)
 
-  if window.childIsHovered and
-    (window.mousePressed(Left) or window.mousePressed(Middle) or window.mousePressed(Right)):
-    window.bringToFront()
+  var size =
+    if state.sizePtr != nil: state.sizePtr[]
+    else: vec2(0, 0)
 
-  window.updateBackgroundButton()
-  window.updateMoveButton()
-  window.updateResizeLeftButton()
-  window.updateResizeRightButton()
-  window.updateResizeTopButton()
-  window.updateResizeBottomButton()
-  window.updateResizeTopLeftButton()
-  window.updateResizeTopRightButton()
-  window.updateResizeBottomLeftButton()
-  window.updateResizeBottomRightButton()
+  gui.pushId(id)
 
-  let body = window.body
-  body.position = vec2(
-    windowBorderThickness + windowRoundingInset,
-    windowHeaderHeight + windowRoundingInset,
+  let moveButton = gui.button("MoveButton",
+    position = vec2(windowResizeHitSize, windowResizeHitSize),
+    size = vec2(size.x - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize),
   )
-  body.size = vec2(
-    window.size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
-    window.size.y - windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
-  )
-  body.update()
 
-  let header = window.header
-  header.position = vec2(
-    windowBorderThickness + windowRoundingInset,
-    windowBorderThickness + windowRoundingInset,
-  )
-  header.size = vec2(
-    window.size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
-    windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
-  )
-  header.update()
+  if moveButton.pressed:
+    state.globalMousePositionWhenGrabbed = gui.globalMousePosition
+    state.positionWhenGrabbed = position
+    state.sizeWhenGrabbed = size
 
-  if not draw:
-    return
+  template grabDelta(): Vec2 =
+    gui.globalMousePosition - state.globalMousePositionWhenGrabbed
 
-  window.drawShadow()
-  window.drawBackground()
+  if moveButton.isDown:
+    position = state.positionWhenGrabbed + grabDelta()
+
+  gui.popId()
+
+  if state.positionPtr != nil:
+    state.positionPtr[] = position
+
+  if state.sizePtr != nil:
+    state.sizePtr[] = size
+
+  state.positionPtr = nil
+  state.sizePtr = nil
+  gui.setState(id, state)

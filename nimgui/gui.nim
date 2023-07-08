@@ -110,7 +110,7 @@ proc getId*(gui: Gui, x: auto): GuiId =
     result = hash(x)
 
 proc pushId*(gui: Gui, id: GuiId) = gui.idStack.add(id)
-proc popId*(gui: Gui) = discard gui.idStack.pop()
+proc popId*(gui: Gui): GuiId {.discardable.} = gui.idStack.pop()
 
 proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
   if gui.retainedState.hasKey(id):
@@ -118,6 +118,9 @@ proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
   else:
     gui.retainedState[id] = GuiStateHolder[T](value: initialValue)
     initialValue
+
+proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
+  gui.getState(id, T())
 
 proc setState*[T](gui: Gui, id: GuiId, value: T) =
   GuiStateHolder[T](gui.retainedState[id]).value = value

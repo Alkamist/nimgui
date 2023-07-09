@@ -48,16 +48,18 @@ type
     textInput*: string
 
     # State and ids
-    hover*: GuiId
-    mouseOver*: GuiId
-    hoverCapture*: GuiId
-    retainedState*: Table[GuiId, RootRef]
-    idStack*: seq[GuiId]
-
+    hover: GuiId
+    mouseOver: GuiId
+    hoverCapture: GuiId
+    retainedState: Table[GuiId, RootRef]
+    idStack: seq[GuiId]
     finalHoverRequest: GuiId
 
+    # Offset
+    offsetStack: seq[Vec2]
+
     # Vector graphics
-    vgCtx*: VectorGraphicsContext
+    vgCtx: VectorGraphicsContext
     drawCommands: seq[DrawCommand]
 
     # Previous frame state
@@ -80,8 +82,11 @@ proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 
+proc currentOffset*(gui: Gui): Vec2 =
+  gui.offsetStack[^1]
+
 proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition
+  gui.globalMousePosition - gui.currentOffset
 
 proc isHovered*(gui: Gui, id: GuiId): bool =
   gui.hover == id
@@ -125,6 +130,15 @@ proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
 proc setState*[T](gui: Gui, id: GuiId, value: T) =
   GuiStateHolder[T](gui.retainedState[id]).value = value
 
+proc pushOffset*(gui: Gui, offset: Vec2, global = false) =
+  if global:
+    gui.offsetStack.add(offset)
+  else:
+    gui.offsetStack.add(gui.currentOffset + offset)
+
+proc popOffset*(gui: Gui): Vec2 {.discardable.} =
+  gui.offsetStack.pop()
+
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
   result.vgCtx = VectorGraphicsContext.new()
@@ -135,9 +149,14 @@ proc beginFrame*(gui: Gui) =
   gui.finalHoverRequest = 0
 
   gui.pushId(gui.getGlobalId("Root"))
+  gui.pushOffset(vec2(0, 0), global = true)
 
 proc endFrame*(gui: Gui) =
+  gui.popOffset()
   gui.popId()
+
+  assert(gui.offsetStack.len == 0)
+  assert(gui.idStack.len == 0)
 
   gui.vgCtx.renderDrawCommands(gui.drawCommands)
 
@@ -179,7 +198,7 @@ proc fillPath*(gui: Gui, path: Path, paint: Paint) =
   gui.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
     path: path[],
     paint: paint,
-    position: vec2(0, 0),
+    position: gui.currentOffset,
   )))
 
 proc fillPath*(gui: Gui, path: Path, color: Color) =
@@ -190,7 +209,7 @@ proc strokePath*(gui: Gui, path: Path, paint: Paint, strokeWidth = 1.0) =
     path: path[],
     paint: paint,
     strokeWidth: strokeWidth,
-    position: vec2(0, 0),
+    position: gui.currentOffset,
   )))
 
 proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
@@ -206,7 +225,7 @@ proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Fo
   gui.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
-    position: position,
+    position: gui.currentOffset + position,
     text: text,
     color: color,
   )))

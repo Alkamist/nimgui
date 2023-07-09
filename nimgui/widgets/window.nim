@@ -359,6 +359,7 @@ proc beginWindow*(gui: Gui, id: GuiId,
   gui.setState(id, state)
 
   gui.pushId(id)
+  gui.pushOffset(position)
 
 proc endWindow*(gui: Gui) =
   let id = gui.popId()
@@ -391,6 +392,7 @@ proc endWindow*(gui: Gui) =
     position = state.positionWhenGrabbed + grabDelta()
 
   gui.popId()
+  gui.popOffset()
 
   if state.positionPtr != nil:
     state.positionPtr[] = position
@@ -398,6 +400,4 @@ proc endWindow*(gui: Gui) =
   if state.sizePtr != nil:
     state.sizePtr[] = size
 
-  state.positionPtr = nil
-  state.sizePtr = nil
   gui.setState(id, state)

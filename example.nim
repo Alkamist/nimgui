@@ -14,14 +14,16 @@ gui.attachToOsWindow(osWindow)
 const fontData = readFile("consola.ttf")
 gui.addFont(fontData)
 
-var windowPosition = vec2(100, 100)
-var windowSize = vec2(400, 400)
+proc testWidget(gui: Gui, id: GuiId, initialPosition: Vec2) =
+  gui.pushId(id)
+  let positionId = gui.getId("Position")
+  let sizeId = gui.getId("Size")
+  gui.popId()
 
-osWindow.onFrame = proc(osWindow: OsWindow) =
-  gui.time = osWindow.time
-  gui.beginFrame()
+  var position = gui.getState(positionId, initialPosition)
+  var size = gui.getState(sizeId, vec2(400, 300))
 
-  gui.beginWindow(gui.getId("Window"), windowPosition, windowSize)
+  gui.beginWindow(id, position, size)
 
   let sliderValueId = gui.getId("SliderValue")
   var sliderValue = gui.getState(sliderValueId, 0.0)
@@ -35,6 +37,16 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.setState(sliderValueId, sliderValue)
 
   gui.endWindow()
+
+  gui.setState(positionId, position)
+  gui.setState(sizeId, size)
+
+osWindow.onFrame = proc(osWindow: OsWindow) =
+  gui.time = osWindow.time
+  gui.beginFrame()
+
+  gui.testWidget(gui.getId("Widget1"), vec2(0, 50))
+  gui.testWidget(gui.getId("Widget2"), vec2(500, 50))
 
   gui.fillTextRaw("Fps: " & gui.fps.formatFloat(ffDecimal, 4), vec2(0, 0), rgb(255, 255, 255), 0, 13)
 

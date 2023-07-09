@@ -27,7 +27,7 @@ proc buttonMouseHitTest(gui: Gui, position, size: Vec2): bool =
   let m = gui.mousePosition
   m.x >= position.x and m.x <= position.x + size.x and
   m.y >= position.y and m.y <= position.y + size.y and
-  gui.clipRect.contains(gui.globalMousePosition)
+  gui.clipRect.contains(gui.mousePosition)
 
 proc button*(gui: Gui, id: GuiId,
   position = vec2(0, 0),

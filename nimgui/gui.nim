@@ -1,7 +1,7 @@
 import std/math
 import std/hashes
 import std/tables
-# import std/strutils
+import std/strutils
 import std/algorithm
 import oswindow; export oswindow
 import ./vectorgraphics; export vectorgraphics
@@ -107,8 +107,10 @@ proc offset*(gui: Gui): Vec2 =
 proc idSpace*(gui: Gui): GuiId =
   gui.idStack[^1]
 
-proc clipRect*(gui: Gui): ClipRect =
-  gui.clipRectStack[^1]
+proc clipRect*(gui: Gui, global = false): ClipRect =
+  result = gui.clipRectStack[^1]
+  if not global:
+    result.position -= gui.offset
 
 proc interactionTracker*(gui: Gui): InteractionTracker =
   gui.interactionTrackerStack[^1]
@@ -206,7 +208,7 @@ proc pushClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = t
     clipRect.position += gui.offset
 
   if intersect:
-    clipRect = clipRect.intersect(gui.clipRect)
+    clipRect = clipRect.intersect(gui.clipRectStack[^1])
 
   gui.clipRectStack.add(clipRect)
 
@@ -221,7 +223,7 @@ proc popClipRect*(gui: Gui): ClipRect {.discardable.} =
   if gui.clipRectStack.len == 0:
     return
 
-  let clipRect = gui.clipRect
+  let clipRect = gui.clipRectStack[^1]
   gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
     position: clipRect.position,
     size: clipRect.size,
@@ -338,6 +340,9 @@ proc addFont*(gui: Gui, data: string): Font {.discardable.} =
 proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
   gui.vgCtx.measureGlyphs(text, font, fontSize)
 
+proc textMetrics*(gui: Gui, font: Font, fontSize: float): TextMetrics =
+  gui.vgCtx.textMetrics(font, fontSize)
+
 proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Font, fontSize: float) =
   gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
@@ -347,31 +352,31 @@ proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Fo
     color: color,
   )))
 
-# proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255), font = Font(0), fontSize = 13.0) =
-#   if text.len == 0:
-#     return
+proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255), font = Font(0), fontSize = 13.0) =
+  if text.len == 0:
+    return
 
-#   let lineHeight = node.gui.vgCtx.textMetrics(font, fontSize).lineHeight
+  let lineHeight = gui.textMetrics(font, fontSize).lineHeight
 
-#   let clipRect = node.clipRect
-#   # let clipLeft = clipRect.position.x
-#   # let clipRight = clipRect.position.x + clipRect.size.x
-#   let clipTop = clipRect.position.y
-#   let clipBottom = clipRect.position.y + clipRect.size.y
+  let clipRect = gui.clipRect
+  # let clipLeft = clipRect.position.x
+  # let clipRight = clipRect.position.x + clipRect.size.x
+  let clipTop = clipRect.position.y
+  let clipBottom = clipRect.position.y + clipRect.size.y
 
-#   var linePosition = position
+  var linePosition = position
 
-#   for line in text.splitLines:
-#     if linePosition.y >= clipBottom:
-#       return
+  for line in text.splitLines:
+    if linePosition.y >= clipBottom:
+      return
 
-#     if linePosition.y + lineHeight < clipTop or line == "":
-#       linePosition.y += lineHeight
-#       continue
+    if linePosition.y + lineHeight < clipTop or line == "":
+      linePosition.y += lineHeight
+      continue
 
-#     node.fillTextRaw(line, linePosition, color, font, fontSize)
+    gui.fillTextRaw(line, linePosition, color, font, fontSize)
 
-#     linePosition.y += lineHeight
+    linePosition.y += lineHeight
 
 
 # ======================================================================

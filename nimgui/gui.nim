@@ -1,7 +1,6 @@
 import std/math
 import std/hashes
 import std/tables
-import std/strutils
 import std/algorithm
 import oswindow; export oswindow
 import ./vectorgraphics; export vectorgraphics
@@ -343,7 +342,12 @@ proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float
 proc textMetrics*(gui: Gui, font: Font, fontSize: float): TextMetrics =
   gui.vgCtx.textMetrics(font, fontSize)
 
-proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Font, fontSize: float) =
+proc fillTextRaw*(gui: Gui, text: string,
+  position: Vec2,
+  color = rgb(255, 255, 255),
+  font = Font(0),
+  fontSize = 13.0,
+) =
   gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
@@ -352,7 +356,62 @@ proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Fo
     color: color,
   )))
 
-proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255), font = Font(0), fontSize = 13.0) =
+# proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255), font = Font(0), fontSize = 13.0) =
+#   if text.len == 0:
+#     return
+
+#   let lineHeight = gui.textMetrics(font, fontSize).lineHeight
+
+#   let clipRect = gui.clipRect
+#   # let clipLeft = clipRect.position.x
+#   # let clipRight = clipRect.position.x + clipRect.size.x
+#   let clipTop = clipRect.position.y
+#   let clipBottom = clipRect.position.y + clipRect.size.y
+
+#   var linePosition = position
+
+#   for line in text.splitLines:
+#     if linePosition.y >= clipBottom:
+#       return
+
+#     if linePosition.y + lineHeight < clipTop or line == "":
+#       linePosition.y += lineHeight
+#       continue
+
+#     gui.fillTextRaw(line, linePosition, color, font, fontSize)
+
+#     linePosition.y += lineHeight
+
+iterator splitLinesIndices(s: openArray[char]): tuple[first, last: int] =
+  var first = 0
+  var last = 0
+  var eolpos = 0
+  while true:
+    while last < s.len and s[last] notin {'\c', '\l'}: inc(last)
+
+    eolpos = last
+    if last < s.len:
+      if s[last] == '\l': inc(last)
+      elif s[last] == '\c':
+        inc(last)
+        if last < s.len and s[last] == '\l': inc(last)
+
+    yield (first, eolpos - 1)
+
+    # no eol characters consumed means that the string is over
+    if eolpos == last:
+      break
+
+    first = last
+
+proc fillText*(gui: Gui, text: openArray[char],
+  position: Vec2,
+  size = vec2(0, 0),
+  alignment = vec2(0, 0),
+  color = rgb(255, 255, 255),
+  font = Font(0),
+  fontSize = 13.0,
+) =
   if text.len == 0:
     return
 
@@ -365,16 +424,31 @@ proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255
   let clipBottom = clipRect.position.y + clipRect.size.y
 
   var linePosition = position
+  var alignmentOffset = vec2(0, (size.y - lineHeight) * alignment.y)
 
-  for line in text.splitLines:
+  for first, last in text.splitLinesIndices:
     if linePosition.y >= clipBottom:
       return
 
-    if linePosition.y + lineHeight < clipTop or line == "":
+    if linePosition.y + lineHeight < clipTop or first == last:
       linePosition.y += lineHeight
       continue
 
-    gui.fillTextRaw(line, linePosition, color, font, fontSize)
+    if size.x > 0:
+      var glyphs = gui.measureGlyphs(text.toOpenArray(first, last), font, fontSize)
+      if glyphs.len == 0:
+        linePosition.y += lineHeight
+        continue
+
+      for glyph in glyphs.mitems:
+        glyph.firstByte += first
+        glyph.lastByte += first
+
+      let leftOverSpaceAtEndOfLine = size.x - glyphs[^1].right
+      alignmentOffset.x = alignment.x * leftOverSpaceAtEndOfLine
+
+    let line = cast[string](text[first .. last])
+    gui.fillTextRaw(line, linePosition + alignmentOffset, color, font, fontSize)
 
     linePosition.y += lineHeight
 

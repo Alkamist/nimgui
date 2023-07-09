@@ -239,6 +239,12 @@ proc popZIndex*(gui: Gui): int {.discardable.} =
   gui.layers.add(layer)
   layer.zIndex
 
+proc mouseHitTest*(gui: Gui, position, size: Vec2): bool =
+  let m = gui.mousePosition
+  m.x >= position.x and m.x <= position.x + size.x and
+  m.y >= position.y and m.y <= position.y + size.y and
+  gui.clipRect.contains(gui.mousePosition)
+
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
   result.vgCtx = VectorGraphicsContext.new()
@@ -356,32 +362,6 @@ proc fillTextRaw*(gui: Gui, text: string,
     color: color,
   )))
 
-# proc fillText*(gui: Gui, text: string, position: Vec2, color = rgb(255, 255, 255), font = Font(0), fontSize = 13.0) =
-#   if text.len == 0:
-#     return
-
-#   let lineHeight = gui.textMetrics(font, fontSize).lineHeight
-
-#   let clipRect = gui.clipRect
-#   # let clipLeft = clipRect.position.x
-#   # let clipRight = clipRect.position.x + clipRect.size.x
-#   let clipTop = clipRect.position.y
-#   let clipBottom = clipRect.position.y + clipRect.size.y
-
-#   var linePosition = position
-
-#   for line in text.splitLines:
-#     if linePosition.y >= clipBottom:
-#       return
-
-#     if linePosition.y + lineHeight < clipTop or line == "":
-#       linePosition.y += lineHeight
-#       continue
-
-#     gui.fillTextRaw(line, linePosition, color, font, fontSize)
-
-#     linePosition.y += lineHeight
-
 iterator splitLinesIndices(s: openArray[char]): tuple[first, last: int] =
   var first = 0
   var last = 0
@@ -424,7 +404,7 @@ proc fillText*(gui: Gui, text: openArray[char],
   let clipBottom = clipRect.position.y + clipRect.size.y
 
   var linePosition = position
-  var alignmentOffset = vec2(0, (size.y - lineHeight) * alignment.y)
+  linePosition.y += (size.y - lineHeight) * alignment.y
 
   for first, last in text.splitLinesIndices:
     if linePosition.y >= clipBottom:
@@ -434,6 +414,7 @@ proc fillText*(gui: Gui, text: openArray[char],
       linePosition.y += lineHeight
       continue
 
+    var alignmentXOffset = 0.0
     if size.x > 0:
       var glyphs = gui.measureGlyphs(text.toOpenArray(first, last), font, fontSize)
       if glyphs.len == 0:
@@ -445,10 +426,10 @@ proc fillText*(gui: Gui, text: openArray[char],
         glyph.lastByte += first
 
       let leftOverSpaceAtEndOfLine = size.x - glyphs[^1].right
-      alignmentOffset.x = alignment.x * leftOverSpaceAtEndOfLine
+      alignmentXOffset = alignment.x * leftOverSpaceAtEndOfLine
 
     let line = cast[string](text[first .. last])
-    gui.fillTextRaw(line, linePosition + alignmentOffset, color, font, fontSize)
+    gui.fillTextRaw(line, linePosition + vec2(alignmentXOffset, 0), color, font, fontSize)
 
     linePosition.y += lineHeight
 

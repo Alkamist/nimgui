@@ -18,7 +18,7 @@ proc slider*(gui: Gui, id: GuiId,
   handleLength = 16.0,
   draw = true,
 ): SliderState {.discardable.} =
-  gui.pushId(id)
+  gui.pushIdSpace(id)
 
   let stateId = gui.getId("State")
   var state = gui.getState(stateId, SliderInternalState())
@@ -66,7 +66,7 @@ proc slider*(gui: Gui, id: GuiId,
 
   gui.setState(stateId, state)
 
-  gui.popId()
+  gui.popIdSpace()
 
   SliderState(handle: handle)
 

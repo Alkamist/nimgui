@@ -18,10 +18,20 @@ const windowBorderThickness = 1.0
 const windowCornerRadius = 3.0
 const windowRoundingInset = ceil((1.0 - sin(45.0.degToRad)) * windowCornerRadius)
 
-# proc bringToFront*(window: Window) =
-#   window.zIndex = window.parent.highestChildZIndex + 1
-#   if window.parent of Window:
-#     Window(window.parent).bringToFront()
+proc windowInteraction(gui: Gui): bool =
+  gui.mousePressed(Left) or gui.mousePressed(Middle) or gui.mousePressed(Right)
+
+proc windowStateId(gui: Gui): GuiId =
+  gui.getId("_State")
+
+proc highestWindowZIndexStateId(gui: Gui): GuiId =
+  gui.getId("HIGHEST_WINDOW_Z_INDEX", global = true)
+
+proc highestWindowZIndex(gui: Gui): int =
+  gui.getState(gui.highestWindowZIndexStateId, 0)
+
+proc `highestWindowZIndex=`(gui: Gui, value: int) =
+  gui.setState(gui.highestWindowZIndexStateId, value)
 
 proc drawWindowShadow(gui: Gui, position, size: Vec2) =
   const feather = 10.0
@@ -113,13 +123,8 @@ proc drawWindowBackground(gui: Gui, position, size: Vec2) =
   gui.strokePath(path, headerBorderColor, borderThickness)
   path.clear()
 
-proc windowStateId(gui: Gui): GuiId =
-  gui.getId("_State")
-
 proc windowMoveAndResizeBehavior(gui: Gui) =
-  let stateId = gui.windowStateId
-
-  var state = gui.getState(stateId, WindowState)
+  let state = gui.getState(gui.windowStateId, WindowState)
   var position = state.position
   var size = state.size
 
@@ -287,20 +292,30 @@ proc windowMoveAndResizeBehavior(gui: Gui) =
   state.position = position
   state.size = size
 
+proc bringWindowToFront*(gui: Gui, id: GuiId) =
+  gui.pushIdSpace(id)
+  let state = gui.getState(gui.windowStateId, WindowState)
+  gui.popIdSpace()
+  let zIndex = gui.highestWindowZIndex + 1
+  state.zIndex = zIndex
+  gui.highestWindowZIndex = zIndex
+
 proc beginWindow*(gui: Gui, id: GuiId,
   initialPosition: Vec2,
   initialSize = vec2(400, 300),
   minSize = vec2(300, windowHeaderHeight * 2.0),
   draw = true,
 ) =
-  gui.pushId(id)
+  gui.pushIdSpace(id)
 
-  var state = gui.getState(gui.windowStateId, WindowState(
+  let state = gui.getState(gui.windowStateId, WindowState(
     position: initialPosition,
     size: initialSize,
   ))
   var position = state.position
   var size = state.size
+
+  gui.pushZIndex(state.zIndex, global = true)
 
   size.x = max(size.x, minSize.x)
   size.y = max(size.y, minSize.y)
@@ -313,7 +328,9 @@ proc beginWindow*(gui: Gui, id: GuiId,
   state.position = position
   state.size = size
 
-  gui.pushOffset(position)
+  gui.pushOffset(position, global = true)
+  if gui.windowInteraction:
+    gui.pushInteractionTracker()
 
   # Blocks mouse input from going through the window.
   gui.button("_BackgroundButton",
@@ -332,8 +349,15 @@ proc beginWindow*(gui: Gui, id: string,
 
 proc endWindow*(gui: Gui) =
   gui.windowMoveAndResizeBehavior()
+
+  if gui.windowInteraction:
+    let tracker = gui.popInteractionTracker()
+    if tracker.detectedHover:
+      gui.bringWindowToFront(gui.idSpace)
+
   gui.popOffset()
-  gui.popId()
+  gui.popZIndex()
+  gui.popIdSpace()
 
 proc beginWindowBody*(gui: Gui) =
   let state = gui.getState(gui.windowStateId, WindowState)

@@ -35,6 +35,10 @@ type
     drawCommands: seq[DrawCommand]
     finalHoverRequest: GuiId
 
+  InteractionTracker* = object
+    detectedHover*: bool
+    detectedMouseOver*: bool
+
   Gui* = ref object
     size*: Vec2
     scale*: float
@@ -63,6 +67,7 @@ type
     offsetStack: seq[Vec2]
     clipRectStack: seq[ClipRect]
     layerStack: seq[Layer]
+    interactionTrackerStack: seq[InteractionTracker]
 
     # Layer
     layers: seq[Layer]
@@ -99,11 +104,14 @@ proc zIndex*(gui: Gui): int =
 proc offset*(gui: Gui): Vec2 =
   gui.offsetStack[^1]
 
-proc parentId*(gui: Gui): GuiId =
+proc idSpace*(gui: Gui): GuiId =
   gui.idStack[^1]
 
 proc clipRect*(gui: Gui): ClipRect =
   gui.clipRectStack[^1]
+
+proc interactionTracker*(gui: Gui): InteractionTracker =
+  gui.interactionTrackerStack[^1]
 
 proc mousePosition*(gui: Gui): Vec2 =
   gui.globalMousePosition - gui.offset
@@ -117,6 +125,12 @@ proc mouseIsOver*(gui: Gui, id: GuiId): bool =
 proc requestHover*(gui: Gui, id: GuiId) =
   gui.currentLayer.finalHoverRequest = id
 
+  if gui.isHovered(id):
+    gui.interactionTrackerStack[^1].detectedHover = true
+
+  if gui.mouseIsOver(id):
+    gui.interactionTrackerStack[^1].detectedMouseOver = true
+
 proc captureHover*(gui: Gui, id: GuiId) =
   if gui.hoverCapture == 0:
     gui.hoverCapture = id
@@ -125,14 +139,27 @@ proc releaseHover*(gui: Gui, id: GuiId) =
   if gui.hoverCapture == id:
     gui.hoverCapture = 0
 
+proc pushInteractionTracker*(gui: Gui) =
+  gui.interactionTrackerStack.add(InteractionTracker())
+
+proc popInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
+  result = gui.interactionTrackerStack.pop()
+  if result.detectedHover:
+    gui.interactionTrackerStack[^1].detectedHover = true
+  if result.detectedMouseOver:
+    gui.interactionTrackerStack[^1].detectedMouseOver = true
+
 proc getId*(gui: Gui, x: auto, global = false): GuiId =
   if global:
     hash(x)
   else:
     !$(gui.idStack[^1] !& hash(x))
 
-proc pushId*(gui: Gui, id: GuiId) = gui.idStack.add(id)
-proc popId*(gui: Gui): GuiId {.discardable.} = gui.idStack.pop()
+proc pushIdSpace*(gui: Gui, id: GuiId) =
+  gui.idStack.add(id)
+
+proc popIdSpace*(gui: Gui): GuiId {.discardable.} =
+  gui.idStack.pop()
 
 proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
   if gui.retainedState.hasKey(id):
@@ -219,21 +246,24 @@ proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
   gui.cursorStyle = Arrow
 
-  gui.pushId(gui.getId("Root", global = true))
+  gui.pushIdSpace(gui.getId("Root", global = true))
   gui.pushZIndex(0, global = true)
   gui.pushOffset(vec2(0, 0), global = true)
   gui.pushClipRect(vec2(0, 0), gui.size, global = true, intersect = false)
+  gui.interactionTrackerStack.add(InteractionTracker())
 
 proc endFrame*(gui: Gui) =
+  discard gui.interactionTrackerStack.pop()
   gui.popClipRect()
   gui.popOffset()
   gui.popZIndex()
-  gui.popId()
+  gui.popIdSpace()
 
   assert(gui.idStack.len == 0)
   assert(gui.offsetStack.len == 0)
   assert(gui.layerStack.len == 0)
   assert(gui.clipRectStack.len == 0)
+  assert(gui.interactionTrackerStack.len == 0)
 
   # The layers are in reverse order because they were added in popZIndex.
   # Sort preserves the order of layers with the same z index, so they

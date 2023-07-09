@@ -17,12 +17,7 @@ gui.addFont(fontData)
 proc testWidget(gui: Gui, id: GuiId, initialPosition: Vec2) =
   gui.pushId(id)
 
-  let positionId = gui.getId("Position")
-  let sizeId = gui.getId("Size")
-  var position = gui.getState(positionId, initialPosition)
-  var size = gui.getState(sizeId, vec2(400, 300))
-
-  gui.beginWindow("Window", position, size)
+  gui.beginWindow("Window", initialPosition)
   gui.beginWindowBody()
 
   let sliderValueId = gui.getId("SliderValue")
@@ -38,9 +33,6 @@ proc testWidget(gui: Gui, id: GuiId, initialPosition: Vec2) =
 
   gui.endWindowBody()
   gui.endWindow()
-
-  gui.setState(positionId, position)
-  gui.setState(sizeId, size)
 
   gui.popId()
 

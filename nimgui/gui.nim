@@ -136,16 +136,29 @@ proc popId*(gui: Gui): GuiId {.discardable.} = gui.idStack.pop()
 
 proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
   if gui.retainedState.hasKey(id):
-    StateHolder[T](gui.retainedState[id]).value
+    when T is RootRef:
+      T(gui.retainedState[id])
+    else:
+      StateHolder[T](gui.retainedState[id]).value
   else:
-    gui.retainedState[id] = StateHolder[T](value: initialValue)
-    initialValue
+    when T is RootRef:
+      gui.retainedState[id] = initialValue
+      initialValue
+    else:
+      gui.retainedState[id] = StateHolder[T](value: initialValue)
+      initialValue
 
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   gui.getState(id, T())
 
 proc setState*[T](gui: Gui, id: GuiId, value: T) =
-  StateHolder[T](gui.retainedState[id]).value = value
+  when T is RootRef:
+    gui.retainedState[id] = value
+  else:
+    if gui.retainedState.hasKey(id):
+      StateHolder[T](gui.retainedState[id]).value = value
+    else:
+      gui.retainedState[id] = StateHolder[T](value: value)
 
 proc pushOffset*(gui: Gui, offset: Vec2, global = false) =
   if global:

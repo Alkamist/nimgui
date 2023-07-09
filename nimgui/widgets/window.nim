@@ -3,11 +3,11 @@ import ../gui
 import ./button
 
 type
-  WindowState = object
-    zIndex: int
+  WindowState = ref object of RootRef
+    position: Vec2
+    size: Vec2
     minSize: Vec2
-    positionPtr: ptr Vec2
-    sizePtr: ptr Vec2
+    zIndex: int
     globalMousePositionWhenGrabbed: Vec2
     positionWhenGrabbed: Vec2
     sizeWhenGrabbed: Vec2
@@ -17,22 +17,6 @@ const windowResizeHitSize = 5.0
 const windowBorderThickness = 1.0
 const windowCornerRadius = 3.0
 const windowRoundingInset = ceil((1.0 - sin(45.0.degToRad)) * windowCornerRadius)
-
-proc position(state: WindowState): Vec2 =
-  if state.positionPtr != nil: state.positionPtr[]
-  else: vec2(0, 0)
-
-proc `position=`(state: WindowState, value: Vec2) =
-  if state.positionPtr != nil:
-    state.positionPtr[] = value
-
-proc size(state: WindowState): Vec2 =
-  if state.sizePtr != nil: state.sizePtr[]
-  else: vec2(0, 0)
-
-proc `size=`(state: WindowState, value: Vec2) =
-  if state.sizePtr != nil:
-    state.sizePtr[] = value
 
 # proc bringToFront*(window: Window) =
 #   window.zIndex = window.parent.highestChildZIndex + 1
@@ -302,14 +286,21 @@ proc windowMoveAndResizeBehavior(gui: Gui) =
 
   state.position = position
   state.size = size
-  gui.setState(stateId, state)
 
 proc beginWindow*(gui: Gui, id: GuiId,
-  position, size: var Vec2,
+  initialPosition: Vec2,
+  initialSize = vec2(400, 300),
   minSize = vec2(300, windowHeaderHeight * 2.0),
   draw = true,
 ) =
   gui.pushId(id)
+
+  var state = gui.getState(gui.windowStateId, WindowState(
+    position: initialPosition,
+    size: initialSize,
+  ))
+  var position = state.position
+  var size = state.size
 
   size.x = max(size.x, minSize.x)
   size.y = max(size.y, minSize.y)
@@ -318,14 +309,9 @@ proc beginWindow*(gui: Gui, id: GuiId,
     gui.drawWindowShadow(position, size)
     gui.drawWindowBackground(position, size)
 
-  let stateId = gui.windowStateId
-  var state = gui.getState(stateId, WindowState)
-
   state.minSize = minSize
-  state.positionPtr = addr(position)
-  state.sizePtr = addr(size)
-
-  gui.setState(stateId, state)
+  state.position = position
+  state.size = size
 
   gui.pushOffset(position)
 
@@ -337,11 +323,12 @@ proc beginWindow*(gui: Gui, id: GuiId,
   )
 
 proc beginWindow*(gui: Gui, id: string,
-  position, size: var Vec2,
+  initialPosition: Vec2,
+  initialSize = vec2(400, 300),
   minSize = vec2(300, windowHeaderHeight * 2.0),
   draw = true,
 ) =
-  gui.beginWindow(gui.getId(id), position, size, minSize, draw)
+  gui.beginWindow(gui.getId(id), initialPosition, initialSize, minSize, draw)
 
 proc endWindow*(gui: Gui) =
   gui.windowMoveAndResizeBehavior()

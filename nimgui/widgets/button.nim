@@ -23,6 +23,12 @@ proc update*(button: var ButtonState, isHovered, mouseIsOver, press, release: bo
     if mouseIsOver:
       button.clicked = true
 
+proc buttonMouseHitTest(gui: Gui, position, size: Vec2): bool =
+  let m = gui.mousePosition
+  m.x >= position.x and m.x <= position.x + size.x and
+  m.y >= position.y and m.y <= position.y + size.y and
+  gui.clipRect.contains(gui.globalMousePosition)
+
 proc button*(gui: Gui, id: GuiId,
   position = vec2(0, 0),
   size = vec2(96, 32),
@@ -46,9 +52,7 @@ proc button*(gui: Gui, id: GuiId,
   if button.released:
     gui.releaseHover(id)
 
-  let m = gui.mousePosition
-  if m.x >= position.x and m.x <= position.x + size.x and
-     m.y >= position.y and m.y <= position.y + size.y:
+  if gui.buttonMouseHitTest(position, size):
     gui.requestHover(id)
 
   if draw:

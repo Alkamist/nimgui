@@ -26,7 +26,7 @@ proc update(performance: var Performance, deltaTime: float, averageWindow: int) 
   performance.previousAverageWindow = averageWindow
 
 proc frameTime*(gui: Gui, averageWindow = 100, update = true): float =
-  let id = gui.getGlobalId("GUI_PERFORMANCE")
+  let id = gui.getId("GUI_PERFORMANCE", global = true)
   var performance = gui.getState(id, Performance())
 
   if update:

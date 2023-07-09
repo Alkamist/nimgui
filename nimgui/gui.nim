@@ -52,11 +52,12 @@ type
     mouseOver: GuiId
     hoverCapture: GuiId
     retainedState: Table[GuiId, RootRef]
-    idStack: seq[GuiId]
     finalHoverRequest: GuiId
 
-    # Offset
+    # Stacks
+    idStack: seq[GuiId]
     offsetStack: seq[Vec2]
+    clipRectStack: seq[ClipRect]
 
     # Vector graphics
     vgCtx: VectorGraphicsContext
@@ -82,11 +83,17 @@ proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 
-proc currentOffset*(gui: Gui): Vec2 =
+proc offset*(gui: Gui): Vec2 =
   gui.offsetStack[^1]
 
+proc parentId*(gui: Gui): GuiId =
+  gui.idStack[^1]
+
+proc clipRect*(gui: Gui): ClipRect =
+  gui.clipRectStack[^1]
+
 proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition - gui.currentOffset
+  gui.globalMousePosition - gui.offset
 
 proc isHovered*(gui: Gui, id: GuiId): bool =
   gui.hover == id
@@ -105,14 +112,11 @@ proc releaseHover*(gui: Gui, id: GuiId) =
   if gui.hoverCapture == id:
     gui.hoverCapture = 0
 
-proc getGlobalId*(gui: Gui, x: auto): GuiId =
-  hash(x)
-
-proc getId*(gui: Gui, x: auto): GuiId =
-  if gui.idStack.len > 0:
-    result = !$(gui.idStack[^1] !& hash(x))
+proc getId*(gui: Gui, x: auto, global = false): GuiId =
+  if global:
+    hash(x)
   else:
-    result = hash(x)
+    !$(gui.idStack[^1] !& hash(x))
 
 proc pushId*(gui: Gui, id: GuiId) = gui.idStack.add(id)
 proc popId*(gui: Gui): GuiId {.discardable.} = gui.idStack.pop()
@@ -134,10 +138,41 @@ proc pushOffset*(gui: Gui, offset: Vec2, global = false) =
   if global:
     gui.offsetStack.add(offset)
   else:
-    gui.offsetStack.add(gui.currentOffset + offset)
+    gui.offsetStack.add(gui.offset + offset)
 
 proc popOffset*(gui: Gui): Vec2 {.discardable.} =
   gui.offsetStack.pop()
+
+proc pushClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = true) =
+  var clipRect = ClipRect(
+    position: position,
+    size: size,
+  )
+
+  if not global:
+    clipRect.position += gui.offset
+
+  if intersect:
+    clipRect = clipRect.intersect(gui.clipRect)
+
+  gui.clipRectStack.add(clipRect)
+
+  gui.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
+    position: clipRect.position,
+    size: clipRect.size,
+  )))
+
+proc popClipRect*(gui: Gui): ClipRect {.discardable.} =
+  result = gui.clipRectStack.pop()
+
+  if gui.clipRectStack.len == 0:
+    return
+
+  let clipRect = gui.clipRect
+  gui.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
+    position: clipRect.position,
+    size: clipRect.size,
+  )))
 
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
@@ -148,15 +183,18 @@ proc beginFrame*(gui: Gui) =
   gui.cursorStyle = Arrow
   gui.finalHoverRequest = 0
 
-  gui.pushId(gui.getGlobalId("Root"))
+  gui.pushId(gui.getId("Root", global = true))
   gui.pushOffset(vec2(0, 0), global = true)
+  gui.pushClipRect(vec2(0, 0), gui.size, global = true, intersect = false)
 
 proc endFrame*(gui: Gui) =
+  gui.popClipRect()
   gui.popOffset()
   gui.popId()
 
-  assert(gui.offsetStack.len == 0)
   assert(gui.idStack.len == 0)
+  assert(gui.offsetStack.len == 0)
+  assert(gui.clipRectStack.len == 0)
 
   gui.vgCtx.renderDrawCommands(gui.drawCommands)
 
@@ -198,7 +236,7 @@ proc fillPath*(gui: Gui, path: Path, paint: Paint) =
   gui.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
     path: path[],
     paint: paint,
-    position: gui.currentOffset,
+    position: gui.offset,
   )))
 
 proc fillPath*(gui: Gui, path: Path, color: Color) =
@@ -209,7 +247,7 @@ proc strokePath*(gui: Gui, path: Path, paint: Paint, strokeWidth = 1.0) =
     path: path[],
     paint: paint,
     strokeWidth: strokeWidth,
-    position: gui.currentOffset,
+    position: gui.offset,
   )))
 
 proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
@@ -225,7 +263,7 @@ proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Fo
   gui.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
-    position: gui.currentOffset + position,
+    position: gui.offset + position,
     text: text,
     color: color,
   )))

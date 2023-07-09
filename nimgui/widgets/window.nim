@@ -4,6 +4,7 @@ import ./button
 
 type
   WindowState = object
+    zIndex: int
     minSize: Vec2
     positionPtr: ptr Vec2
     sizePtr: ptr Vec2

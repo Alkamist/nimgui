@@ -188,7 +188,10 @@ proc popClipRect*(gui: Gui): ClipRect {.discardable.} =
   )))
 
 proc pushZIndex*(gui: Gui, zIndex: int, global = false) =
-  gui.layerStack.add(Layer(zIndex: zIndex))
+  if global:
+    gui.layerStack.add(Layer(zIndex: zIndex))
+  else:
+    gui.layerStack.add(Layer(zIndex: gui.zIndex + zIndex))
 
 proc popZIndex*(gui: Gui): int {.discardable.} =
   let layer = gui.layerStack.pop()
@@ -226,6 +229,9 @@ proc endFrame*(gui: Gui) =
   gui.layers.sort(proc(x, y: Layer): int =
     cmp(x.zIndex, y.zIndex)
   )
+
+  gui.hover = 0
+  gui.mouseOver = 0
 
   for layer in gui.layers:
     gui.vgCtx.renderDrawCommands(layer.drawCommands)

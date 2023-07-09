@@ -18,9 +18,10 @@ proc slider*(gui: Gui, id: GuiId,
   handleLength = 16.0,
   draw = true,
 ): SliderState {.discardable.} =
-  var state = gui.getState(id, SliderInternalState())
-
   gui.pushId(id)
+
+  let stateId = gui.getId("State")
+  var state = gui.getState(stateId, SliderInternalState())
 
   let minValue = minValue
   let maxValue = maxValue.max(minValue)
@@ -63,9 +64,9 @@ proc slider*(gui: Gui, id: GuiId,
     elif gui.isHovered(handleId):
       gui.fillPath(path, rgba(255, 255, 255, 8))
 
-  gui.popId()
+  gui.setState(stateId, state)
 
-  gui.setState(id, state)
+  gui.popId()
 
   SliderState(handle: handle)
 

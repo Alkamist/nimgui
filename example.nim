@@ -48,7 +48,9 @@ osWindow.onFrame = proc(osWindow: OsWindow) =
   gui.time = osWindow.time
   gui.beginFrame()
 
+  gui.pushZIndex(1)
   gui.testWidget(gui.getId("Widget1"), vec2(0, 50))
+  gui.popZIndex()
   gui.testWidget(gui.getId("Widget2"), vec2(500, 50))
 
   gui.fillTextRaw("Fps: " & gui.fps.formatFloat(ffDecimal, 4), vec2(0, 0), rgb(255, 255, 255), 0, 13)

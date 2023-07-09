@@ -2,7 +2,7 @@ import std/math
 import std/hashes
 import std/tables
 # import std/strutils
-# import std/algorithm
+import std/algorithm
 import oswindow; export oswindow
 import ./vectorgraphics; export vectorgraphics
 
@@ -27,8 +27,13 @@ proc contains*(a: ClipRect, b: Vec2): bool =
 type
   GuiId* = Hash
 
-  GuiStateHolder*[T] = ref object of RootRef
-    value*: T
+  StateHolder[T] = ref object of RootRef
+    value: T
+
+  Layer = object
+    zIndex: int
+    drawCommands: seq[DrawCommand]
+    finalHoverRequest: GuiId
 
   Gui* = ref object
     size*: Vec2
@@ -52,16 +57,18 @@ type
     mouseOver: GuiId
     hoverCapture: GuiId
     retainedState: Table[GuiId, RootRef]
-    finalHoverRequest: GuiId
 
     # Stacks
     idStack: seq[GuiId]
     offsetStack: seq[Vec2]
     clipRectStack: seq[ClipRect]
+    layerStack: seq[Layer]
+
+    # Layer
+    layers: seq[Layer]
 
     # Vector graphics
     vgCtx: VectorGraphicsContext
-    drawCommands: seq[DrawCommand]
 
     # Previous frame state
     previousTime: float
@@ -83,6 +90,12 @@ proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 
+proc currentLayer(gui: Gui): var Layer =
+  gui.layerStack[^1]
+
+proc zIndex*(gui: Gui): int =
+  gui.currentLayer.zIndex
+
 proc offset*(gui: Gui): Vec2 =
   gui.offsetStack[^1]
 
@@ -102,7 +115,7 @@ proc mouseIsOver*(gui: Gui, id: GuiId): bool =
   gui.mouseOver == id
 
 proc requestHover*(gui: Gui, id: GuiId) =
-  gui.finalHoverRequest = id
+  gui.currentLayer.finalHoverRequest = id
 
 proc captureHover*(gui: Gui, id: GuiId) =
   if gui.hoverCapture == 0:
@@ -123,16 +136,16 @@ proc popId*(gui: Gui): GuiId {.discardable.} = gui.idStack.pop()
 
 proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
   if gui.retainedState.hasKey(id):
-    GuiStateHolder[T](gui.retainedState[id]).value
+    StateHolder[T](gui.retainedState[id]).value
   else:
-    gui.retainedState[id] = GuiStateHolder[T](value: initialValue)
+    gui.retainedState[id] = StateHolder[T](value: initialValue)
     initialValue
 
 proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
   gui.getState(id, T())
 
 proc setState*[T](gui: Gui, id: GuiId, value: T) =
-  GuiStateHolder[T](gui.retainedState[id]).value = value
+  StateHolder[T](gui.retainedState[id]).value = value
 
 proc pushOffset*(gui: Gui, offset: Vec2, global = false) =
   if global:
@@ -157,7 +170,7 @@ proc pushClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = t
 
   gui.clipRectStack.add(clipRect)
 
-  gui.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
+  gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
     position: clipRect.position,
     size: clipRect.size,
   )))
@@ -169,10 +182,18 @@ proc popClipRect*(gui: Gui): ClipRect {.discardable.} =
     return
 
   let clipRect = gui.clipRect
-  gui.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
+  gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
     position: clipRect.position,
     size: clipRect.size,
   )))
+
+proc pushZIndex*(gui: Gui, zIndex: int, global = false) =
+  gui.layerStack.add(Layer(zIndex: zIndex))
+
+proc popZIndex*(gui: Gui): int {.discardable.} =
+  let layer = gui.layerStack.pop()
+  gui.layers.add(layer)
+  layer.zIndex
 
 proc new*(_: typedesc[Gui]): Gui =
   result = Gui()
@@ -181,33 +202,42 @@ proc new*(_: typedesc[Gui]): Gui =
 proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.size, gui.scale)
   gui.cursorStyle = Arrow
-  gui.finalHoverRequest = 0
 
   gui.pushId(gui.getId("Root", global = true))
+  gui.pushZIndex(0, global = true)
   gui.pushOffset(vec2(0, 0), global = true)
   gui.pushClipRect(vec2(0, 0), gui.size, global = true, intersect = false)
 
 proc endFrame*(gui: Gui) =
   gui.popClipRect()
   gui.popOffset()
+  gui.popZIndex()
   gui.popId()
 
   assert(gui.idStack.len == 0)
   assert(gui.offsetStack.len == 0)
+  assert(gui.layerStack.len == 0)
   assert(gui.clipRectStack.len == 0)
 
-  gui.vgCtx.renderDrawCommands(gui.drawCommands)
+  # The layers are in reverse order because they were added in popZIndex.
+  # Sort preserves the order of layers with the same z index, so they
+  # must first be reversed and then sorted to keep that ordering in tact.
+  gui.layers.reverse()
+  gui.layers.sort(proc(x, y: Layer): int =
+    cmp(x.zIndex, y.zIndex)
+  )
 
-  let hoverRequest = gui.finalHoverRequest
+  for layer in gui.layers:
+    gui.vgCtx.renderDrawCommands(layer.drawCommands)
+    let hoverRequest = layer.finalHoverRequest
+    if hoverRequest != 0:
+      gui.hover = hoverRequest
+      gui.mouseOver = hoverRequest
 
   if gui.hoverCapture != 0:
     gui.hover = gui.hoverCapture
-  else:
-    gui.hover = hoverRequest
 
-  gui.mouseOver = hoverRequest
-
-  gui.drawCommands.setLen(0)
+  gui.layers.setLen(0)
   gui.mousePresses.setLen(0)
   gui.mouseReleases.setLen(0)
   gui.keyPresses.setLen(0)
@@ -233,7 +263,7 @@ proc pixelAlign*(gui: Gui, globalPosition: Vec2): Vec2 =
   vec2(gui.pixelAlign(globalPosition.x), gui.pixelAlign(globalPosition.y))
 
 proc fillPath*(gui: Gui, path: Path, paint: Paint) =
-  gui.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
+  gui.currentLayer.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
     path: path[],
     paint: paint,
     position: gui.offset,
@@ -243,7 +273,7 @@ proc fillPath*(gui: Gui, path: Path, color: Color) =
   gui.fillPath(path, solidColorPaint(color))
 
 proc strokePath*(gui: Gui, path: Path, paint: Paint, strokeWidth = 1.0) =
-  gui.drawCommands.add(DrawCommand(kind: StrokePath, strokePath: StrokePathCommand(
+  gui.currentLayer.drawCommands.add(DrawCommand(kind: StrokePath, strokePath: StrokePathCommand(
     path: path[],
     paint: paint,
     strokeWidth: strokeWidth,
@@ -260,7 +290,7 @@ proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float
   gui.vgCtx.measureGlyphs(text, font, fontSize)
 
 proc fillTextRaw*(gui: Gui, text: string, position: Vec2, color: Color, font: Font, fontSize: float) =
-  gui.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
+  gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
     position: gui.offset + position,

@@ -1,9 +1,51 @@
+{.experimental: "overloadableEnums".}
+
 import std/math
 import std/hashes
 import std/tables
 import std/algorithm
-import oswindow; export oswindow
 import ./vectorgraphics; export vectorgraphics
+
+type
+  CursorStyle* = enum
+    Arrow
+    IBeam
+    Crosshair
+    PointingHand
+    ResizeLeftRight
+    ResizeTopBottom
+    ResizeTopLeftBottomRight
+    ResizeTopRightBottomLeft
+
+  MouseButton* = enum
+    Unknown,
+    Left, Middle, Right,
+    Extra1, Extra2, Extra3,
+    Extra4, Extra5,
+
+  KeyboardKey* = enum
+    Unknown,
+    A, B, C, D, E, F, G, H, I,
+    J, K, L, M, N, O, P, Q, R,
+    S, T, U, V, W, X, Y, Z,
+    Key1, Key2, Key3, Key4, Key5,
+    Key6, Key7, Key8, Key9, Key0,
+    Pad1, Pad2, Pad3, Pad4, Pad5,
+    Pad6, Pad7, Pad8, Pad9, Pad0,
+    F1, F2, F3, F4, F5, F6, F7,
+    F8, F9, F10, F11, F12,
+    Backtick, Minus, Equal, Backspace,
+    Tab, CapsLock, Enter, LeftShift,
+    RightShift, LeftControl, RightControl,
+    LeftAlt, RightAlt, LeftMeta, RightMeta,
+    LeftBracket, RightBracket, Space,
+    Escape, Backslash, Semicolon, Quote,
+    Comma, Period, Slash, ScrollLock,
+    Pause, Insert, End, PageUp, Delete,
+    Home, PageDown, LeftArrow, RightArrow,
+    DownArrow, UpArrow, NumLock, PadDivide,
+    PadMultiply, PadSubtract, PadAdd, PadEnter,
+    PadPeriod, PrintScreen,
 
 type
   ClipRect* = object
@@ -39,21 +81,24 @@ type
     detectedMouseOver*: bool
 
   Gui* = ref object
-    size*: Vec2
-    scale*: float
-    time*: float
     cursorStyle*: CursorStyle
+    backendData*: pointer
+    onFrame*: proc(gui: Gui)
 
     # Input
-    globalMousePosition*: Vec2
-    mouseWheel*: Vec2
-    mousePresses*: seq[MouseButton]
-    mouseReleases*: seq[MouseButton]
-    mouseDownStates*: array[MouseButton, bool]
-    keyPresses*: seq[KeyboardKey]
-    keyReleases*: seq[KeyboardKey]
-    keyDownStates*: array[KeyboardKey, bool]
-    textInput*: string
+    currentlyIsHovered: bool
+    currentTime: float
+    currentContentScale: float
+    currentSize: Vec2
+    currentGlobalMousePosition: Vec2
+    mouseWheelState: Vec2
+    mousePresses: seq[MouseButton]
+    mouseReleases: seq[MouseButton]
+    mouseDownStates: array[MouseButton, bool]
+    keyPresses: seq[KeyboardKey]
+    keyReleases: seq[KeyboardKey]
+    keyDownStates: array[KeyboardKey, bool]
+    textInput: string
 
     # State and ids
     hover: GuiId
@@ -78,13 +123,58 @@ type
     previousTime: float
     previousGlobalMousePosition: Vec2
 
-proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
-proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
+proc inputTime*(gui: Gui, time: float) =
+  gui.currentTime = time
+
+proc inputContentScale*(gui: Gui, scale: float) =
+  gui.currentContentScale = scale
+
+proc inputSize*(gui: Gui, x, y: float) =
+  gui.currentSize = vec2(x, y)
+
+proc inputMouseMove*(gui: Gui, x, y: float) =
+  gui.currentGlobalMousePosition = vec2(x, y)
+
+proc inputMouseEnter*(gui: Gui) =
+  gui.currentlyIsHovered = true
+
+proc inputMouseExit*(gui: Gui) =
+  gui.currentlyIsHovered = false
+
+proc inputMouseWheel*(gui: Gui, x, y: float) =
+  gui.mouseWheelState = vec2(x, y)
+
+proc inputMousePress*(gui: Gui, button: MouseButton) =
+  gui.mouseDownStates[button] = true
+  gui.mousePresses.add(button)
+
+proc inputMouseRelease*(gui: Gui, button: MouseButton) =
+  gui.mouseDownStates[button] = false
+  gui.mouseReleases.add(button)
+
+proc inputKeyPress*(gui: Gui, key: KeyboardKey) =
+  gui.keyDownStates[key] = true
+  gui.keyPresses.add(key)
+
+proc inputKeyRelease*(gui: Gui, key: KeyboardKey) =
+  gui.keyDownStates[key] = false
+  gui.keyReleases.add(key)
+
+proc inputText*(gui: Gui, text: string) =
+  gui.textInput &= text
+
+proc isHovered*(gui: Gui): bool = gui.currentlyIsHovered
+proc time*(gui: Gui): float = gui.currentTime
+proc contentScale*(gui: Gui): float = gui.currentContentScale
+proc size*(gui: Gui): Vec2 = gui.currentSize
+proc globalMousePosition*(gui: Gui): Vec2 = gui.currentGlobalMousePosition
+proc mouseDelta*(gui: Gui): Vec2 = gui.currentGlobalMousePosition - gui.previousGlobalMousePosition
+proc deltaTime*(gui: Gui): float = gui.currentTime - gui.previousTime
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
 proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
-proc mouseWheel*(gui: Gui): Vec2 = gui.mouseWheel
+proc mouseWheel*(gui: Gui): Vec2 = gui.mouseWheelState
 proc mouseMoved*(gui: Gui): bool = gui.mouseDelta != vec2(0, 0)
-proc mouseWheelMoved*(gui: Gui): bool = gui.mouseWheel != vec2(0, 0)
+proc mouseWheelMoved*(gui: Gui): bool = gui.mouseWheelState != vec2(0, 0)
 proc mousePressed*(gui: Gui, button: MouseButton): bool = button in gui.mousePresses
 proc mouseReleased*(gui: Gui, button: MouseButton): bool = button in gui.mouseReleases
 proc anyMousePressed*(gui: Gui): bool = gui.mousePresses.len > 0
@@ -115,7 +205,7 @@ proc interactionTracker*(gui: Gui): InteractionTracker =
   gui.interactionTrackerStack[^1]
 
 proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition - gui.offset
+  gui.currentGlobalMousePosition - gui.offset
 
 proc isHovered*(gui: Gui, id: GuiId): bool =
   gui.hover == id
@@ -245,18 +335,20 @@ proc mouseHitTest*(gui: Gui, position, size: Vec2): bool =
   m.y >= position.y and m.y <= position.y + size.y and
   gui.clipRect.contains(gui.mousePosition)
 
+proc setupVectorGraphics*(gui: Gui) =
+  gui.vgCtx = VectorGraphicsContext.new()
+
 proc new*(_: typedesc[Gui]): Gui =
-  result = Gui()
-  result.vgCtx = VectorGraphicsContext.new()
+  Gui(currentContentScale: 1.0)
 
 proc beginFrame*(gui: Gui) =
-  gui.vgCtx.beginFrame(gui.size, gui.scale)
+  gui.vgCtx.beginFrame(gui.currentSize, gui.currentContentScale)
   gui.cursorStyle = Arrow
 
   gui.pushIdSpace(gui.getId("Root", global = true))
   gui.pushZIndex(0, global = true)
   gui.pushOffset(vec2(0, 0), global = true)
-  gui.pushClipRect(vec2(0, 0), gui.size, global = true, intersect = false)
+  gui.pushClipRect(vec2(0, 0), gui.currentSize, global = true, intersect = false)
   gui.interactionTrackerStack.add(InteractionTracker())
 
 proc endFrame*(gui: Gui) =
@@ -299,9 +391,9 @@ proc endFrame*(gui: Gui) =
   gui.keyPresses.setLen(0)
   gui.keyReleases.setLen(0)
   gui.textInput.setLen(0)
-  gui.mouseWheel = vec2(0, 0)
-  gui.previousGlobalMousePosition = gui.globalMousePosition
-  gui.previousTime = gui.time
+  gui.mouseWheelState = vec2(0, 0)
+  gui.previousGlobalMousePosition = gui.currentGlobalMousePosition
+  gui.previousTime = gui.currentTime
 
   gui.vgCtx.endFrame()
 
@@ -312,8 +404,8 @@ proc endFrame*(gui: Gui) =
 
 
 proc pixelAlign*(gui: Gui, globalValue: float): float =
-  let scale = gui.scale
-  round(globalValue * scale) / scale
+  let currentContentScale = gui.currentContentScale
+  round(globalValue * currentContentScale) / currentContentScale
 
 proc pixelAlign*(gui: Gui, globalPosition: Vec2): Vec2 =
   vec2(gui.pixelAlign(globalPosition.x), gui.pixelAlign(globalPosition.y))
@@ -432,84 +524,3 @@ proc fillText*(gui: Gui, text: openArray[char],
     gui.fillTextRaw(line, linePosition + vec2(alignmentXOffset, 0), color, font, fontSize)
 
     linePosition.y += lineHeight
-
-
-# ======================================================================
-# OsWindow binding
-# ======================================================================
-
-
-const densityPixelDpi = 96.0
-
-proc toScale(dpi: float): float =
-  dpi / densityPixelDpi
-
-proc toDensityPixels(pixels: int, dpi: float): float =
-  float(pixels) * dpi / densityPixelDpi
-
-proc attachToOsWindow*(gui: Gui, window: OsWindow) =
-  GcRef(gui)
-  window.userData = cast[pointer](gui)
-
-  let dpi = window.dpi
-  gui.scale = dpi.toScale
-
-  let (width, height) = window.size
-  gui.size.x = width.toDensityPixels(dpi)
-  gui.size.y = height.toDensityPixels(dpi)
-
-  window.onClose = proc(window: OsWindow) =
-    let gui = cast[Gui](window.userData)
-    GcUnref(gui)
-
-  window.onResize = proc(window: OsWindow, width, height: int) =
-    let gui = cast[Gui](window.userData)
-    let dpi = window.dpi
-    gui.size.x = width.toDensityPixels(dpi)
-    gui.size.y = height.toDensityPixels(dpi)
-
-  window.onMouseMove = proc(window: OsWindow, x, y: int) =
-    let gui = cast[Gui](window.userData)
-    let dpi = window.dpi
-    gui.globalMousePosition.x = x.toDensityPixels(dpi)
-    gui.globalMousePosition.y = y.toDensityPixels(dpi)
-    window.setCursorStyle(gui.cursorStyle)
-
-  window.onMousePress = proc(window: OsWindow, button: MouseButton, x, y: int) =
-    let gui = cast[Gui](window.userData)
-    let dpi = window.dpi
-    gui.mouseDownStates[button] = true
-    gui.mousePresses.add(button)
-    gui.globalMousePosition.x = x.toDensityPixels(dpi)
-    gui.globalMousePosition.y = y.toDensityPixels(dpi)
-
-  window.onMouseRelease = proc(window: OsWindow, button: oswindow.MouseButton, x, y: int) =
-    let gui = cast[Gui](window.userData)
-    let dpi = window.dpi
-    gui.mouseDownStates[button] = false
-    gui.mouseReleases.add(button)
-    gui.globalMousePosition.x = x.toDensityPixels(dpi)
-    gui.globalMousePosition.y = y.toDensityPixels(dpi)
-
-  window.onMouseWheel = proc(window: OsWindow, x, y: float) =
-    let gui = cast[Gui](window.userData)
-    gui.mouseWheel.x = x
-    gui.mouseWheel.y = y
-
-  window.onKeyPress = proc(window: OsWindow, key: KeyboardKey) =
-    let gui = cast[Gui](window.userData)
-    gui.keyDownStates[key] = true
-    gui.keyPresses.add(key)
-
-  window.onKeyRelease = proc(window: OsWindow, key: oswindow.KeyboardKey) =
-    let gui = cast[Gui](window.userData)
-    gui.keyDownStates[key] = false
-    gui.keyReleases.add(key)
-
-  window.onTextInput = proc(window: OsWindow, text: string) =
-    let gui = cast[Gui](window.userData)
-    gui.textInput &= text
-
-  window.onDpiChange = proc(window: OsWindow, dpi: float) =
-    let gui = cast[Gui](window.userData)
-    gui.scale = dpi.toScale

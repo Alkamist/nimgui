@@ -20,8 +20,8 @@ proc `=destroy`*(ctx: var VectorGraphicsContextObj) =
 proc new*(_: typedesc[VectorGraphicsContext]): VectorGraphicsContext =
   VectorGraphicsContext(nvgCtx: nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES))
 
-proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, scale: float) =
-  nvgBeginFrame(ctx.nvgCtx, size.x / scale, size.y / scale, scale)
+proc beginFrame*(ctx: VectorGraphicsContext, size: Vec2, contentScale: float) =
+  nvgBeginFrame(ctx.nvgCtx, size.x, size.y, contentScale)
   nvgTextAlign(ctx.nvgCtx, NVG_ALIGN_LEFT or NVG_ALIGN_TOP)
   ctx.currentFont = 0
   ctx.currentFontSize = 16.0

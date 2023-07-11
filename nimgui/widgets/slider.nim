@@ -57,7 +57,7 @@ proc slider*(gui: Gui, id: GuiId,
     gui.fillPath(path, rgb(31, 32, 34))
     path.clear()
 
-    path.roundedRect(handlePosition, handleSize, 3)
+    path.roundedRect(gui.pixelAlign(handlePosition), gui.pixelAlign(handleSize), 3)
     gui.fillPath(path, rgb(49, 51, 56).lighten(0.3))
     if handle.isDown:
       gui.fillPath(path, rgba(0, 0, 0, 8))

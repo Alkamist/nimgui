@@ -417,12 +417,12 @@ proc endFrame*(gui: Gui) =
 # ======================================================================
 
 
-proc pixelAlign*(gui: Gui, globalValue: float): float =
-  let currentContentScale = gui.currentContentScale
-  round(globalValue * currentContentScale) / currentContentScale
+proc pixelAlign*(gui: Gui, value: float): float =
+  let contentScale = gui.currentContentScale
+  round(value * contentScale) / contentScale
 
-proc pixelAlign*(gui: Gui, globalPosition: Vec2): Vec2 =
-  vec2(gui.pixelAlign(globalPosition.x), gui.pixelAlign(globalPosition.y))
+proc pixelAlign*(gui: Gui, position: Vec2): Vec2 =
+  vec2(gui.pixelAlign(position.x), gui.pixelAlign(position.y))
 
 proc fillPath*(gui: Gui, path: Path, paint: Paint) =
   gui.currentLayer.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(

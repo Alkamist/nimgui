@@ -335,6 +335,20 @@ proc mouseHitTest*(gui: Gui, position, size: Vec2): bool =
   m.y >= position.y and m.y <= position.y + size.y and
   gui.clipRect.contains(gui.mousePosition)
 
+proc beginPadding*(gui: Gui, position, size, padding: Vec2): tuple[position, size: Vec2] =
+  result.position = vec2(
+    min(position.x + size.x * 0.5, position.x + padding.x),
+    min(position.y + size.y * 0.5, position.y + padding.y),
+  )
+  result.size = vec2(
+    max(0, size.x - padding.x * 2),
+    max(0, size.y - padding.y * 2),
+  )
+  gui.pushOffset(result.position)
+
+proc endPadding*(gui: Gui) =
+  gui.popOffset()
+
 proc setupVectorGraphics*(gui: Gui) =
   gui.vgCtx = VectorGraphicsContext.new()
 
@@ -414,7 +428,7 @@ proc fillPath*(gui: Gui, path: Path, paint: Paint) =
   gui.currentLayer.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
     path: path[],
     paint: paint,
-    position: gui.offset,
+    position: gui.pixelAlign(gui.offset),
   )))
 
 proc fillPath*(gui: Gui, path: Path, color: Color) =
@@ -425,7 +439,7 @@ proc strokePath*(gui: Gui, path: Path, paint: Paint, strokeWidth = 1.0) =
     path: path[],
     paint: paint,
     strokeWidth: strokeWidth,
-    position: gui.offset,
+    position: gui.pixelAlign(gui.offset),
   )))
 
 proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
@@ -449,7 +463,7 @@ proc fillTextRaw*(gui: Gui, text: string,
   gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
     font: font,
     fontSize: fontSize,
-    position: gui.offset + position,
+    position: gui.pixelAlign(gui.offset + position),
     text: text,
     color: color,
   )))

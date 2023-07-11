@@ -371,38 +371,42 @@ proc endWindow*(gui: Gui) =
   gui.popZIndex()
   gui.popIdSpace()
 
-proc beginWindowBody*(gui: Gui): tuple[position, size: Vec2] {.discardable.} =
+proc beginWindowBody*(gui: Gui, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
   let state = gui.getState(gui.windowStateId, WindowState)
   let size = state.size
-  result.position = vec2(
-    windowBorderThickness + windowRoundingInset,
-    windowHeaderHeight + windowRoundingInset,
+  result = gui.beginPadding(
+    vec2(
+      windowBorderThickness + windowRoundingInset,
+      windowHeaderHeight + windowRoundingInset,
+    ),
+    vec2(
+      size.x - (windowBorderThickness + windowRoundingInset) * 2,
+      size.y - windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2,
+    ),
+    padding,
   )
-  result.size = vec2(
-    size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
-    size.y - windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
-  )
-  gui.pushOffset(result.position)
   gui.pushClipRect(vec2(0, 0), result.size)
 
 proc endWindowBody*(gui: Gui) =
   gui.popClipRect()
-  gui.popOffset()
+  gui.endPadding()
 
-proc beginWindowHeader*(gui: Gui): tuple[position, size: Vec2] {.discardable.} =
+proc beginWindowHeader*(gui: Gui, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
   let state = gui.getState(gui.windowStateId, WindowState)
   let size = state.size
-  result.position = vec2(
-    windowBorderThickness + windowRoundingInset,
-    windowBorderThickness + windowRoundingInset,
+  result = gui.beginPadding(
+    vec2(
+      windowBorderThickness + windowRoundingInset,
+      windowBorderThickness + windowRoundingInset,
+    ),
+    vec2(
+      size.x - (windowBorderThickness + windowRoundingInset) * 2,
+      windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2,
+    ),
+    padding,
   )
-  result.size = vec2(
-    size.x - (windowBorderThickness + windowRoundingInset) * 2.0,
-    windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2.0,
-  )
-  gui.pushOffset(result.position)
   gui.pushClipRect(vec2(0, 0), result.size)
 
 proc endWindowHeader*(gui: Gui) =
   gui.popClipRect()
-  gui.popOffset()
+  gui.endPadding()

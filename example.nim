@@ -31,8 +31,7 @@ gui.show()
 proc exampleWindow(gui: Gui, name: string, initialPosition: Vec2) =
   gui.pushIdSpace(gui.getId(name))
 
-  const padding = 5.0
-  const spacing = 5.0
+  const padding = vec2(5.0, 5.0)
 
   let positionId = gui.getId("Position")
   var position = gui.getState(positionId, initialPosition)
@@ -48,19 +47,20 @@ proc exampleWindow(gui: Gui, name: string, initialPosition: Vec2) =
   gui.endWindowHeader()
 
   # Body
-  let body = gui.beginWindowBody()
+  let body = gui.beginWindowBody(padding)
 
+  # Slider
   let sliderValueId = gui.getId("SliderValue")
   var sliderValue = gui.getState(sliderValueId, 0.0)
-  let sliderPosition = vec2(padding, padding)
-  let sliderSize = vec2(body.size.x - padding * 2.0, 24)
-  gui.slider("Slider", sliderValue, sliderPosition, sliderSize)
+  let sliderSize = vec2(body.size.x, 24)
+  gui.slider("Slider", sliderValue, size = sliderSize)
   gui.setState(sliderValueId, sliderValue)
 
+  # Text
   let textScrollId = gui.getId("TextScroll")
   var textScroll = gui.getState(textScrollId, vec2(0, 0))
-  let textPosition = vec2(sliderPosition.x, sliderPosition.y + sliderSize.y + spacing)
-  let textSize = vec2(body.size.x - padding * 2.0, body.size.y - textPosition.y - padding)
+  let textPosition = vec2(0, sliderSize.y + padding.y)
+  let textSize = vec2(body.size.x, body.size.y - textPosition.y)
 
   let textInteractionId = gui.getId("TextInteraction")
   if gui.mouseHitTest(textPosition, textSize):

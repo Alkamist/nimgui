@@ -270,10 +270,9 @@ proc close*(gui: Gui) =
 proc processFrame*(gui: Gui) =
   gui.inputTime(emscripten_performance_now() * 0.001)
   gui.inputContentScale(getWindowContentScale())
-  gui.beginFrame()
+  gui.clear()
   if gui.onFrame != nil:
     gui.onFrame(gui)
-  gui.endFrame()
   if gui.isHovered:
     gui.updateCursorStyle()
 

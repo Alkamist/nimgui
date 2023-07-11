@@ -4,7 +4,6 @@ import std/strutils
 import nimgui
 import nimgui/widgets
 import nimgui/backends
-import opengl
 
 const fontData = readFile("consola.ttf")
 
@@ -23,6 +22,7 @@ Proin sollicitudin cursus enim, eu suscipit odio suscipit vitae.
 Pellentesque a turpis nulla."""
 
 let gui = Gui.new()
+gui.backgroundColor = rgb(49, 51, 56)
 
 gui.setupBackend()
 gui.addFont(fontData)
@@ -85,9 +85,7 @@ proc exampleWindow(gui: Gui, name: string, initialPosition: Vec2) =
   gui.popIdSpace()
 
 gui.onFrame = proc(gui: Gui) =
-  glViewport(0, 0, GLsizei(gui.size.x), GLsizei(gui.size.y))
-  glClearColor(49 / 255, 51 / 255, 56 / 255, 1.0)
-  glClear(GL_COLOR_BUFFER_BIT)
+  gui.beginFrame()
 
   gui.exampleWindow("Window1", vec2(50, 50))
   gui.exampleWindow("Window2", vec2(600, 50))
@@ -95,5 +93,7 @@ gui.onFrame = proc(gui: Gui) =
   gui.exampleWindow("Window4", vec2(600, 400))
 
   gui.fillTextRaw("Fps: " & gui.fps.formatFloat(ffDecimal, 4), vec2(0, 0))
+
+  gui.endFrame()
 
 gui.run()

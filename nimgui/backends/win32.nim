@@ -206,12 +206,9 @@ proc close*(gui: Gui) =
 
 proc processFrame*(gui: Gui) =
   gui.inputTime(cpuTime())
-
-  gui.beginFrame()
+  gui.clear()
   if gui.onFrame != nil:
     gui.onFrame(gui)
-  gui.endFrame()
-
   if gui.isHovered:
     gui.updateCursorStyle()
 
@@ -330,12 +327,14 @@ proc windowProc(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM): LRESULT 
     if wparam > 0 and wparam < 0x10000:
       gui.inputText($cast[Rune](wparam))
 
-  # of WM_ERASEBKGND:
-  #   let hdc = cast[HDC](wparam)
-  #   var clientRect: RECT
-  #   GetClientRect(hwnd, addr(clientRect))
-  #   let (r, g, b) = gui.backgroundColor
-  #   FillRect(hdc, addr(clientRect), CreateSolidBrush(RGB(r, g, b)))
+  of WM_ERASEBKGND:
+    let hdc = cast[HDC](wparam)
+    var clientRect: RECT
+    GetClientRect(hwnd, addr(clientRect))
+    let r = int(gui.backgroundColor.r * 255)
+    let g = int(gui.backgroundColor.g * 255)
+    let b = int(gui.backgroundColor.b * 255)
+    FillRect(hdc, addr(clientRect), CreateSolidBrush(RGB(r, g, b)))
 
   # of WM_NCCALCSIZE:
   #   if not gui.isDecorated:

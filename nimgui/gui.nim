@@ -5,6 +5,7 @@ import std/hashes
 import std/tables
 import std/algorithm
 import ./vectorgraphics; export vectorgraphics
+import opengl
 
 type
   CursorStyle* = enum
@@ -81,6 +82,7 @@ type
     detectedMouseOver*: bool
 
   Gui* = ref object
+    backgroundColor*: Color
     cursorStyle*: CursorStyle
     backendData*: pointer
     onFrame*: proc(gui: Gui)
@@ -356,6 +358,7 @@ proc new*(_: typedesc[Gui]): Gui =
   Gui(currentContentScale: 1.0)
 
 proc beginFrame*(gui: Gui) =
+  glViewport(0, 0, GLsizei(gui.size.x), GLsizei(gui.size.y))
   gui.vgCtx.beginFrame(gui.currentSize, gui.currentContentScale)
   gui.cursorStyle = Arrow
 
@@ -416,6 +419,11 @@ proc endFrame*(gui: Gui) =
 # Vector graphics
 # ======================================================================
 
+
+proc clear*(gui: Gui) =
+  let bg = gui.backgroundColor
+  glClearColor(bg.r, bg.g, bg.b, 1.0)
+  glClear(GL_COLOR_BUFFER_BIT)
 
 proc pixelAlign*(gui: Gui, value: float): float =
   let contentScale = gui.currentContentScale

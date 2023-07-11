@@ -191,11 +191,10 @@ proc processFrame*(gui: Gui) =
   glfw.getWindowContentScale(gui.glfwWindow, addr(scaleX), addr(scaleY))
   gui.inputContentScale(scaleX)
 
-  gui.beginFrame()
+  gui.clear()
+
   if gui.onFrame != nil:
     gui.onFrame(gui)
-  gui.endFrame()
-
   if gui.isHovered:
     gui.updateCursorStyle()
 

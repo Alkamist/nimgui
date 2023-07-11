@@ -374,15 +374,13 @@ proc endWindow*(gui: Gui) =
 proc beginWindowBody*(gui: Gui, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
   let state = gui.getState(gui.windowStateId, WindowState)
   let size = state.size
+  let padding = vec2(
+    max(padding.x, windowBorderThickness + windowRoundingInset),
+    max(padding.y, windowBorderThickness + windowRoundingInset),
+  )
   result = gui.beginPadding(
-    vec2(
-      windowBorderThickness + windowRoundingInset,
-      windowHeaderHeight + windowRoundingInset,
-    ),
-    vec2(
-      size.x - (windowBorderThickness + windowRoundingInset) * 2,
-      size.y - windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2,
-    ),
+    vec2(0, windowHeaderHeight),
+    vec2(size.x, size.y - windowHeaderHeight),
     padding,
   )
   gui.pushClipRect(vec2(0, 0), result.size)
@@ -394,15 +392,13 @@ proc endWindowBody*(gui: Gui) =
 proc beginWindowHeader*(gui: Gui, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
   let state = gui.getState(gui.windowStateId, WindowState)
   let size = state.size
+  let padding = vec2(
+    max(padding.x, windowBorderThickness + windowRoundingInset),
+    max(padding.y, windowBorderThickness + windowRoundingInset),
+  )
   result = gui.beginPadding(
-    vec2(
-      windowBorderThickness + windowRoundingInset,
-      windowBorderThickness + windowRoundingInset,
-    ),
-    vec2(
-      size.x - (windowBorderThickness + windowRoundingInset) * 2,
-      windowHeaderHeight - windowBorderThickness - windowRoundingInset * 2,
-    ),
+    vec2(0, 0),
+    vec2(size.x, windowHeaderHeight),
     padding,
   )
   gui.pushClipRect(vec2(0, 0), result.size)

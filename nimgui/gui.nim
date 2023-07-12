@@ -69,8 +69,8 @@ proc contains*(a: ClipRect, b: Vec2): bool =
 type
   GuiId* = Hash
 
-  StateHolder[T] = ref object of RootRef
-    value: T
+  GuiStateRef*[T] = ref object of RootRef
+    state*: T
 
   Layer = object
     zIndex: int
@@ -88,6 +88,7 @@ type
     onFrame*: proc(gui: Gui)
 
     # Input
+    textInput*: string
     currentlyIsHovered: bool
     currentTime: float
     currentContentScale: float
@@ -100,7 +101,6 @@ type
     keyPresses: seq[KeyboardKey]
     keyReleases: seq[KeyboardKey]
     keyDownStates: array[KeyboardKey, bool]
-    textInput: string
 
     # State and ids
     hover: GuiId
@@ -209,6 +209,22 @@ proc interactionTracker*(gui: Gui): InteractionTracker =
 proc mousePosition*(gui: Gui): Vec2 =
   gui.currentGlobalMousePosition - gui.offset
 
+proc pushInteractionTracker*(gui: Gui) =
+  gui.interactionTrackerStack.add(InteractionTracker())
+
+proc popInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
+  result = gui.interactionTrackerStack.pop()
+  if result.detectedHover:
+    gui.interactionTrackerStack[^1].detectedHover = true
+  if result.detectedMouseOver:
+    gui.interactionTrackerStack[^1].detectedMouseOver = true
+
+proc getGlobalId*(gui: Gui, x: auto): GuiId =
+  hash(x)
+
+proc getId*(gui: Gui, x: auto): GuiId =
+  !$(gui.idStack[^1] !& hash(x))
+
 proc isHovered*(gui: Gui, id: GuiId): bool =
   gui.hover == id
 
@@ -232,53 +248,25 @@ proc releaseHover*(gui: Gui, id: GuiId) =
   if gui.hoverCapture == id:
     gui.hoverCapture = 0
 
-proc pushInteractionTracker*(gui: Gui) =
-  gui.interactionTrackerStack.add(InteractionTracker())
-
-proc popInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
-  result = gui.interactionTrackerStack.pop()
-  if result.detectedHover:
-    gui.interactionTrackerStack[^1].detectedHover = true
-  if result.detectedMouseOver:
-    gui.interactionTrackerStack[^1].detectedMouseOver = true
-
-proc getId*(gui: Gui, x: auto, global = false): GuiId =
-  if global:
-    hash(x)
-  else:
-    !$(gui.idStack[^1] !& hash(x))
-
 proc pushIdSpace*(gui: Gui, id: GuiId) =
   gui.idStack.add(id)
 
 proc popIdSpace*(gui: Gui): GuiId {.discardable.} =
   gui.idStack.pop()
 
-proc getState*[T](gui: Gui, id: GuiId, initialValue: T): T =
+proc getState*[T](gui: Gui, id: GuiId, initialValue: T): auto =
+  var stateRef: GuiStateRef[T]
+
   if gui.retainedState.hasKey(id):
-    when T is RootRef:
-      T(gui.retainedState[id])
-    else:
-      StateHolder[T](gui.retainedState[id]).value
+    stateRef = GuiStateRef[T](gui.retainedState[id])
   else:
-    when T is RootRef:
-      gui.retainedState[id] = initialValue
-      initialValue
-    else:
-      gui.retainedState[id] = StateHolder[T](value: initialValue)
-      initialValue
+    stateRef = GuiStateRef[T](state: initialValue)
+    gui.retainedState[id] = stateRef
 
-proc getState*(gui: Gui, id: GuiId, T: typedesc): T =
+  (stateRef.state, stateRef)
+
+proc getState*(gui: Gui, id: GuiId, T: typedesc): auto =
   gui.getState(id, T())
-
-proc setState*[T](gui: Gui, id: GuiId, value: T) =
-  when T is RootRef:
-    gui.retainedState[id] = value
-  else:
-    if gui.retainedState.hasKey(id):
-      StateHolder[T](gui.retainedState[id]).value = value
-    else:
-      gui.retainedState[id] = StateHolder[T](value: value)
 
 proc pushOffset*(gui: Gui, offset: Vec2, global = false) =
   if global:
@@ -362,7 +350,7 @@ proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.currentSize, gui.currentContentScale)
   gui.cursorStyle = Arrow
 
-  gui.pushIdSpace(gui.getId("Root", global = true))
+  gui.pushIdSpace(gui.getGlobalId("Root"))
   gui.pushZIndex(0, global = true)
   gui.pushOffset(vec2(0, 0), global = true)
   gui.pushClipRect(vec2(0, 0), gui.currentSize, global = true, intersect = false)

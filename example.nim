@@ -28,37 +28,39 @@ gui.setupBackend()
 gui.addFont(fontData)
 gui.show()
 
-proc exampleWindow(gui: Gui, name: string, initialPosition: Vec2) =
-  gui.pushIdSpace(gui.getId(name))
+type
+  ExampleWindowState = object
+    position: Vec2
+    size: Vec2
+    textScroll: Vec2
+    sliderValue: float
+
+proc exampleWindow(gui: Gui, title: string, initialPosition: Vec2) =
+  let id = gui.getId(title)
+  gui.pushIdSpace(id)
 
   const padding = vec2(5.0, 5.0)
 
-  let positionId = gui.getId("Position")
-  var position = gui.getState(positionId, initialPosition)
+  var (state, stateRef) = gui.getState(gui.getId("State"), ExampleWindowState(
+    position: initialPosition,
+    size: vec2(400, 300),
+  ))
 
-  let sizeId = gui.getId("Size")
-  var size = gui.getState(sizeId, vec2(400, 300))
-
-  gui.beginWindow("Window", position, size)
+  gui.beginWindow(gui.getId("Window"), state.position, state.size)
 
   # Header
   let header = gui.beginWindowHeader()
-  gui.fillText(name, vec2(0, 0), header.size, alignment = vec2(0.5, 0.5))
+  gui.fillText(title, vec2(0, 0), header.size, alignment = vec2(0.5, 0.5))
   gui.endWindowHeader()
 
   # Body
   let body = gui.beginWindowBody(padding)
 
   # Slider
-  let sliderValueId = gui.getId("SliderValue")
-  var sliderValue = gui.getState(sliderValueId, 0.0)
   let sliderSize = vec2(body.size.x, 24)
-  gui.slider("Slider", sliderValue, size = sliderSize)
-  gui.setState(sliderValueId, sliderValue)
+  gui.slider(gui.getId("Slider"), state.sliderValue, size = sliderSize)
 
   # Text
-  let textScrollId = gui.getId("TextScroll")
-  var textScroll = gui.getState(textScrollId, vec2(0, 0))
   let textPosition = vec2(0, sliderSize.y + padding.y)
   let textSize = vec2(body.size.x, body.size.y - textPosition.y)
 
@@ -67,20 +69,16 @@ proc exampleWindow(gui: Gui, name: string, initialPosition: Vec2) =
     gui.requestHover(textInteractionId)
 
   if gui.isHovered(textInteractionId) and gui.mouseWheelMoved:
-    textScroll.y += gui.mouseWheel.y * 32.0
+    state.textScroll.y += gui.mouseWheel.y * 32.0
 
   gui.pushClipRect(textPosition, textSize)
-  gui.fillText(sampleText, textPosition + textScroll, textSize, alignment = vec2(sliderValue, 0))
+  gui.fillText(sampleText, textPosition + state.textScroll, textSize, alignment = vec2(state.sliderValue, 0))
   gui.popClipRect()
 
-  gui.setState(textScrollId, textScroll)
-
   gui.endWindowBody()
-
   gui.endWindow()
 
-  gui.setState(positionId, position)
-  gui.setState(sizeId, size)
+  stateRef.state = state
 
   gui.popIdSpace()
 

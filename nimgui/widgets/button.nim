@@ -31,19 +31,21 @@ proc button*(gui: Gui, id: GuiId,
 ): ButtonState {.discardable.} =
   let isHovered = gui.isHovered(id)
 
-  var state = gui.getState(id, ButtonState())
-  state.update(
+  var (buttonState, buttonRef) = gui.getState(id, ButtonState())
+
+  buttonState.update(
     isHovered = isHovered,
     mouseIsOver = gui.mouseIsOver(id),
     press = gui.mousePressed(mouseButton),
     release = gui.mouseReleased(mouseButton),
   )
-  gui.setState(id, state)
 
-  if state.pressed:
+  buttonRef.state = buttonState
+
+  if buttonState.pressed:
     gui.captureHover(id)
 
-  if state.released:
+  if buttonState.released:
     gui.releaseHover(id)
 
   if gui.mouseHitTest(position, size):
@@ -54,17 +56,9 @@ proc button*(gui: Gui, id: GuiId,
     path.roundedRect(position, size, 3)
 
     gui.fillPath(path, rgb(31, 32, 34))
-    if state.isDown:
+    if buttonState.isDown:
       gui.fillPath(path, rgba(0, 0, 0, 8))
     elif isHovered:
       gui.fillPath(path, rgba(255, 255, 255, 8))
 
-  state
-
-proc button*(gui: Gui, id: string,
-  position = vec2(0, 0),
-  size = vec2(96, 32),
-  mouseButton = MouseButton.Left,
-  draw = true,
-): ButtonState {.discardable.} =
-  gui.button(gui.getId(id), position, size, mouseButton, draw)
+  buttonState

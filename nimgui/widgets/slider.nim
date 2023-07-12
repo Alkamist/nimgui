@@ -20,8 +20,7 @@ proc slider*(gui: Gui, id: GuiId,
 ): SliderState {.discardable.} =
   gui.pushIdSpace(id)
 
-  let stateId = gui.getId("State")
-  var state = gui.getState(stateId, SliderInternalState())
+  var (sliderState, sliderRef) = gui.getState(gui.getId("State"), SliderInternalState())
 
   let minValue = minValue
   let maxValue = maxValue.max(minValue)
@@ -39,16 +38,16 @@ proc slider*(gui: Gui, id: GuiId,
   )
 
   if handle.pressed or gui.keyPressed(LeftControl) or gui.keyReleased(LeftControl):
-    state.valueWhenHandleGrabbed = value
-    state.globalMousePositionWhenHandleGrabbed = gui.globalMousePosition
+    sliderState.valueWhenHandleGrabbed = value
+    sliderState.globalMousePositionWhenHandleGrabbed = gui.globalMousePosition
 
   let sensitivity =
     if gui.keyDown(LeftControl): 0.15
     else: 1.0
 
   if handle.isDown:
-    let grabDelta = gui.globalMousePosition.x - state.globalMousePositionWhenHandleGrabbed.x
-    value = state.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handleLength)
+    let grabDelta = gui.globalMousePosition.x - sliderState.globalMousePositionWhenHandleGrabbed.x
+    value = sliderState.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handleLength)
     value = value.clamp(minValue, maxValue)
 
   if draw:
@@ -64,19 +63,8 @@ proc slider*(gui: Gui, id: GuiId,
     elif gui.isHovered(handleId):
       gui.fillPath(path, rgba(255, 255, 255, 8))
 
-  gui.setState(stateId, state)
+  sliderRef.state = sliderState
 
   gui.popIdSpace()
 
   SliderState(handle: handle)
-
-proc slider*(gui: Gui, id: string,
-  value: var float,
-  position = vec2(0, 0),
-  size = vec2(300, 24),
-  minValue = 0.0,
-  maxValue = 1.0,
-  handleLength = 16.0,
-  draw = true,
-): SliderState {.discardable.} =
-  gui.slider(gui.getId(id), value, position, size, minValue, maxValue, handleLength, draw)

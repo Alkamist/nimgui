@@ -206,7 +206,8 @@ proc close*(gui: Gui) =
 
 proc processFrame*(gui: Gui) =
   gui.inputTime(cpuTime())
-  gui.clear()
+  if not gui.closeRequested:
+    gui.clear()
   if gui.onFrame != nil:
     gui.onFrame(gui)
   if gui.isHovered:

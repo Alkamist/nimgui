@@ -191,7 +191,8 @@ proc processFrame*(gui: Gui) =
   glfw.getWindowContentScale(gui.glfwWindow, addr(scaleX), addr(scaleY))
   gui.inputContentScale(scaleX)
 
-  gui.clear()
+  if not gui.closeRequested:
+    gui.clear()
 
   if gui.onFrame != nil:
     gui.onFrame(gui)

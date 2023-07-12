@@ -169,7 +169,7 @@ proc windowMoveAndResizeBehavior(gui: Gui, state: var WindowState) =
       let correction = size.y - state.minSize.y
       size.y -= correction
 
-  let moveButton = gui.button("_MoveButton",
+  let moveButton = gui.button(gui.getId("_MoveButton"),
     position = vec2(windowResizeHitSize, windowResizeHitSize),
     size = vec2(size.x - windowResizeHitSize * 2.0, windowHeaderHeight - windowResizeHitSize),
     draw = false,
@@ -300,17 +300,15 @@ proc windowMoveAndResizeBehavior(gui: Gui, state: var WindowState) =
 
 proc bringWindowToFront*(gui: Gui, id: GuiId) =
   gui.pushIdSpace(id)
-  let stateId = gui.windowStateId
-  var state = gui.getState(stateId, WindowState)
 
-  let highestZIndexId = gui.getId("HIGHEST_WINDOW_Z_INDEX", global = true)
-  let highestZIndex = gui.getState(highestZIndexId, 0)
+  var (highestZIndex, highestZIndexRef) = gui.getState(gui.getGlobalId("HIGHEST_WINDOW_Z_INDEX"), 0)
+  var (windowState, windowRef) = gui.getState(gui.windowStateId, WindowState)
 
-  let zIndex = highestZIndex + 1
-  state.zIndex = zIndex
-  gui.setState(highestZIndexId, zIndex)
+  windowState.zIndex = highestZIndex + 1
 
-  gui.setState(stateId, state)
+  windowRef.state = windowState
+  highestZIndexRef.state = windowState.zIndex
+
   gui.popIdSpace()
 
 proc beginWindow*(gui: Gui, id: GuiId,
@@ -320,14 +318,15 @@ proc beginWindow*(gui: Gui, id: GuiId,
 ) {.discardable.} =
   gui.pushIdSpace(id)
 
-  let stateId = gui.windowStateId
-  var state = gui.getState(stateId, WindowState())
-  state.minSize = minSize
-  state.positionPtr = addr(position)
-  state.sizePtr = addr(size)
-  gui.setState(stateId, state)
+  var (windowState, windowRef) = gui.getState(gui.windowStateId, WindowState())
 
-  gui.pushZIndex(state.zIndex, global = true)
+  windowState.minSize = minSize
+  windowState.positionPtr = addr(position)
+  windowState.sizePtr = addr(size)
+
+  windowRef.state = windowState
+
+  gui.pushZIndex(windowState.zIndex, global = true)
 
   size.x = max(size.x, minSize.x)
   size.y = max(size.y, minSize.y)
@@ -341,26 +340,20 @@ proc beginWindow*(gui: Gui, id: GuiId,
     gui.pushInteractionTracker()
 
   # Blocks mouse input from going through the state.
-  gui.button("_BackgroundButton",
+  gui.button(gui.getId("_BackgroundButton"),
     position = vec2(0, 0),
     size = size,
     draw = false,
   )
 
-proc beginWindow*(gui: Gui, id: string,
-  position, size: var Vec2,
-  minSize = vec2(300, windowHeaderHeight * 2.0),
-  draw = true,
-): WindowState {.discardable.} =
-  gui.beginWindow(gui.getId(id), position, size, minSize, draw)
-
 proc endWindow*(gui: Gui) =
-  let stateId = gui.windowStateId
-  var state = gui.getState(stateId, WindowState)
-  gui.windowMoveAndResizeBehavior(state)
-  state.positionPtr = nil
-  state.sizePtr = nil
-  gui.setState(stateId, state)
+  var (windowState, windowRef) = gui.getState(gui.windowStateId, WindowState)
+
+  gui.windowMoveAndResizeBehavior(windowState)
+  windowState.positionPtr = nil
+  windowState.sizePtr = nil
+
+  windowRef.state = windowState
 
   if gui.windowInteraction:
     let tracker = gui.popInteractionTracker()
@@ -372,8 +365,8 @@ proc endWindow*(gui: Gui) =
   gui.popIdSpace()
 
 proc beginWindowBody*(gui: Gui, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
-  let state = gui.getState(gui.windowStateId, WindowState)
-  let size = state.size
+  let (windowState, _) = gui.getState(gui.windowStateId, WindowState)
+  let size = windowState.size
   let padding = vec2(
     max(padding.x, windowBorderThickness + windowRoundingInset),
     max(padding.y, windowBorderThickness + windowRoundingInset),
@@ -390,8 +383,8 @@ proc endWindowBody*(gui: Gui) =
   gui.endPadding()
 
 proc beginWindowHeader*(gui: Gui, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
-  let state = gui.getState(gui.windowStateId, WindowState)
-  let size = state.size
+  let (windowState, _) = gui.getState(gui.windowStateId, WindowState)
+  let size = windowState.size
   let padding = vec2(
     max(padding.x, windowBorderThickness + windowRoundingInset),
     max(padding.y, windowBorderThickness + windowRoundingInset),

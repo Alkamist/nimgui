@@ -69,7 +69,7 @@ proc beginUpdate(window: ExampleWindow) =
   if gui.mouseHitTest(text.position, text.size):
     gui.requestHover(text)
 
-  if gui.isHovered(text) and gui.mouseWheelMoved:
+  if gui.hover == text and gui.mouseWheelMoved:
     window.textScroll.y += gui.mouseWheel.y * 32.0
 
   gui.beginClipRect(text.position, text.size)

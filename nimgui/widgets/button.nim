@@ -15,8 +15,8 @@ proc init*(button: Button) =
 proc update*(button: Button, hover, press, release: bool, draw = true) =
   let gui = button.gui
 
-  let isHovered = gui.isHovered(button)
-  let mouseIsOver = gui.mouseIsOver(button)
+  let isHovered = gui.hover == button
+  let mouseIsOver = gui.mouseOver == button
 
   button.pressed = false
   button.released = false

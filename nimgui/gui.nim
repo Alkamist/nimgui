@@ -1,8 +1,6 @@
 {.experimental: "overloadableEnums".}
 
 import std/math
-# import std/hashes
-# import std/tables
 import std/algorithm
 import ./vectorgraphics; export vectorgraphics
 import opengl
@@ -87,24 +85,24 @@ type
     onFrame*: proc(gui: Gui)
 
     # Input
+    isHovered*: bool
+    time*: float
+    contentScale*: float
+    size*: Vec2
+    globalMousePosition*: Vec2
+    mouseWheelState*: Vec2
+    mousePresses*: seq[MouseButton]
+    mouseReleases*: seq[MouseButton]
+    mouseDownStates*: array[MouseButton, bool]
+    keyPresses*: seq[KeyboardKey]
+    keyReleases*: seq[KeyboardKey]
+    keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
-    currentlyIsHovered: bool
-    currentTime: float
-    currentContentScale: float
-    currentSize: Vec2
-    currentGlobalMousePosition: Vec2
-    mouseWheelState: Vec2
-    mousePresses: seq[MouseButton]
-    mouseReleases: seq[MouseButton]
-    mouseDownStates: array[MouseButton, bool]
-    keyPresses: seq[KeyboardKey]
-    keyReleases: seq[KeyboardKey]
-    keyDownStates: array[KeyboardKey, bool]
 
     # Hover
-    hover: Widget
-    mouseOver: Widget
-    hoverCapture: Widget
+    hover*: Widget
+    mouseOver*: Widget
+    hoverCapture*: Widget
 
     # Stacks
     offsetStack: seq[Vec2]
@@ -123,22 +121,22 @@ type
     previousGlobalMousePosition: Vec2
 
 proc inputTime*(gui: Gui, time: float) =
-  gui.currentTime = time
+  gui.time = time
 
 proc inputContentScale*(gui: Gui, scale: float) =
-  gui.currentContentScale = scale
+  gui.contentScale = scale
 
 proc inputSize*(gui: Gui, x, y: float) =
-  gui.currentSize = vec2(x, y)
+  gui.size = vec2(x, y)
 
 proc inputMouseMove*(gui: Gui, x, y: float) =
-  gui.currentGlobalMousePosition = vec2(x, y)
+  gui.globalMousePosition = vec2(x, y)
 
 proc inputMouseEnter*(gui: Gui) =
-  gui.currentlyIsHovered = true
+  gui.isHovered = true
 
 proc inputMouseExit*(gui: Gui) =
-  gui.currentlyIsHovered = false
+  gui.isHovered = false
 
 proc inputMouseWheel*(gui: Gui, x, y: float) =
   gui.mouseWheelState = vec2(x, y)
@@ -162,13 +160,8 @@ proc inputKeyRelease*(gui: Gui, key: KeyboardKey) =
 proc inputText*(gui: Gui, text: string) =
   gui.textInput &= text
 
-proc isHovered*(gui: Gui): bool = gui.currentlyIsHovered
-proc time*(gui: Gui): float = gui.currentTime
-proc contentScale*(gui: Gui): float = gui.currentContentScale
-proc size*(gui: Gui): Vec2 = gui.currentSize
-proc globalMousePosition*(gui: Gui): Vec2 = gui.currentGlobalMousePosition
-proc mouseDelta*(gui: Gui): Vec2 = gui.currentGlobalMousePosition - gui.previousGlobalMousePosition
-proc deltaTime*(gui: Gui): float = gui.currentTime - gui.previousTime
+proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
+proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
 proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
 proc mouseWheel*(gui: Gui): Vec2 = gui.mouseWheelState
@@ -207,7 +200,7 @@ proc interactionTracker*(gui: Gui): InteractionTracker =
   gui.interactionTrackerStack[^1]
 
 proc mousePosition*(gui: Gui): Vec2 =
-  gui.currentGlobalMousePosition - gui.offset
+  gui.globalMousePosition - gui.offset
 
 proc beginInteractionTracker*(gui: Gui) =
   gui.interactionTrackerStack.add(InteractionTracker())
@@ -219,19 +212,13 @@ proc endInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
   if result.detectedMouseOver:
     gui.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc isHovered*(gui: Gui, widget: Widget): bool =
-  gui.hover == widget
-
-proc mouseIsOver*(gui: Gui, widget: Widget): bool =
-  gui.mouseOver == widget
-
 proc requestHover*(gui: Gui, widget: Widget) =
   gui.currentLayer.finalHoverRequest = widget
 
-  if gui.isHovered(widget):
+  if gui.hover == widget:
     gui.interactionTrackerStack[^1].detectedHover = true
 
-  if gui.mouseIsOver(widget):
+  if gui.mouseOver == widget:
     gui.interactionTrackerStack[^1].detectedMouseOver = true
 
 proc captureHover*(gui: Gui, widget: Widget) =
@@ -317,16 +304,16 @@ proc setupVectorGraphics*(gui: Gui) =
   gui.vgCtx = VectorGraphicsContext.new()
 
 proc new*(_: typedesc[Gui]): Gui =
-  Gui(currentContentScale: 1.0)
+  Gui(contentScale: 1.0)
 
 proc beginFrame*(gui: Gui) =
   glViewport(0, 0, GLsizei(gui.size.x), GLsizei(gui.size.y))
-  gui.vgCtx.beginFrame(gui.currentSize, gui.currentContentScale)
+  gui.vgCtx.beginFrame(gui.size, gui.contentScale)
   gui.cursorStyle = Arrow
 
   gui.beginZIndex(0, global = true)
   gui.beginOffset(vec2(0, 0), global = true)
-  gui.beginClipRect(vec2(0, 0), gui.currentSize, global = true, intersect = false)
+  gui.beginClipRect(vec2(0, 0), gui.size, global = true, intersect = false)
   gui.interactionTrackerStack.add(InteractionTracker())
 
 proc endFrame*(gui: Gui) =
@@ -372,8 +359,8 @@ proc endFrame*(gui: Gui) =
   gui.keyReleases.setLen(0)
   gui.textInput.setLen(0)
   gui.mouseWheelState = vec2(0, 0)
-  gui.previousGlobalMousePosition = gui.currentGlobalMousePosition
-  gui.previousTime = gui.currentTime
+  gui.previousGlobalMousePosition = gui.globalMousePosition
+  gui.previousTime = gui.time
 
   gui.vgCtx.endFrame()
 
@@ -389,7 +376,7 @@ proc clear*(gui: Gui) =
   glClear(GL_COLOR_BUFFER_BIT)
 
 proc pixelAlign*(gui: Gui, value: float): float =
-  let contentScale = gui.currentContentScale
+  let contentScale = gui.contentScale
   round(value * contentScale) / contentScale
 
 proc pixelAlign*(gui: Gui, position: Vec2): Vec2 =

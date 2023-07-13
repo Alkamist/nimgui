@@ -1,13 +1,23 @@
 import ../gui
 
 type
-  ButtonState* = object
+  Button* = ref object of Widget
+    position*: Vec2
+    size*: Vec2
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
 
-proc update*(button: var ButtonState, isHovered, mouseIsOver, press, release: bool) =
+proc init*(button: Button) =
+  button.size = vec2(96, 32)
+
+proc update*(button: Button, hover, press, release: bool, draw = true) =
+  let gui = button.gui
+
+  let isHovered = gui.isHovered(button)
+  let mouseIsOver = gui.mouseIsOver(button)
+
   button.pressed = false
   button.released = false
   button.clicked = false
@@ -23,42 +33,32 @@ proc update*(button: var ButtonState, isHovered, mouseIsOver, press, release: bo
     if mouseIsOver:
       button.clicked = true
 
-proc button*(gui: Gui, id: GuiId,
-  position = vec2(0, 0),
-  size = vec2(96, 32),
-  mouseButton = MouseButton.Left,
-  draw = true,
-): ButtonState {.discardable.} =
-  let isHovered = gui.isHovered(id)
+  if button.pressed:
+    gui.captureHover(button)
 
-  var (buttonState, buttonRef) = gui.getState(id, ButtonState())
+  if button.released:
+    gui.releaseHover(button)
 
-  buttonState.update(
-    isHovered = isHovered,
-    mouseIsOver = gui.mouseIsOver(id),
-    press = gui.mousePressed(mouseButton),
-    release = gui.mouseReleased(mouseButton),
-  )
-
-  buttonRef.state = buttonState
-
-  if buttonState.pressed:
-    gui.captureHover(id)
-
-  if buttonState.released:
-    gui.releaseHover(id)
-
-  if gui.mouseHitTest(position, size):
-    gui.requestHover(id)
+  if hover:
+    gui.requestHover(button)
 
   if draw:
     let path = Path.new()
-    path.roundedRect(position, size, 3)
+    path.roundedRect(button.position, button.size, 3)
 
     gui.fillPath(path, rgb(31, 32, 34))
-    if buttonState.isDown:
+
+    if button.isDown:
       gui.fillPath(path, rgba(0, 0, 0, 8))
+
     elif isHovered:
       gui.fillPath(path, rgba(255, 255, 255, 8))
 
-  buttonState
+proc update*(button: Button, mouseButton = MouseButton.Left, draw = true) =
+  let gui = button.gui
+  button.update(
+    hover = gui.mouseHitTest(button.position, button.size),
+    press = gui.mousePressed(mouseButton),
+    release = gui.mouseReleased(mouseButton),
+    draw = draw,
+  )

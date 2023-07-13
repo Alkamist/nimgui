@@ -1,8 +1,8 @@
 {.experimental: "overloadableEnums".}
 
 import std/math
-import std/hashes
-import std/tables
+# import std/hashes
+# import std/tables
 import std/algorithm
 import ./vectorgraphics; export vectorgraphics
 import opengl
@@ -67,23 +67,22 @@ proc contains*(a: ClipRect, b: Vec2): bool =
   b.y >= a.position.y and b.y <= a.position.y + a.size.y
 
 type
-  GuiId* = Hash
-
-  GuiStateRef*[T] = ref object of RootRef
-    state*: T
-
   Layer = object
     zIndex: int
     drawCommands: seq[DrawCommand]
-    finalHoverRequest: GuiId
+    finalHoverRequest: Widget
 
   InteractionTracker* = object
     detectedHover*: bool
     detectedMouseOver*: bool
 
+  Widget* = ref object of RootObj
+    gui* {.cursor.}: Gui
+
   Gui* = ref object
     backgroundColor*: Color
     cursorStyle*: CursorStyle
+    highestZIndex*: int
     backendData*: pointer
     onFrame*: proc(gui: Gui)
 
@@ -102,14 +101,12 @@ type
     keyReleases: seq[KeyboardKey]
     keyDownStates: array[KeyboardKey, bool]
 
-    # State and ids
-    hover: GuiId
-    mouseOver: GuiId
-    hoverCapture: GuiId
-    retainedState: Table[GuiId, RootRef]
+    # Hover
+    hover: Widget
+    mouseOver: Widget
+    hoverCapture: Widget
 
     # Stacks
-    idStack: seq[GuiId]
     offsetStack: seq[Vec2]
     clipRectStack: seq[ClipRect]
     layerStack: seq[Layer]
@@ -186,6 +183,12 @@ proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 
+proc newWidget*(gui: Gui, T: typedesc[Widget]): T =
+  result = T()
+  result.gui = gui
+  when compiles(result.init()):
+    result.init()
+
 proc currentLayer(gui: Gui): var Layer =
   gui.layerStack[^1]
 
@@ -194,9 +197,6 @@ proc zIndex*(gui: Gui): int =
 
 proc offset*(gui: Gui): Vec2 =
   gui.offsetStack[^1]
-
-proc idSpace*(gui: Gui): GuiId =
-  gui.idStack[^1]
 
 proc clipRect*(gui: Gui, global = false): ClipRect =
   result = gui.clipRectStack[^1]
@@ -209,75 +209,49 @@ proc interactionTracker*(gui: Gui): InteractionTracker =
 proc mousePosition*(gui: Gui): Vec2 =
   gui.currentGlobalMousePosition - gui.offset
 
-proc pushInteractionTracker*(gui: Gui) =
+proc beginInteractionTracker*(gui: Gui) =
   gui.interactionTrackerStack.add(InteractionTracker())
 
-proc popInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
+proc endInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
   result = gui.interactionTrackerStack.pop()
   if result.detectedHover:
     gui.interactionTrackerStack[^1].detectedHover = true
   if result.detectedMouseOver:
     gui.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc getGlobalId*(gui: Gui, x: auto): GuiId =
-  hash(x)
+proc isHovered*(gui: Gui, widget: Widget): bool =
+  gui.hover == widget
 
-proc getId*(gui: Gui, x: auto): GuiId =
-  !$(gui.idStack[^1] !& hash(x))
+proc mouseIsOver*(gui: Gui, widget: Widget): bool =
+  gui.mouseOver == widget
 
-proc isHovered*(gui: Gui, id: GuiId): bool =
-  gui.hover == id
+proc requestHover*(gui: Gui, widget: Widget) =
+  gui.currentLayer.finalHoverRequest = widget
 
-proc mouseIsOver*(gui: Gui, id: GuiId): bool =
-  gui.mouseOver == id
-
-proc requestHover*(gui: Gui, id: GuiId) =
-  gui.currentLayer.finalHoverRequest = id
-
-  if gui.isHovered(id):
+  if gui.isHovered(widget):
     gui.interactionTrackerStack[^1].detectedHover = true
 
-  if gui.mouseIsOver(id):
+  if gui.mouseIsOver(widget):
     gui.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc captureHover*(gui: Gui, id: GuiId) =
-  if gui.hoverCapture == 0:
-    gui.hoverCapture = id
+proc captureHover*(gui: Gui, widget: Widget) =
+  if gui.hoverCapture == nil:
+    gui.hoverCapture = widget
 
-proc releaseHover*(gui: Gui, id: GuiId) =
-  if gui.hoverCapture == id:
-    gui.hoverCapture = 0
+proc releaseHover*(gui: Gui, widget: Widget) =
+  if gui.hoverCapture == widget:
+    gui.hoverCapture = nil
 
-proc pushIdSpace*(gui: Gui, id: GuiId) =
-  gui.idStack.add(id)
-
-proc popIdSpace*(gui: Gui): GuiId {.discardable.} =
-  gui.idStack.pop()
-
-proc getState*[T](gui: Gui, id: GuiId, initialValue: T): auto =
-  var stateRef: GuiStateRef[T]
-
-  if gui.retainedState.hasKey(id):
-    stateRef = GuiStateRef[T](gui.retainedState[id])
-  else:
-    stateRef = GuiStateRef[T](state: initialValue)
-    gui.retainedState[id] = stateRef
-
-  (stateRef.state, stateRef)
-
-proc getState*(gui: Gui, id: GuiId, T: typedesc): auto =
-  gui.getState(id, T())
-
-proc pushOffset*(gui: Gui, offset: Vec2, global = false) =
+proc beginOffset*(gui: Gui, offset: Vec2, global = false) =
   if global:
     gui.offsetStack.add(offset)
   else:
     gui.offsetStack.add(gui.offset + offset)
 
-proc popOffset*(gui: Gui): Vec2 {.discardable.} =
+proc endOffset*(gui: Gui): Vec2 {.discardable.} =
   gui.offsetStack.pop()
 
-proc pushClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = true) =
+proc beginClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = true) =
   var clipRect = ClipRect(
     position: position,
     size: size,
@@ -296,7 +270,7 @@ proc pushClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = t
     size: clipRect.size,
   )))
 
-proc popClipRect*(gui: Gui): ClipRect {.discardable.} =
+proc endClipRect*(gui: Gui): ClipRect {.discardable.} =
   result = gui.clipRectStack.pop()
 
   if gui.clipRectStack.len == 0:
@@ -308,13 +282,13 @@ proc popClipRect*(gui: Gui): ClipRect {.discardable.} =
     size: clipRect.size,
   )))
 
-proc pushZIndex*(gui: Gui, zIndex: int, global = false) =
+proc beginZIndex*(gui: Gui, zIndex: int, global = false) =
   if global:
     gui.layerStack.add(Layer(zIndex: zIndex))
   else:
     gui.layerStack.add(Layer(zIndex: gui.zIndex + zIndex))
 
-proc popZIndex*(gui: Gui): int {.discardable.} =
+proc endZIndex*(gui: Gui): int {.discardable.} =
   let layer = gui.layerStack.pop()
   gui.layers.add(layer)
   layer.zIndex
@@ -334,10 +308,10 @@ proc beginPadding*(gui: Gui, position, size, padding: Vec2): tuple[position, siz
     max(0, size.x - padding.x * 2),
     max(0, size.y - padding.y * 2),
   )
-  gui.pushOffset(result.position)
+  gui.beginOffset(result.position)
 
 proc endPadding*(gui: Gui) =
-  gui.popOffset()
+  gui.endOffset()
 
 proc setupVectorGraphics*(gui: Gui) =
   gui.vgCtx = VectorGraphicsContext.new()
@@ -350,20 +324,17 @@ proc beginFrame*(gui: Gui) =
   gui.vgCtx.beginFrame(gui.currentSize, gui.currentContentScale)
   gui.cursorStyle = Arrow
 
-  gui.pushIdSpace(gui.getGlobalId("Root"))
-  gui.pushZIndex(0, global = true)
-  gui.pushOffset(vec2(0, 0), global = true)
-  gui.pushClipRect(vec2(0, 0), gui.currentSize, global = true, intersect = false)
+  gui.beginZIndex(0, global = true)
+  gui.beginOffset(vec2(0, 0), global = true)
+  gui.beginClipRect(vec2(0, 0), gui.currentSize, global = true, intersect = false)
   gui.interactionTrackerStack.add(InteractionTracker())
 
 proc endFrame*(gui: Gui) =
   discard gui.interactionTrackerStack.pop()
-  gui.popClipRect()
-  gui.popOffset()
-  gui.popZIndex()
-  gui.popIdSpace()
+  gui.endClipRect()
+  gui.endOffset()
+  gui.endZIndex()
 
-  assert(gui.idStack.len == 0)
   assert(gui.offsetStack.len == 0)
   assert(gui.layerStack.len == 0)
   assert(gui.clipRectStack.len == 0)
@@ -377,17 +348,21 @@ proc endFrame*(gui: Gui) =
     cmp(x.zIndex, y.zIndex)
   )
 
-  gui.hover = 0
-  gui.mouseOver = 0
+  gui.hover = nil
+  gui.mouseOver = nil
+  gui.highestZIndex = low(int)
 
   for layer in gui.layers:
+    if layer.zIndex > gui.highestZIndex:
+      gui.highestZIndex = layer.zIndex
+
     gui.vgCtx.renderDrawCommands(layer.drawCommands)
     let hoverRequest = layer.finalHoverRequest
-    if hoverRequest != 0:
+    if hoverRequest != nil:
       gui.hover = hoverRequest
       gui.mouseOver = hoverRequest
 
-  if gui.hoverCapture != 0:
+  if gui.hoverCapture != nil:
     gui.hover = gui.hoverCapture
 
   gui.layers.setLen(0)
@@ -444,25 +419,24 @@ proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
 proc addFont*(gui: Gui, data: string): Font {.discardable.} =
   gui.vgCtx.addFont(data)
 
-proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
-  gui.vgCtx.measureGlyphs(text, font, fontSize)
+type
+  Text* = ref object of Widget
+    data*: string
+    position*: Vec2
+    size*: Vec2
+    alignment*: Vec2
+    color*: Color
+    font*: Font
+    fontSize*: float
+    lineHeight*: float
+    ascender*: float
+    descender*: float
 
-proc textMetrics*(gui: Gui, font: Font, fontSize: float): TextMetrics =
-  gui.vgCtx.textMetrics(font, fontSize)
-
-proc fillTextRaw*(gui: Gui, text: string,
-  position: Vec2,
-  color = rgb(255, 255, 255),
-  font = Font(0),
-  fontSize = 13.0,
-) =
-  gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
-    font: font,
-    fontSize: fontSize,
-    position: gui.pixelAlign(gui.offset + position),
-    text: text,
-    color: color,
-  )))
+proc init*(text: Text) =
+  text.alignment = vec2(0, 0)
+  text.color = rgb(255, 255, 255)
+  text.font = Font(0)
+  text.fontSize = 13.0
 
 iterator splitLinesIndices(s: openArray[char]): tuple[first, last: int] =
   var first = 0
@@ -486,18 +460,26 @@ iterator splitLinesIndices(s: openArray[char]): tuple[first, last: int] =
 
     first = last
 
-proc fillText*(gui: Gui, text: openArray[char],
-  position: Vec2,
-  size = vec2(0, 0),
-  alignment = vec2(0, 0),
-  color = rgb(255, 255, 255),
-  font = Font(0),
-  fontSize = 13.0,
-) =
-  if text.len == 0:
+proc update*(text: Text) =
+  if text.data.len == 0:
     return
 
-  let lineHeight = gui.textMetrics(font, fontSize).lineHeight
+  let gui = text.gui
+  let position = text.position
+  let size = text.size
+  let alignment = text.alignment
+  let font = text.font
+  let fontSize = text.fontSize
+  let color = text.color
+
+  let metrics = gui.vgCtx.textMetrics(font, fontSize)
+  let lineHeight = metrics.lineHeight
+  let ascender = metrics.ascender
+  let descender = metrics.descender
+
+  text.lineHeight = lineHeight
+  text.ascender = ascender
+  text.descender = descender
 
   let clipRect = gui.clipRect
   # let clipLeft = clipRect.position.x
@@ -508,7 +490,7 @@ proc fillText*(gui: Gui, text: openArray[char],
   var linePosition = position
   linePosition.y += (size.y - lineHeight) * alignment.y
 
-  for first, last in text.splitLinesIndices:
+  for first, last in text.data.splitLinesIndices:
     if linePosition.y >= clipBottom:
       return
 
@@ -518,7 +500,7 @@ proc fillText*(gui: Gui, text: openArray[char],
 
     var alignmentXOffset = 0.0
     if size.x > 0:
-      var glyphs = gui.measureGlyphs(text.toOpenArray(first, last), font, fontSize)
+      var glyphs = gui.vgCtx.measureGlyphs(text.data.toOpenArray(first, last), font, fontSize)
       if glyphs.len == 0:
         linePosition.y += lineHeight
         continue
@@ -530,7 +512,12 @@ proc fillText*(gui: Gui, text: openArray[char],
       let leftOverSpaceAtEndOfLine = size.x - glyphs[^1].right
       alignmentXOffset = alignment.x * leftOverSpaceAtEndOfLine
 
-    let line = cast[string](text[first .. last])
-    gui.fillTextRaw(line, linePosition + vec2(alignmentXOffset, 0), color, font, fontSize)
+    gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
+      font: font,
+      fontSize: fontSize,
+      position: gui.pixelAlign(gui.offset + linePosition + vec2(alignmentXOffset, 0)),
+      text: cast[string](text.data[first .. last]),
+      color: color,
+    )))
 
     linePosition.y += lineHeight

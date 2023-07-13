@@ -29,68 +29,99 @@ gui.addFont(fontData)
 gui.show()
 
 type
-  ExampleWindowState = object
-    position: Vec2
-    size: Vec2
+  ExampleWindow = ref object of Window
+    title: Text
+    slider: Slider
+    text: Text
     textScroll: Vec2
-    sliderValue: float
 
-proc exampleWindow(gui: Gui, title: string, initialPosition: Vec2) =
-  let id = gui.getId(title)
-  gui.pushIdSpace(id)
+proc init(window: ExampleWindow) =
+  Window(window).init()
+  window.title = gui.newWidget(Text)
+  window.slider = gui.newWidget(Slider)
+  window.text = gui.newWidget(Text)
+  window.text.data = sampleText
 
+proc beginUpdate(window: ExampleWindow) =
   const padding = vec2(5.0, 5.0)
 
-  var (state, stateRef) = gui.getState(gui.getId("State"), ExampleWindowState(
-    position: initialPosition,
-    size: vec2(400, 300),
-  ))
+  Window(window).beginUpdate()
 
-  gui.beginWindow(gui.getId("Window"), state.position, state.size)
+  let header = window.beginHeader()
 
-  # Header
-  let header = gui.beginWindowHeader()
-  gui.fillText(title, vec2(0, 0), header.size, alignment = vec2(0.5, 0.5))
-  gui.endWindowHeader()
+  let title = window.title
+  title.size = header.size
+  title.alignment = vec2(0.5, 0.5)
+  title.update()
 
-  # Body
-  let body = gui.beginWindowBody(padding)
+  window.endHeader()
 
-  # Slider
-  let sliderSize = vec2(body.size.x, 24)
-  gui.slider(gui.getId("Slider"), state.sliderValue, size = sliderSize)
+  let body = window.beginBody(padding)
 
-  # Text
-  let textPosition = vec2(0, sliderSize.y + padding.y)
-  let textSize = vec2(body.size.x, body.size.y - textPosition.y)
+  let slider = window.slider
+  slider.size = vec2(body.size.x, 24)
 
-  let textInteractionId = gui.getId("TextInteraction")
-  if gui.mouseHitTest(textPosition, textSize):
-    gui.requestHover(textInteractionId)
+  let text = window.text
+  text.position = vec2(0, slider.size.y + padding.y)
+  text.size = vec2(body.size.x, body.size.y - text.position.y)
+  text.alignment = vec2(slider.value, 0)
 
-  if gui.isHovered(textInteractionId) and gui.mouseWheelMoved:
-    state.textScroll.y += gui.mouseWheel.y * 32.0
+  if gui.mouseHitTest(text.position, text.size):
+    gui.requestHover(text)
 
-  gui.pushClipRect(textPosition, textSize)
-  gui.fillText(sampleText, textPosition + state.textScroll, textSize, alignment = vec2(state.sliderValue, 0))
-  gui.popClipRect()
+  if gui.isHovered(text) and gui.mouseWheelMoved:
+    window.textScroll.y += gui.mouseWheel.y * 32.0
 
-  gui.endWindowBody()
-  gui.endWindow()
+  gui.beginClipRect(text.position, text.size)
+  gui.beginOffset(window.textScroll)
+  text.update()
+  gui.endOffset()
+  gui.endClipRect()
 
-  stateRef.state = state
+  slider.update()
 
-  gui.popIdSpace()
+  window.endBody()
+
+proc endUpdate(window: ExampleWindow) =
+  Window(window).endUpdate()
+
+let performance = gui.newWidget(Performance)
+let fpsText = gui.newWidget(Text)
+
+let window1 = gui.newWidget(ExampleWindow)
+window1.title.data = "Window 1"
+window1.position = vec2(50, 50)
+
+let window2 = gui.newWidget(ExampleWindow)
+window2.title.data = "Window 2"
+window2.position = vec2(600, 50)
+
+let window3 = gui.newWidget(ExampleWindow)
+window3.title.data = "Window 3"
+window3.position = vec2(50, 400)
+
+let window4 = gui.newWidget(ExampleWindow)
+window4.title.data = "Window 4"
+window4.position = vec2(600, 400)
 
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
 
-  gui.exampleWindow("Window1", vec2(50, 50))
-  gui.exampleWindow("Window2", vec2(600, 50))
-  gui.exampleWindow("Window3", vec2(50, 400))
-  gui.exampleWindow("Window4", vec2(600, 400))
+  window1.beginUpdate()
+  window1.endUpdate()
 
-  gui.fillTextRaw("Fps: " & gui.fps.formatFloat(ffDecimal, 4), vec2(0, 0))
+  window2.beginUpdate()
+  window2.endUpdate()
+
+  window3.beginUpdate()
+  window3.endUpdate()
+
+  window4.beginUpdate()
+  window4.endUpdate()
+
+  performance.update()
+  fpsText.data = "Fps: " & performance.fps.formatFloat(ffDecimal, 4)
+  fpsText.update()
 
   gui.endFrame()
 

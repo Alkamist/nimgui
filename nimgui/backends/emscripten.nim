@@ -1,5 +1,3 @@
-{.experimental: "overloadableEnums".}
-
 import std/tables
 import ../gui
 import ./emscriptenapi

@@ -1,38 +1,39 @@
 import ../gui
 
 type
-  PerformanceState = object
+  Performance* = ref object of Widget
+    frameTime*: float
+    averageWindow*: int
     index: int
     deltaTimes: seq[float]
-    currentFrameTime: float
     previousAverageWindow: int
 
-proc update(perf: var PerformanceState, deltaTime: float, averageWindow: int) =
+proc init*(perf: Performance) =
+  perf.averageWindow = 100
+  perf.deltaTimes = newSeq[float](100)
+
+proc fps*(perf: Performance): float =
+  1.0 / perf.frameTime
+
+proc update*(perf: Performance) =
+  let gui = perf.gui
+  let averageWindow = perf.averageWindow
+
   if averageWindow != perf.previousAverageWindow:
     perf.index = 0
     perf.deltaTimes = newSeq[float](averageWindow)
 
-  perf.deltaTimes[perf.index] = deltaTime
+  if perf.index < perf.deltaTimes.len:
+    perf.deltaTimes[perf.index] = gui.deltaTime
+
   perf.index += 1
   if perf.index >= perf.deltaTimes.len:
     perf.index = 0
 
-  perf.currentFrameTime = 0.0
+  perf.frameTime = 0.0
 
   for dt in perf.deltaTimes:
-    perf.currentFrameTime += dt
+    perf.frameTime += dt
 
-  perf.currentFrameTime /= float(averageWindow)
+  perf.frameTime /= float(averageWindow)
   perf.previousAverageWindow = averageWindow
-
-proc frameTime*(gui: Gui, averageWindow = 100, update = true): float =
-  var (perf, perfRef) = gui.getState(gui.getGlobalId("GUI_PERFORMANCE"), PerformanceState())
-
-  if update:
-    perf.update(gui.deltaTime, averageWindow)
-    perfRef.state = perf
-
-  perf.currentFrameTime
-
-proc fps*(gui: Gui, averageWindow = 100, update = true): float =
-  1.0 / gui.frameTime(averageWindow, update)

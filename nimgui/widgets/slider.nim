@@ -59,5 +59,5 @@ proc update*(slider: Slider, draw = true) =
     gui.fillPath(path, rgb(49, 51, 56).lighten(0.3))
     if handle.isDown:
       gui.fillPath(path, rgba(0, 0, 0, 8))
-    elif gui.hover == handle:
+    elif handle.isHovered:
       gui.fillPath(path, rgba(255, 255, 255, 8))

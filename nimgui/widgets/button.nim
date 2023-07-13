@@ -15,8 +15,8 @@ proc init*(button: Button) =
 proc update*(button: Button, hover, press, release: bool, draw = true) =
   let gui = button.gui
 
-  let isHovered = gui.hover == button
-  let mouseIsOver = gui.mouseOver == button
+  let isHovered = button.isHovered
+  let mouseIsOver = button.mouseIsOver
 
   button.pressed = false
   button.released = false
@@ -34,13 +34,13 @@ proc update*(button: Button, hover, press, release: bool, draw = true) =
       button.clicked = true
 
   if button.pressed:
-    gui.captureHover(button)
+    button.captureHover()
 
   if button.released:
-    gui.releaseHover(button)
+    button.releaseHover()
 
   if hover:
-    gui.requestHover(button)
+    button.requestHover()
 
   if draw:
     let path = Path.new()

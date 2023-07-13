@@ -67,9 +67,9 @@ proc beginUpdate(window: ExampleWindow) =
   text.alignment = vec2(slider.value, 0)
 
   if gui.mouseHitTest(text.position, text.size):
-    gui.requestHover(text)
+    text.requestHover()
 
-  if gui.hover == text and gui.mouseWheelMoved:
+  if text.isHovered and gui.mouseWheelMoved:
     window.textScroll.y += gui.mouseWheel.y * 32.0
 
   gui.beginClipRect(text.position, text.size)

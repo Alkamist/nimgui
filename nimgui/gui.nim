@@ -176,14 +176,41 @@ proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
 proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
 proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 
+proc currentLayer(gui: Gui): var Layer =
+  gui.layerStack[^1]
+
 proc newWidget*(gui: Gui, T: typedesc[Widget]): T =
   result = T()
   result.gui = gui
   when compiles(result.init()):
     result.init()
 
-proc currentLayer(gui: Gui): var Layer =
-  gui.layerStack[^1]
+proc isHovered*(widget: Widget): bool =
+  widget.gui.hover == widget
+
+proc mouseIsOver*(widget: Widget): bool =
+  widget.gui.mouseOver == widget
+
+proc requestHover*(widget: Widget) =
+  let gui = widget.gui
+  gui.currentLayer.finalHoverRequest = widget
+
+  if gui.hover == widget:
+    gui.interactionTrackerStack[^1].detectedHover = true
+
+  if gui.mouseOver == widget:
+    gui.interactionTrackerStack[^1].detectedMouseOver = true
+
+proc captureHover*(widget: Widget) =
+  let gui = widget.gui
+
+  if gui.hoverCapture == nil:
+    gui.hoverCapture = widget
+
+proc releaseHover*(widget: Widget) =
+  let gui = widget.gui
+  if gui.hoverCapture == widget:
+    gui.hoverCapture = nil
 
 proc zIndex*(gui: Gui): int =
   gui.currentLayer.zIndex
@@ -211,23 +238,6 @@ proc endInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
     gui.interactionTrackerStack[^1].detectedHover = true
   if result.detectedMouseOver:
     gui.interactionTrackerStack[^1].detectedMouseOver = true
-
-proc requestHover*(gui: Gui, widget: Widget) =
-  gui.currentLayer.finalHoverRequest = widget
-
-  if gui.hover == widget:
-    gui.interactionTrackerStack[^1].detectedHover = true
-
-  if gui.mouseOver == widget:
-    gui.interactionTrackerStack[^1].detectedMouseOver = true
-
-proc captureHover*(gui: Gui, widget: Widget) =
-  if gui.hoverCapture == nil:
-    gui.hoverCapture = widget
-
-proc releaseHover*(gui: Gui, widget: Widget) =
-  if gui.hoverCapture == widget:
-    gui.hoverCapture = nil
 
 proc beginOffset*(gui: Gui, offset: Vec2, global = false) =
   if global:
@@ -406,105 +416,23 @@ proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
 proc addFont*(gui: Gui, data: string): Font {.discardable.} =
   gui.vgCtx.addFont(data)
 
-type
-  Text* = ref object of Widget
-    data*: string
-    position*: Vec2
-    size*: Vec2
-    alignment*: Vec2
-    color*: Color
-    font*: Font
-    fontSize*: float
-    lineHeight*: float
-    ascender*: float
-    descender*: float
+proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
+  gui.vgCtx.measureGlyphs(text, font, fontSize)
 
-proc init*(text: Text) =
-  text.alignment = vec2(0, 0)
-  text.color = rgb(255, 255, 255)
-  text.font = Font(0)
-  text.fontSize = 13.0
+proc textMetrics*(gui: Gui, font: Font, fontSize: float): TextMetrics =
+  gui.vgCtx.textMetrics(font, fontSize)
 
-iterator splitLinesIndices(s: openArray[char]): tuple[first, last: int] =
-  var first = 0
-  var last = 0
-  var eolpos = 0
-  while true:
-    while last < s.len and s[last] notin {'\c', '\l'}: inc(last)
-
-    eolpos = last
-    if last < s.len:
-      if s[last] == '\l': inc(last)
-      elif s[last] == '\c':
-        inc(last)
-        if last < s.len and s[last] == '\l': inc(last)
-
-    yield (first, eolpos - 1)
-
-    # no eol characters consumed means that the string is over
-    if eolpos == last:
-      break
-
-    first = last
-
-proc update*(text: Text) =
-  if text.data.len == 0:
-    return
-
-  let gui = text.gui
-  let position = text.position
-  let size = text.size
-  let alignment = text.alignment
-  let font = text.font
-  let fontSize = text.fontSize
-  let color = text.color
-
-  let metrics = gui.vgCtx.textMetrics(font, fontSize)
-  let lineHeight = metrics.lineHeight
-  let ascender = metrics.ascender
-  let descender = metrics.descender
-
-  text.lineHeight = lineHeight
-  text.ascender = ascender
-  text.descender = descender
-
-  let clipRect = gui.clipRect
-  # let clipLeft = clipRect.position.x
-  # let clipRight = clipRect.position.x + clipRect.size.x
-  let clipTop = clipRect.position.y
-  let clipBottom = clipRect.position.y + clipRect.size.y
-
-  var linePosition = position
-  linePosition.y += (size.y - lineHeight) * alignment.y
-
-  for first, last in text.data.splitLinesIndices:
-    if linePosition.y >= clipBottom:
-      return
-
-    if linePosition.y + lineHeight < clipTop or first == last:
-      linePosition.y += lineHeight
-      continue
-
-    var alignmentXOffset = 0.0
-    if size.x > 0:
-      var glyphs = gui.vgCtx.measureGlyphs(text.data.toOpenArray(first, last), font, fontSize)
-      if glyphs.len == 0:
-        linePosition.y += lineHeight
-        continue
-
-      for glyph in glyphs.mitems:
-        glyph.firstByte += first
-        glyph.lastByte += first
-
-      let leftOverSpaceAtEndOfLine = size.x - glyphs[^1].right
-      alignmentXOffset = alignment.x * leftOverSpaceAtEndOfLine
-
-    gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
-      font: font,
-      fontSize: fontSize,
-      position: gui.pixelAlign(gui.offset + linePosition + vec2(alignmentXOffset, 0)),
-      text: cast[string](text.data[first .. last]),
-      color: color,
-    )))
-
-    linePosition.y += lineHeight
+proc fillTextLine*(gui: Gui,
+  text: string,
+  position: Vec2,
+  color = rgb(255, 255, 255),
+  font = Font(0),
+  fontSize = 13.0,
+) =
+  gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
+    font: font,
+    fontSize: fontSize,
+    position: gui.pixelAlign(gui.offset + position),
+    text: text,
+    color: color,
+  )))

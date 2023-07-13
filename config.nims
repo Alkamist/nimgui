@@ -20,4 +20,4 @@ when defined(emscripten):
   --define:noSignalHandler
   --threads:off
 
-  switch("passL", "-o bin/index.html --shell-file shell_minimal.html")
+  switch("passL", "-o index.html --shell-file shell_minimal.html")

@@ -1,6 +1,9 @@
 import nimgui
 import nimgui/backends
 
+# This won't work on emscripten.
+# Also crashes on glfw backend when both windows are closed, not sure how to fix.
+
 let gui1 = Gui.new()
 gui1.backgroundColor = rgb(255, 255, 255)
 gui1.setupBackend()

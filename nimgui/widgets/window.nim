@@ -212,28 +212,28 @@ proc moveAndResizeBehavior(window: Window) =
   resizeBottomLeftButton.update(draw = false)
   resizeBottomRightButton.update(draw = false)
 
-  if gui.hover == resizeLeftButton:
+  if resizeLeftButton.isHovered:
     gui.cursorStyle = ResizeLeftRight
 
-  if gui.hover == resizeRightButton:
+  if resizeRightButton.isHovered:
     gui.cursorStyle = ResizeLeftRight
 
-  if gui.hover == resizeTopButton:
+  if resizeTopButton.isHovered:
     gui.cursorStyle = ResizeTopBottom
 
-  if gui.hover == resizeBottomButton:
+  if resizeBottomButton.isHovered:
     gui.cursorStyle = ResizeTopBottom
 
-  if gui.hover == resizeTopLeftButton:
+  if resizeTopLeftButton.isHovered:
     gui.cursorStyle = ResizeTopLeftBottomRight
 
-  if gui.hover == resizeTopRightButton:
+  if resizeTopRightButton.isHovered:
     gui.cursorStyle = ResizeTopRightBottomLeft
 
-  if gui.hover == resizeBottomLeftButton:
+  if resizeBottomLeftButton.isHovered:
     gui.cursorStyle = ResizeTopRightBottomLeft
 
-  if gui.hover == resizeBottomRightButton:
+  if resizeBottomRightButton.isHovered:
     gui.cursorStyle = ResizeTopLeftBottomRight
 
   if moveButton.pressed or

@@ -6,6 +6,38 @@ import ./vectorgraphics; export vectorgraphics
 import opengl
 
 type
+  Region* = object
+    position*: Vec2
+    size*: Vec2
+
+proc region*(position, size: Vec2): Region =
+  result.position = position
+  result.size = size
+
+proc expand*(region: Region, amount: Vec2): Region =
+  result.position = vec2(
+    min(region.position.x + region.size.x * 0.5, region.position.x - amount.x),
+    min(region.position.y + region.size.y * 0.5, region.position.y - amount.y),
+  )
+  result.size = vec2(
+    max(0, region.size.x + amount.x * 2),
+    max(0, region.size.y + amount.y * 2),
+  )
+
+proc intersect*(a, b: Region): Region =
+  let x1 = max(a.position.x, b.position.x)
+  let y1 = max(a.position.y, b.position.y)
+  var x2 = min(a.position.x + a.size.x, b.position.x + b.size.x)
+  var y2 = min(a.position.y + a.size.y, b.position.y + b.size.y)
+  if x2 < x1: x2 = x1
+  if y2 < y1: y2 = y1
+  Region(position: vec2(x1, y1), size: vec2(x2 - x1, y2 - y1))
+
+proc contains*(a: Region, b: Vec2): bool =
+  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
+  b.y >= a.position.y and b.y <= a.position.y + a.size.y
+
+type
   CursorStyle* = enum
     Arrow
     IBeam
@@ -46,25 +78,6 @@ type
     PadMultiply, PadSubtract, PadAdd, PadEnter,
     PadPeriod, PrintScreen,
 
-type
-  ClipRect* = object
-    position*: Vec2
-    size*: Vec2
-
-proc intersect*(a, b: ClipRect): ClipRect =
-  let x1 = max(a.position.x, b.position.x)
-  let y1 = max(a.position.y, b.position.y)
-  var x2 = min(a.position.x + a.size.x, b.position.x + b.size.x)
-  var y2 = min(a.position.y + a.size.y, b.position.y + b.size.y)
-  if x2 < x1: x2 = x1
-  if y2 < y1: y2 = y1
-  ClipRect(position: vec2(x1, y1), size: vec2(x2 - x1, y2 - y1))
-
-proc contains*(a: ClipRect, b: Vec2): bool =
-  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
-  b.y >= a.position.y and b.y <= a.position.y + a.size.y
-
-type
   Layer = object
     zIndex: int
     drawCommands: seq[DrawCommand]
@@ -103,7 +116,7 @@ type
 
     # Stacks
     offsetStack: seq[Vec2]
-    clipRectStack: seq[ClipRect]
+    clipRegionStack: seq[Region]
     layerStack: seq[Layer]
     interactionTrackerStack: seq[InteractionTracker]
 
@@ -210,8 +223,8 @@ proc zIndex*(gui: Gui): int =
 proc offset*(gui: Gui): Vec2 =
   gui.offsetStack[^1]
 
-proc clipRect*(gui: Gui, global = false): ClipRect =
-  result = gui.clipRectStack[^1]
+proc clipRegion*(gui: Gui, global = false): Region =
+  result = gui.clipRegionStack[^1]
   if not global:
     result.position -= gui.offset
 
@@ -240,32 +253,29 @@ proc beginOffset*(gui: Gui, offset: Vec2, global = false) =
 proc endOffset*(gui: Gui): Vec2 {.discardable.} =
   gui.offsetStack.pop()
 
-proc beginClipRect*(gui: Gui, position, size: Vec2, global = false, intersect = true) =
-  var clipRect = ClipRect(
-    position: position,
-    size: size,
-  )
+proc beginClipRegion*(gui: Gui, region: Region, global = false, intersect = true) =
+  var region = region
 
   if not global:
-    clipRect.position += gui.offset
+    region.position += gui.offset
 
   if intersect:
-    clipRect = clipRect.intersect(gui.clipRectStack[^1])
+    region = region.intersect(gui.clipRegionStack[^1])
 
-  gui.clipRectStack.add(clipRect)
+  gui.clipRegionStack.add(region)
 
   gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
-    position: clipRect.position,
-    size: clipRect.size,
+    position: region.position,
+    size: region.size,
   )))
 
-proc endClipRect*(gui: Gui): ClipRect {.discardable.} =
-  result = gui.clipRectStack.pop()
+proc endClipRegion*(gui: Gui): Region {.discardable.} =
+  result = gui.clipRegionStack.pop()
 
-  if gui.clipRectStack.len == 0:
+  if gui.clipRegionStack.len == 0:
     return
 
-  let clipRect = gui.clipRectStack[^1]
+  let clipRect = gui.clipRegionStack[^1]
   gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
     position: clipRect.position,
     size: clipRect.size,
@@ -286,21 +296,7 @@ proc mouseHitTest*(gui: Gui, position, size: Vec2): bool =
   let m = gui.mousePosition
   m.x >= position.x and m.x <= position.x + size.x and
   m.y >= position.y and m.y <= position.y + size.y and
-  gui.clipRect.contains(gui.mousePosition)
-
-proc beginPadding*(gui: Gui, position, size, padding: Vec2): tuple[position, size: Vec2] =
-  result.position = vec2(
-    min(position.x + size.x * 0.5, position.x + padding.x),
-    min(position.y + size.y * 0.5, position.y + padding.y),
-  )
-  result.size = vec2(
-    max(0, size.x - padding.x * 2),
-    max(0, size.y - padding.y * 2),
-  )
-  gui.beginOffset(result.position)
-
-proc endPadding*(gui: Gui) =
-  gui.endOffset()
+  gui.clipRegion.contains(gui.mousePosition)
 
 proc setupVectorGraphics*(gui: Gui) =
   gui.vgCtx = VectorGraphicsContext.new()
@@ -315,18 +311,18 @@ proc beginFrame*(gui: Gui) =
 
   gui.beginZIndex(0, global = true)
   gui.beginOffset(vec2(0, 0), global = true)
-  gui.beginClipRect(vec2(0, 0), gui.size, global = true, intersect = false)
+  gui.beginClipRegion(region(vec2(0, 0), gui.size), global = true, intersect = false)
   gui.interactionTrackerStack.add(InteractionTracker())
 
 proc endFrame*(gui: Gui) =
   discard gui.interactionTrackerStack.pop()
-  gui.endClipRect()
+  gui.endClipRegion()
   gui.endOffset()
   gui.endZIndex()
 
   assert(gui.offsetStack.len == 0)
   assert(gui.layerStack.len == 0)
-  assert(gui.clipRectStack.len == 0)
+  assert(gui.clipRegionStack.len == 0)
   assert(gui.interactionTrackerStack.len == 0)
 
   # The layers are in reverse order because they were added in popZIndex.

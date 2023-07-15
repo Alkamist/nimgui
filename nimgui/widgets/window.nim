@@ -355,40 +355,24 @@ proc endUpdate*(window: Window) =
   gui.endOffset()
   gui.endZIndex()
 
-proc beginBody*(window: Window, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
-  let gui = window.gui
+proc body*(window: Window, padding = vec2(0, 0)): Region =
   let size = window.size
   let padding = vec2(
     max(padding.x, windowBorderThickness + windowRoundingInset),
     max(padding.y, windowBorderThickness + windowRoundingInset),
   )
-  result = gui.beginPadding(
+  region(
     vec2(0, windowHeaderHeight),
     vec2(size.x, size.y - windowHeaderHeight),
-    padding,
-  )
-  gui.beginClipRect(vec2(0, 0), result.size)
+  ).expand(-padding)
 
-proc endBody*(window: Window) =
-  let gui = window.gui
-  gui.endClipRect()
-  gui.endPadding()
-
-proc beginHeader*(window: Window, padding = vec2(0, 0)): tuple[position, size: Vec2] {.discardable.} =
-  let gui = window.gui
+proc header*(window: Window, padding = vec2(0, 0)): Region =
   let size = window.size
   let padding = vec2(
     max(padding.x, windowBorderThickness + windowRoundingInset),
     max(padding.y, windowBorderThickness + windowRoundingInset),
   )
-  result = gui.beginPadding(
+  region(
     vec2(0, 0),
     vec2(size.x, windowHeaderHeight),
-    padding,
-  )
-  gui.beginClipRect(vec2(0, 0), result.size)
-
-proc endHeader*(window: Window) =
-  let gui = window.gui
-  gui.endClipRect()
-  gui.endPadding()
+  ).expand(-padding)

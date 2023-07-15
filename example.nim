@@ -33,24 +33,35 @@ gui.onFrame = proc(gui: Gui) =
   window.beginUpdate()
   window.draw()
 
-  let header = window.beginHeader()
-  title.position.x = (header.size.x - title.size.x) * 0.5
-  title.position.y = (header.size.y - title.lineHeight) * 0.5
-  title.update()
-  title.draw()
-  window.endHeader()
+  block: # Header
+    let header = window.header
+    gui.beginClipRegion(header)
+    gui.beginOffset(header.position)
 
-  window.beginBody(vec2(5.0, 5.0))
+    title.position.x = (header.size.x - title.size.x) * 0.5
+    title.position.y = (header.size.y - title.lineHeight) * 0.5
+    title.update()
+    title.draw()
 
-  slider.update()
-  slider.draw()
+    gui.endOffset()
+    gui.endClipRegion()
 
-  if gui.mouseHitTest(text.position, text.size):
-    gui.requestHover(text)
-  text.update()
-  text.draw()
+  block: # Body
+    let body = window.body(vec2(5, 5))
+    gui.beginClipRegion(body)
+    gui.beginOffset(body.position)
 
-  window.endBody()
+    slider.update()
+    slider.draw()
+
+    if gui.mouseHitTest(text.position, text.size):
+      gui.requestHover(text)
+    text.update()
+    text.draw()
+
+    gui.endOffset()
+    gui.endClipRegion()
+
   window.endUpdate()
 
   performance.update()

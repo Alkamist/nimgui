@@ -14,14 +14,12 @@ type
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
-proc new*(_: typedesc[Slider], gui: Gui): Slider =
-  result = Slider()
-  result.gui = gui
-  result.handle = Button.new(gui)
-  result.size = vec2(300, 24)
-  result.minValue = 0.0
-  result.maxValue = 1.0
-  result.handleLength = 16.0
+proc init*(slider: Slider) =
+  slider.handle = slider.gui.newWidget(Button)
+  slider.size = vec2(300, 24)
+  slider.minValue = 0.0
+  slider.maxValue = 1.0
+  slider.handleLength = 16.0
 
 proc draw*(slider: Slider) =
   let gui = slider.gui

@@ -14,18 +14,18 @@ gui.setupBackend()
 gui.addFont(fontData)
 gui.show()
 
-let performance = Performance.new(gui)
+let performance = gui.newWidget(Performance)
 
-let slider = Slider.new(gui)
+let slider = gui.newWidget(Slider)
 
-let text = Text.new(gui)
+let text = gui.newWidget(Text)
 text.position = slider.position + vec2(0, slider.size.y + 5.0)
 text.data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
-let title = Text.new(gui)
+let title = gui.newWidget(Text)
 title.data = "Window"
 
-let window = Window.new(gui)
+let window = gui.newWidget(Window)
 
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
@@ -56,6 +56,7 @@ gui.onFrame = proc(gui: Gui) =
 
     if gui.mouseHitTest(text.position, text.size):
       gui.requestHover(text)
+
     text.update()
     text.draw()
 

@@ -10,10 +10,8 @@ type
     released*: bool
     clicked*: bool
 
-proc new*(_: typedesc[Button], gui: Gui): Button =
-  result = Button()
-  result.gui = gui
-  result.size = vec2(96, 32)
+proc init*(button: Button) =
+  button.size = vec2(96, 32)
 
 proc draw*(button: Button) =
   let gui = button.gui

@@ -70,7 +70,7 @@ gui.fillPath(path, rgb(31, 32, 34))
 if button.isDown:
   gui.fillPath(path, rgba(0, 0, 0, 8))
 
-elif button.isHovered(gui):
+elif gui.isHovered(button):
   gui.fillPath(path, rgba(255, 255, 255, 8))
 ```
 
@@ -176,8 +176,8 @@ There are a number of tools implemented in `nimgui/gui.nim` to help with making 
 #### Offsets:
 `beginOffset` and `endOffset` can be used to positionally alter the behavior and drawing of code.
 
-#### Clip rects:
-`beginClipRect` and `endClipRect` can be used to visually and behaviorally clip the content of code.
+#### Clip regions:
+`beginClipRegion` and `endClipRegion` can be used to visually and behaviorally clip the content of code.
 
 #### Z index:
 By default, graphical code is rendered in the order it is declared in control flow. The reason for collecting `DrawCommands` until the end of the frame is so that they can be reordered if desired. `beginZIndex` and `endZIndex` can be used for this purpose.

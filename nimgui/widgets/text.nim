@@ -43,6 +43,11 @@ proc glyphAt*(text: Text, position: Vec2): Option[tuple[index: int, glyph: Glyph
     if position.x >= left and position.x < right:
       return some((i, glyph))
 
+proc init*(text: Text) =
+  text.font = Font(0)
+  text.fontSize = 13.0
+  text.color = rgb(255, 255, 255)
+
 proc update*(text: Text) =
   let gui = text.gui
 
@@ -53,13 +58,6 @@ proc update*(text: Text) =
   text.ascender = metrics.ascender
   text.descender = metrics.descender
   text.glyphs = gui.measureGlyphs(text.data, font, fontSize)
-
-proc new*(_: typedesc[Text], gui: Gui): Text =
-  result = Text()
-  result.gui = gui
-  result.font = Font(0)
-  result.fontSize = 13.0
-  result.color = rgb(255, 255, 255)
 
 proc draw*(text: Text) =
   let gui = text.gui

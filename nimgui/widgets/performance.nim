@@ -9,11 +9,9 @@ type
     deltaTimes: seq[float]
     previousAverageWindow: int
 
-proc new*(_: typedesc[Performance], gui: Gui): Performance =
-  result = Performance()
-  result.gui = gui
-  result.averageWindow = 100
-  result.deltaTimes = newSeq[float](100)
+proc init*(perf: Performance) =
+  perf.averageWindow = 100
+  perf.deltaTimes = newSeq[float](100)
 
 proc fps*(perf: Performance): float =
   1.0 / perf.frameTime

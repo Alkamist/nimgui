@@ -1,22 +1,22 @@
 import ../gui
 
 type
-  Performance* = ref object of Widget
+  Performance* = ref object
     frameTime*: float
     averageWindow*: int
     index: int
     deltaTimes: seq[float]
     previousAverageWindow: int
 
-proc init*(perf: Performance) =
-  perf.averageWindow = 100
-  perf.deltaTimes = newSeq[float](100)
+proc new*(_: typedesc[Performance]): Performance =
+  result = Performance()
+  result.averageWindow = 100
+  result.deltaTimes = newSeq[float](100)
 
 proc fps*(perf: Performance): float =
   1.0 / perf.frameTime
 
-proc update*(perf: Performance) =
-  let gui = perf.gui
+proc update*(gui: Gui, perf: Performance) =
   let averageWindow = perf.averageWindow
 
   if averageWindow != perf.previousAverageWindow:

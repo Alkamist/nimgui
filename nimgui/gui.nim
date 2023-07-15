@@ -68,14 +68,11 @@ type
   Layer = object
     zIndex: int
     drawCommands: seq[DrawCommand]
-    finalHoverRequest: Widget
+    finalHoverRequest: pointer
 
   InteractionTracker* = object
     detectedHover*: bool
     detectedMouseOver*: bool
-
-  Widget* = ref object of RootObj
-    gui* {.cursor.}: Gui
 
   Gui* = ref object
     backgroundColor*: Color
@@ -85,7 +82,6 @@ type
     onFrame*: proc(gui: Gui)
 
     # Input
-    isHovered*: bool
     time*: float
     contentScale*: float
     size*: Vec2
@@ -98,11 +94,12 @@ type
     keyReleases*: seq[KeyboardKey]
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
+    currentlyIsHovered: bool
 
     # Hover
-    hover*: Widget
-    mouseOver*: Widget
-    hoverCapture*: Widget
+    hover*: pointer
+    mouseOver*: pointer
+    hoverCapture*: pointer
 
     # Stacks
     offsetStack: seq[Vec2]
@@ -133,10 +130,10 @@ proc inputMouseMove*(gui: Gui, x, y: float) =
   gui.globalMousePosition = vec2(x, y)
 
 proc inputMouseEnter*(gui: Gui) =
-  gui.isHovered = true
+  gui.currentlyIsHovered = true
 
 proc inputMouseExit*(gui: Gui) =
-  gui.isHovered = false
+  gui.currentlyIsHovered = false
 
 proc inputMouseWheel*(gui: Gui, x, y: float) =
   gui.mouseWheelState = vec2(x, y)
@@ -160,6 +157,7 @@ proc inputKeyRelease*(gui: Gui, key: KeyboardKey) =
 proc inputText*(gui: Gui, text: string) =
   gui.textInput &= text
 
+proc isHovered*(gui: Gui): bool = gui.currentlyIsHovered
 proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
 proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
 proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
@@ -179,37 +177,31 @@ proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 proc currentLayer(gui: Gui): var Layer =
   gui.layerStack[^1]
 
-proc newWidget*(gui: Gui, T: typedesc[Widget]): T =
-  result = T()
-  result.gui = gui
-  when compiles(result.init()):
-    result.init()
+proc toWidgetPtr(widget: ref): pointer =
+  cast[pointer](widget)
 
-proc isHovered*(widget: Widget): bool =
-  widget.gui.hover == widget
+proc isHovered*(gui: Gui, widget: ref): bool =
+  gui.hover == widget.toWidgetPtr
 
-proc mouseIsOver*(widget: Widget): bool =
-  widget.gui.mouseOver == widget
+proc mouseIsOver*(gui: Gui, widget: ref): bool =
+  gui.mouseOver == widget.toWidgetPtr
 
-proc requestHover*(widget: Widget) =
-  let gui = widget.gui
-  gui.currentLayer.finalHoverRequest = widget
+proc requestHover*(gui: Gui, widget: ref) =
+  let widgetPtr = widget.toWidgetPtr
+  gui.currentLayer.finalHoverRequest = widgetPtr
 
-  if gui.hover == widget:
+  if gui.hover == widgetPtr:
     gui.interactionTrackerStack[^1].detectedHover = true
 
-  if gui.mouseOver == widget:
+  if gui.mouseOver == widgetPtr:
     gui.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc captureHover*(widget: Widget) =
-  let gui = widget.gui
-
+proc captureHover*(gui: Gui, widget: ref) =
   if gui.hoverCapture == nil:
-    gui.hoverCapture = widget
+    gui.hoverCapture = widget.toWidgetPtr
 
-proc releaseHover*(widget: Widget) =
-  let gui = widget.gui
-  if gui.hoverCapture == widget:
+proc releaseHover*(gui: Gui, widget: ref) =
+  if gui.hoverCapture == widget.toWidgetPtr:
     gui.hoverCapture = nil
 
 proc zIndex*(gui: Gui): int =

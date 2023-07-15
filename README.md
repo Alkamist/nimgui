@@ -63,14 +63,14 @@ Here is an example of the code I use to draw a button:
 
 ```nim
 let path = Path.new()
-path.roundedRect(position, size, 3)
+path.roundedRect(button.position, button.size, 3)
 
 gui.fillPath(path, rgb(31, 32, 34))
 
 if button.isDown:
   gui.fillPath(path, rgba(0, 0, 0, 8))
 
-elif isHovered:
+elif gui.isHovered(button):
   gui.fillPath(path, rgba(255, 255, 255, 8))
 ```
 
@@ -101,18 +101,14 @@ gui.run()
 Text editing and wordwrapping are things I want to try to tackle at some point.
 
 ### Widgets
-In my current system, widgets are just ref objects that inherit from `Widget`. Inheriting from `Widget` currently enables the following:
-* Widgets know about the `Gui`.
-* Widgets are able to interact with the hover system.
-* Widgets are created with `gui.newWidget(YourWidgetType)`.
-* If your widget implements an `init` function, it is automatically called when created.
+In my current system, widgets are just ref objects and functions that utilize them and the `Gui`.
 
 You can `import nimgui/widgets` to have access to some premade widgets I have written. They also can serve as an example of how to write widgets.
 
 ### Hover and MouseOver
 User interaction with widgets is facilitated by the hover system. Only one widget can be hovered at a time.
 
-You can use `widget.requestHover()` to register with the gui that the widget wants to be hovered. At the end of the frame, the `Gui` will select the topmost `Widget` as its current hover. You can then check `widget.isHovered` next frame to see if it is hovered and respond accordingly.
+You can use `gui.requestHover(widget)` to register with the gui that the widget wants to be hovered. At the end of the frame, the `Gui` will select the topmost widget as its current hover. You can then check `gui.isHovered(widget)` next frame to see if it is hovered and respond accordingly.
 
 There is a small distinction between hover and mouseover, which is that a hover can be captured. When a hover is captured, the gui's hover is locked on that widget, and can only be released by that widget.
 
@@ -128,29 +124,28 @@ gui.setupBackend()
 gui.show()
 
 type
-  MyWidget = ref object of Widget
+  MyWidget = ref object
     position: Vec2
     size: Vec2
     color: Color
 
-proc update(myWidget: MyWidget) =
-  let gui = myWidget.gui
+proc update(gui: Gui, myWidget: MyWidget) =
   if gui.mouseHitTest(myWidget.position, myWidget.size):
-    myWidget.requestHover()
+    gui.requestHover(myWidget)
 
   let path = Path.new()
   path.rect(myWidget.position, myWidget.size)
 
   gui.fillPath(path, myWidget.color)
-  if myWidget.isHovered:
+  if gui.isHovered(myWidget):
     gui.strokePath(path, rgb(255, 255, 255))
 
-let widget1 = gui.newWidget(MyWidget)
+let widget1 = MyWidget.new()
 widget1.position = vec2(50, 50)
 widget1.size = vec2(300, 200)
 widget1.color = rgb(128, 0, 0)
 
-let widget2 = gui.newWidget(MyWidget)
+let widget2 = MyWidget.new()
 widget2.position = vec2(100, 100)
 widget2.size = vec2(400, 100)
 widget2.color = rgb(0, 128, 0)
@@ -158,8 +153,8 @@ widget2.color = rgb(0, 128, 0)
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
 
-  widget1.update()
-  widget2.update()
+  gui.update(widget1)
+  gui.update(widget2)
 
   gui.endFrame()
 

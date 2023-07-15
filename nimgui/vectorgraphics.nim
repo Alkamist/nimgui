@@ -48,11 +48,10 @@ type
     lineHeight*: float
 
   Glyph* = object
-    runeIndex*: int
     firstByte*: int
     lastByte*: int
     left*, right*: float
-    logicalXOffset*: float
+    drawOffsetX*: float
 
   DrawCommandKind* = enum
     FillPath
@@ -88,6 +87,9 @@ type
     of StrokePath: strokePath*: StrokePathCommand
     of FillText: fillText*: FillTextCommand
     of Clip: clip*: ClipCommand
+
+proc width*(glyph: Glyph): float =
+  glyph.right - glyph.left
 
 proc toNvgColor(color: Color): NVGcolor =
   NVGcolor(r: color.r, g: color.g, b: color.b, a: color.a)
@@ -146,12 +148,11 @@ proc measureGlyphs*(ctx: VectorGraphicsContext, text: openArray[char], font: Fon
         int(cast[uint64](nvgPositions[i + 1].str) - byteOffset - 1)
 
     result[i] = Glyph(
-      runeIndex: i,
       firstByte: int(cast[uint64](nvgPositions[i].str) - byteOffset),
       lastByte: lastByte,
       left: nvgPositions[i].minx,
       right: nvgPositions[i].maxx,
-      logicalXOffset: nvgPositions[i].x - nvgPositions[i].minx,
+      drawOffsetX: nvgPositions[i].x - nvgPositions[i].minx,
     )
 
 proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =

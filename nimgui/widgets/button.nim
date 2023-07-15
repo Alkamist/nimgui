@@ -2,6 +2,7 @@ import ../gui
 
 type
   Button* = ref object
+    gui*: Gui
     position*: Vec2
     size*: Vec2
     isDown*: bool
@@ -9,11 +10,14 @@ type
     released*: bool
     clicked*: bool
 
-proc new*(_: typedesc[Button]): Button =
+proc new*(_: typedesc[Button], gui: Gui): Button =
   result = Button()
+  result.gui = gui
   result.size = vec2(96, 32)
 
-proc draw*(button: Button, gui: Gui) =
+proc draw*(button: Button) =
+  let gui = button.gui
+
   let path = Path.new()
   path.roundedRect(button.position, button.size, 3)
 
@@ -22,18 +26,17 @@ proc draw*(button: Button, gui: Gui) =
   if button.isDown:
     gui.fillPath(path, rgba(0, 0, 0, 8))
 
-  elif button.isHovered(gui):
+  elif gui.isHovered(button):
     gui.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(button: Button, gui: Gui, hover, press, release: bool) =
-  let isHovered = button.isHovered(gui)
-  let mouseIsOver = button.mouseIsOver(gui)
+proc update*(button: Button, hover, press, release: bool) =
+  let gui = button.gui
 
   button.pressed = false
   button.released = false
   button.clicked = false
 
-  if isHovered and not button.isDown and press:
+  if gui.isHovered(button) and not button.isDown and press:
     button.isDown = true
     button.pressed = true
 
@@ -41,20 +44,22 @@ proc update*(button: Button, gui: Gui, hover, press, release: bool) =
     button.isDown = false
     button.released = true
 
-    if mouseIsOver:
+    if gui.mouseIsOver(button):
       button.clicked = true
 
   if button.pressed:
-    button.captureHover(gui)
+    gui.captureHover(button)
 
   if button.released:
-    button.releaseHover(gui)
+    gui.releaseHover(button)
 
   if hover:
-    button.requestHover(gui)
+    gui.requestHover(button)
 
-proc update*(button: Button, gui: Gui, mouseButton = MouseButton.Left) =
-  button.update(gui,
+proc update*(button: Button, mouseButton = MouseButton.Left) =
+  let gui = button.gui
+
+  button.update(
     hover = gui.mouseHitTest(button.position, button.size),
     press = gui.mousePressed(mouseButton),
     release = gui.mouseReleased(mouseButton),

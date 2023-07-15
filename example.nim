@@ -14,34 +14,46 @@ gui.setupBackend()
 gui.addFont(fontData)
 gui.show()
 
-let performance = Performance.new()
+let performance = Performance.new(gui)
 
-let slider = Slider.new()
-slider.position = vec2(100, 50)
+let slider = Slider.new(gui)
 
-let text = Text.new()
-text.position = vec2(100, 100)
+let text = Text.new(gui)
+text.position = slider.position + vec2(0, slider.size.y + 5.0)
 text.data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
-let window = Window.new()
+let title = Text.new(gui)
+title.data = "Window"
+
+let window = Window.new(gui)
 
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
 
-  window.beginUpdate(gui)
-  window.draw(gui)
-  window.beginBody(gui)
+  window.beginUpdate()
+  window.draw()
 
-  slider.update(gui)
-  slider.draw(gui)
+  let header = window.beginHeader()
+  title.position.x = (header.size.x - title.size.x) * 0.5
+  title.position.y = (header.size.y - title.lineHeight) * 0.5
+  title.update()
+  title.draw()
+  window.endHeader()
 
-  text.update(gui)
-  text.draw(gui)
+  window.beginBody(vec2(5.0, 5.0))
 
-  window.endBody(gui)
-  window.endUpdate(gui)
+  slider.update()
+  slider.draw()
 
-  performance.update(gui.deltaTime)
+  if gui.mouseHitTest(text.position, text.size):
+    gui.requestHover(text)
+  text.update()
+  text.draw()
+
+  window.endBody()
+  window.endUpdate()
+
+  performance.update()
   gui.fillTextLine("Fps: " & performance.fps.formatFloat(ffDecimal, 4), vec2(0, 0))
 
   gui.endFrame()

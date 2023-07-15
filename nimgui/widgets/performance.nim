@@ -1,20 +1,24 @@
+import ../gui
+
 type
   Performance* = ref object
+    gui*: Gui
     frameTime*: float
     averageWindow*: int
     index: int
     deltaTimes: seq[float]
     previousAverageWindow: int
 
-proc new*(_: typedesc[Performance]): Performance =
+proc new*(_: typedesc[Performance], gui: Gui): Performance =
   result = Performance()
+  result.gui = gui
   result.averageWindow = 100
   result.deltaTimes = newSeq[float](100)
 
 proc fps*(perf: Performance): float =
   1.0 / perf.frameTime
 
-proc update*(perf: Performance, deltaTime: float) =
+proc update*(perf: Performance) =
   let averageWindow = perf.averageWindow
 
   if averageWindow != perf.previousAverageWindow:
@@ -22,7 +26,7 @@ proc update*(perf: Performance, deltaTime: float) =
     perf.deltaTimes = newSeq[float](averageWindow)
 
   if perf.index < perf.deltaTimes.len:
-    perf.deltaTimes[perf.index] = deltaTime
+    perf.deltaTimes[perf.index] = perf.gui.deltaTime
 
   perf.index += 1
   if perf.index >= perf.deltaTimes.len:

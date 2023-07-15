@@ -3,6 +3,7 @@ import ../gui
 
 type
   Text* = ref object
+    gui*: Gui
     data*: string
     position*: Vec2
     font*: Font
@@ -25,7 +26,11 @@ proc drawOffset*(text: Text): Vec2 =
     return
   result.x = text.glyphs[0].drawOffsetX
 
-proc glyphAt*(text: Text, position: Vec2): Option[int] =
+proc glyphAt*(text: Text, position: Vec2): Option[tuple[index: int, glyph: Glyph]] =
+  let gui = text.gui
+  if not gui.isHovered(text):
+    return
+
   let textPosition = text.position
   if position.y < textPosition.y or
      position.y >= textPosition.y + text.lineHeight:
@@ -36,9 +41,11 @@ proc glyphAt*(text: Text, position: Vec2): Option[int] =
     let left = textPosition.x + glyph.left
     let right = textPosition.x + glyph.right
     if position.x >= left and position.x < right:
-      return some(i)
+      return some((i, glyph))
 
-proc update*(text: Text, gui: Gui) =
+proc update*(text: Text) =
+  let gui = text.gui
+
   let font = text.font
   let fontSize = text.fontSize
   let metrics = gui.textMetrics(font, fontSize)
@@ -47,13 +54,16 @@ proc update*(text: Text, gui: Gui) =
   text.descender = metrics.descender
   text.glyphs = gui.measureGlyphs(text.data, font, fontSize)
 
-proc new*(_: typedesc[Text]): Text =
+proc new*(_: typedesc[Text], gui: Gui): Text =
   result = Text()
+  result.gui = gui
   result.font = Font(0)
   result.fontSize = 13.0
   result.color = rgb(255, 255, 255)
 
-proc draw*(text: Text, gui: Gui) =
+proc draw*(text: Text) =
+  let gui = text.gui
+
   if text.glyphs.len > 0:
     let firstByte = text.glyphs[0].firstByte
     let lastByte = text.glyphs[^1].lastByte
@@ -67,7 +77,7 @@ proc draw*(text: Text, gui: Gui) =
   let mouseOverGlyphOption = text.glyphAt(gui.mousePosition)
   if mouseOverGlyphOption.isSome:
     let mouseOverGlyph = mouseOverGlyphOption.get
-    let glyph = text.glyphs[mouseOverGlyph]
+    let glyph = mouseOverGlyph.glyph
 
     let glyphPosition = text.position + vec2(glyph.left, 0)
     let glyphSize = vec2(glyph.width, text.lineHeight)

@@ -103,12 +103,12 @@ Text editing and wordwrapping are things I want to try to tackle at some point.
 ### Widgets
 In my current system, widgets are just ref objects and static functions that utilize them and the `Gui`.
 
-You can `import nimgui/widgets` to have access to some premade widgets I have written. They also can serve as an example of how to write widgets.
+You can `import nimgui/widgets` to have access to some premade widgets I have written. They also can serve as an example of how to write widgets. For convenience my widgets hold a reference to `Gui`.
 
 ### Hover and MouseOver
 User interaction with widgets is facilitated by the hover system. Only one widget can be hovered at a time.
 
-You can use `widget.requestHover(gui)` to register with the gui that the widget wants to be hovered. At the end of the frame, the `Gui` will select the topmost widget as its current hover. You can then check `widget.isHovered(gui)` next frame to see if it is hovered and respond accordingly.
+You can use `gui.requestHover(widget)` to register with the gui that the widget wants to be hovered. At the end of the frame, the `Gui` will select the topmost widget as its current hover. You can then check `gui.isHovered(widget)` next frame to see if it is hovered and respond accordingly.
 
 There is a small distinction between hover and mouseover, which is that a hover can be captured. When a hover is captured, the gui's hover is locked on that widget, and can only be released by that widget.
 
@@ -125,27 +125,34 @@ gui.show()
 
 type
   MyWidget = ref object
+    gui: Gui
     position: Vec2
     size: Vec2
     color: Color
 
-proc update(gui: Gui, myWidget: MyWidget) =
+proc new(_: typedesc[MyWidget], gui: Gui): MyWidget =
+  result = MyWidget()
+  result.gui = gui
+
+proc update(myWidget: MyWidget) =
+  let gui = myWidget.gui
+
   if gui.mouseHitTest(myWidget.position, myWidget.size):
-    myWidget.requestHover(gui)
+    gui.requestHover(myWidget)
 
   let path = Path.new()
   path.rect(myWidget.position, myWidget.size)
 
   gui.fillPath(path, myWidget.color)
-  if myWidget.isHovered(gui):
+  if gui.isHovered(myWidget):
     gui.strokePath(path, rgb(255, 255, 255))
 
-let widget1 = MyWidget.new()
+let widget1 = MyWidget.new(gui)
 widget1.position = vec2(50, 50)
 widget1.size = vec2(300, 200)
 widget1.color = rgb(128, 0, 0)
 
-let widget2 = MyWidget.new()
+let widget2 = MyWidget.new(gui)
 widget2.position = vec2(100, 100)
 widget2.size = vec2(400, 100)
 widget2.color = rgb(0, 128, 0)
@@ -153,8 +160,8 @@ widget2.color = rgb(0, 128, 0)
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
 
-  gui.update(widget1)
-  gui.update(widget2)
+  widget1.update()
+  widget2.update()
 
   gui.endFrame()
 

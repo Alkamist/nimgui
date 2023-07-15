@@ -70,7 +70,7 @@ gui.fillPath(path, rgb(31, 32, 34))
 if button.isDown:
   gui.fillPath(path, rgba(0, 0, 0, 8))
 
-elif gui.isHovered(button):
+elif button.isHovered(gui):
   gui.fillPath(path, rgba(255, 255, 255, 8))
 ```
 
@@ -101,14 +101,14 @@ gui.run()
 Text editing and wordwrapping are things I want to try to tackle at some point.
 
 ### Widgets
-In my current system, widgets are just ref objects and functions that utilize them and the `Gui`.
+In my current system, widgets are just ref objects and static functions that utilize them and the `Gui`.
 
 You can `import nimgui/widgets` to have access to some premade widgets I have written. They also can serve as an example of how to write widgets.
 
 ### Hover and MouseOver
 User interaction with widgets is facilitated by the hover system. Only one widget can be hovered at a time.
 
-You can use `gui.requestHover(widget)` to register with the gui that the widget wants to be hovered. At the end of the frame, the `Gui` will select the topmost widget as its current hover. You can then check `gui.isHovered(widget)` next frame to see if it is hovered and respond accordingly.
+You can use `widget.requestHover(gui)` to register with the gui that the widget wants to be hovered. At the end of the frame, the `Gui` will select the topmost widget as its current hover. You can then check `widget.isHovered(gui)` next frame to see if it is hovered and respond accordingly.
 
 There is a small distinction between hover and mouseover, which is that a hover can be captured. When a hover is captured, the gui's hover is locked on that widget, and can only be released by that widget.
 
@@ -131,13 +131,13 @@ type
 
 proc update(gui: Gui, myWidget: MyWidget) =
   if gui.mouseHitTest(myWidget.position, myWidget.size):
-    gui.requestHover(myWidget)
+    myWidget.requestHover(gui)
 
   let path = Path.new()
   path.rect(myWidget.position, myWidget.size)
 
   gui.fillPath(path, myWidget.color)
-  if gui.isHovered(myWidget):
+  if myWidget.isHovered(gui):
     gui.strokePath(path, rgb(255, 255, 255))
 
 let widget1 = MyWidget.new()

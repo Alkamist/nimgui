@@ -21,7 +21,7 @@ proc new*(_: typedesc[Slider]): Slider =
   result.maxValue = 1.0
   result.handleLength = 16.0
 
-proc draw*(gui: Gui, slider: Slider) =
+proc draw*(slider: Slider, gui: Gui) =
   let path = Path.new()
   path.roundedRect(slider.position, slider.size, 3)
   gui.fillPath(path, rgb(31, 32, 34))
@@ -32,10 +32,10 @@ proc draw*(gui: Gui, slider: Slider) =
   gui.fillPath(path, rgb(49, 51, 56).lighten(0.3))
   if handle.isDown:
     gui.fillPath(path, rgba(0, 0, 0, 8))
-  elif gui.isHovered(handle):
+  elif handle.isHovered(gui):
     gui.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(gui: Gui, slider: Slider) =
+proc update*(slider: Slider, gui: Gui) =
   let position = slider.position
   let size = slider.size
   let handleLength = slider.handleLength
@@ -47,7 +47,7 @@ proc update*(gui: Gui, slider: Slider) =
   handle.position = position + vec2((size.x - handleLength) * (value - minValue) / (maxValue - minValue), 0.0)
   handle.size = vec2(handleLength, size.y)
 
-  gui.update(handle)
+  handle.update(gui)
 
   if handle.pressed or gui.keyPressed(LeftControl) or gui.keyReleased(LeftControl):
     slider.valueWhenHandleGrabbed = value

@@ -180,13 +180,13 @@ proc currentLayer(gui: Gui): var Layer =
 proc toWidgetPtr(widget: ref): pointer =
   cast[pointer](widget)
 
-proc isHovered*(gui: Gui, widget: ref): bool =
+proc isHovered*(widget: ref, gui: Gui): bool =
   gui.hover == widget.toWidgetPtr
 
-proc mouseIsOver*(gui: Gui, widget: ref): bool =
+proc mouseIsOver*(widget: ref, gui: Gui): bool =
   gui.mouseOver == widget.toWidgetPtr
 
-proc requestHover*(gui: Gui, widget: ref) =
+proc requestHover*(widget: ref, gui: Gui) =
   let widgetPtr = widget.toWidgetPtr
   gui.currentLayer.finalHoverRequest = widgetPtr
 
@@ -196,11 +196,11 @@ proc requestHover*(gui: Gui, widget: ref) =
   if gui.mouseOver == widgetPtr:
     gui.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc captureHover*(gui: Gui, widget: ref) =
+proc captureHover*(widget: ref, gui: Gui) =
   if gui.hoverCapture == nil:
     gui.hoverCapture = widget.toWidgetPtr
 
-proc releaseHover*(gui: Gui, widget: ref) =
+proc releaseHover*(widget: ref, gui: Gui) =
   if gui.hoverCapture == widget.toWidgetPtr:
     gui.hoverCapture = nil
 

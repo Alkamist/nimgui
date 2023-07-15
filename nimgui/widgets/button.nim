@@ -13,7 +13,7 @@ proc new*(_: typedesc[Button]): Button =
   result = Button()
   result.size = vec2(96, 32)
 
-proc draw*(gui: Gui, button: Button) =
+proc draw*(button: Button, gui: Gui) =
   let path = Path.new()
   path.roundedRect(button.position, button.size, 3)
 
@@ -22,12 +22,12 @@ proc draw*(gui: Gui, button: Button) =
   if button.isDown:
     gui.fillPath(path, rgba(0, 0, 0, 8))
 
-  elif gui.isHovered(button):
+  elif button.isHovered(gui):
     gui.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(gui: Gui, button: Button, hover, press, release: bool) =
-  let isHovered = gui.isHovered(button)
-  let mouseIsOver = gui.mouseIsOver(button)
+proc update*(button: Button, gui: Gui, hover, press, release: bool) =
+  let isHovered = button.isHovered(gui)
+  let mouseIsOver = button.mouseIsOver(gui)
 
   button.pressed = false
   button.released = false
@@ -45,16 +45,16 @@ proc update*(gui: Gui, button: Button, hover, press, release: bool) =
       button.clicked = true
 
   if button.pressed:
-    gui.captureHover(button)
+    button.captureHover(gui)
 
   if button.released:
-    gui.releaseHover(button)
+    button.releaseHover(gui)
 
   if hover:
-    gui.requestHover(button)
+    button.requestHover(gui)
 
-proc update*(gui: Gui, button: Button, mouseButton = MouseButton.Left) =
-  gui.update(button,
+proc update*(button: Button, gui: Gui, mouseButton = MouseButton.Left) =
+  button.update(gui,
     hover = gui.mouseHitTest(button.position, button.size),
     press = gui.mousePressed(mouseButton),
     release = gui.mouseReleased(mouseButton),

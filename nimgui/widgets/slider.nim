@@ -3,7 +3,6 @@ import ./button
 
 type
   Slider* = ref object
-    gui*: Gui
     position*: Vec2
     size*: Vec2
     value*: float
@@ -14,16 +13,15 @@ type
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
-proc init*(slider: Slider) =
-  slider.handle = slider.gui.newWidget(Button)
-  slider.size = vec2(300, 24)
-  slider.minValue = 0.0
-  slider.maxValue = 1.0
-  slider.handleLength = 16.0
+proc new*(_: typedesc[Slider]): Slider =
+  result = Slider()
+  result.handle = Button.new()
+  result.size = vec2(300, 24)
+  result.minValue = 0.0
+  result.maxValue = 1.0
+  result.handleLength = 16.0
 
-proc draw*(slider: Slider) =
-  let gui = slider.gui
-
+proc draw*(gui: Gui, slider: Slider) =
   let path = Path.new()
   path.roundedRect(slider.position, slider.size, 3)
   gui.fillPath(path, rgb(31, 32, 34))
@@ -37,9 +35,7 @@ proc draw*(slider: Slider) =
   elif gui.isHovered(handle):
     gui.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(slider: Slider) =
-  let gui = slider.gui
-
+proc update*(gui: Gui, slider: Slider) =
   let position = slider.position
   let size = slider.size
   let handleLength = slider.handleLength
@@ -51,7 +47,7 @@ proc update*(slider: Slider) =
   handle.position = position + vec2((size.x - handleLength) * (value - minValue) / (maxValue - minValue), 0.0)
   handle.size = vec2(handleLength, size.y)
 
-  handle.update()
+  gui.update(handle)
 
   if handle.pressed or gui.keyPressed(LeftControl) or gui.keyReleased(LeftControl):
     slider.valueWhenHandleGrabbed = value

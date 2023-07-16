@@ -2,7 +2,6 @@ import ../gui
 
 type
   Button* = ref object
-    gui*: Gui
     position*: Vec2
     size*: Vec2
     isDown*: bool
@@ -10,12 +9,11 @@ type
     released*: bool
     clicked*: bool
 
-proc init*(button: Button) =
-  button.size = vec2(96, 32)
+proc new*(_: typedesc[Button]): Button =
+  result = Button()
+  result.size = vec2(96, 32)
 
-proc draw*(button: Button) =
-  let gui = button.gui
-
+proc draw*(gui: Gui, button: Button) =
   let path = Path.new()
   path.roundedRect(button.position, button.size, 3)
 
@@ -27,9 +25,7 @@ proc draw*(button: Button) =
   elif gui.isHovered(button):
     gui.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(button: Button, hover, press, release: bool) =
-  let gui = button.gui
-
+proc update*(gui: Gui, button: Button, hover, press, release: bool) =
   button.pressed = false
   button.released = false
   button.clicked = false
@@ -54,10 +50,8 @@ proc update*(button: Button, hover, press, release: bool) =
   if hover:
     gui.requestHover(button)
 
-proc update*(button: Button, mouseButton = MouseButton.Left) =
-  let gui = button.gui
-
-  button.update(
+proc update*(gui: Gui, button: Button, mouseButton = MouseButton.Left) =
+  gui.update(button,
     hover = gui.mouseHitTest(button.position, button.size),
     press = gui.mousePressed(mouseButton),
     release = gui.mouseReleased(mouseButton),

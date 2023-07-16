@@ -190,12 +190,6 @@ proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
 proc currentLayer(gui: Gui): var Layer =
   gui.layerStack[^1]
 
-proc newWidget*(gui: Gui, T: typedesc[ref]): T =
-  result = T()
-  result.gui = gui
-  when compiles(result.init()):
-    result.init()
-
 proc toWidgetPtr(widget: ref): pointer =
   cast[pointer](widget)
 

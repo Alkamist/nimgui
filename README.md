@@ -103,7 +103,7 @@ Text editing and wordwrapping are things I want to try to tackle at some point.
 ### Widgets
 In my current system, widgets are just ref objects and static functions that utilize them and the `Gui`.
 
-You can `import nimgui/widgets` to have access to some premade widgets I have written. They also can serve as an example of how to write widgets. For convenience my widgets hold a reference to `Gui`.
+You can `import nimgui/widgets` to have access to some premade widgets I have written. They also can serve as an example of how to write widgets.
 
 ### Hover and MouseOver
 User interaction with widgets is facilitated by the hover system. Only one widget can be hovered at a time.
@@ -125,18 +125,11 @@ gui.show()
 
 type
   MyWidget = ref object
-    gui: Gui
     position: Vec2
     size: Vec2
     color: Color
 
-proc new(_: typedesc[MyWidget], gui: Gui): MyWidget =
-  result = MyWidget()
-  result.gui = gui
-
-proc update(myWidget: MyWidget) =
-  let gui = myWidget.gui
-
+proc update(gui: Gui, myWidget: MyWidget) =
   if gui.mouseHitTest(myWidget.position, myWidget.size):
     gui.requestHover(myWidget)
 
@@ -147,12 +140,12 @@ proc update(myWidget: MyWidget) =
   if gui.isHovered(myWidget):
     gui.strokePath(path, rgb(255, 255, 255))
 
-let widget1 = MyWidget.new(gui)
+let widget1 = MyWidget.new()
 widget1.position = vec2(50, 50)
 widget1.size = vec2(300, 200)
 widget1.color = rgb(128, 0, 0)
 
-let widget2 = MyWidget.new(gui)
+let widget2 = MyWidget.new()
 widget2.position = vec2(100, 100)
 widget2.size = vec2(400, 100)
 widget2.color = rgb(0, 128, 0)
@@ -160,8 +153,8 @@ widget2.color = rgb(0, 128, 0)
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
 
-  widget1.update()
-  widget2.update()
+  gui.update(widget1)
+  gui.update(widget2)
 
   gui.endFrame()
 

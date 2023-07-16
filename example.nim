@@ -14,24 +14,24 @@ gui.setupBackend()
 gui.addFont(fontData)
 gui.show()
 
-let performance = gui.newWidget(Performance)
+let performance = Performance.new()
 
-let slider = gui.newWidget(Slider)
+let slider = Slider.new()
 
-let text = gui.newWidget(Text)
+let text = Text.new()
 text.position = slider.position + vec2(0, slider.size.y + 5.0)
 text.data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
-let title = gui.newWidget(Text)
+let title = Text.new()
 title.data = "Window"
 
-let window = gui.newWidget(Window)
+let window = Window.new()
 
 gui.onFrame = proc(gui: Gui) =
   gui.beginFrame()
 
-  window.beginUpdate()
-  window.draw()
+  gui.beginUpdate(window)
+  gui.draw(window)
 
   block: # Header
     let header = window.header
@@ -40,8 +40,8 @@ gui.onFrame = proc(gui: Gui) =
 
     title.position.x = (header.size.x - title.size.x) * 0.5
     title.position.y = (header.size.y - title.lineHeight) * 0.5
-    title.update()
-    title.draw()
+    gui.update(title)
+    gui.draw(title)
 
     gui.endOffset()
     gui.endClipRegion()
@@ -51,21 +51,21 @@ gui.onFrame = proc(gui: Gui) =
     gui.beginClipRegion(body)
     gui.beginOffset(body.position)
 
-    slider.update()
-    slider.draw()
+    gui.update(slider)
+    gui.draw(slider)
 
     if gui.mouseHitTest(text.position, text.size):
       gui.requestHover(text)
 
-    text.update()
-    text.draw()
+    gui.update(text)
+    gui.draw(text)
 
     gui.endOffset()
     gui.endClipRegion()
 
-  window.endUpdate()
+  gui.endUpdate(window)
 
-  performance.update()
+  gui.update(performance)
   gui.fillTextLine("Fps: " & performance.fps.formatFloat(ffDecimal, 4), vec2(0, 0))
 
   gui.endFrame()

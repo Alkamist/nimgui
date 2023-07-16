@@ -54,9 +54,6 @@ gui.onFrame = proc(gui: Gui) =
     gui.update(slider)
     gui.draw(slider)
 
-    if gui.mouseHitTest(text.position, text.size):
-      gui.requestHover(text)
-
     gui.update(text)
     gui.draw(text)
 

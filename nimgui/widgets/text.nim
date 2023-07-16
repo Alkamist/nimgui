@@ -65,3 +65,20 @@ proc draw*(gui: Gui, text: Text) =
     text.font,
     text.fontSize,
   )
+
+proc selectionRegion*(text: Text, selection: (int, int)): Region =
+  if text.glyphs.len == 0:
+    return
+
+  let firstGlyphIndex = min(selection[0], selection[1])
+  let lastGlyphIndex = max(selection[0], selection[1])
+
+  let firstGlyph = text.glyphs[firstGlyphIndex]
+  let lastGlyph = text.glyphs[lastGlyphIndex]
+
+  result.position.x = text.position.x + firstGlyph.left
+  result.position.y = text.position.y
+  result.size.y = text.lineHeight
+
+  if firstGlyphIndex != lastGlyphIndex:
+    result.size.x = lastGlyph.right - firstGlyph.left

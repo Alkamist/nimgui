@@ -1,5 +1,6 @@
 import std/options
 import std/unicode
+import std/locks
 import opengl
 import pugl
 
@@ -84,6 +85,10 @@ type
 var openGlLoaded: bool
 var world {.threadvar.}: ptr PuglWorld
 var windowCount {.threadvar.}: int
+
+var worldId: int
+var worldIdLock: Lock
+initLock(worldIdLock)
 
 proc update*() =
   puglUpdate(world, 0)
@@ -355,9 +360,13 @@ proc onEvent(view: ptr PuglView, event: ptr PuglEvent): PuglStatus {.cdecl.} =
   PUGL_SUCCESS
 
 proc open*(window: OsWindow): bool =
+  worldIdLock.acquire()
+
   if windowCount == 0:
     world = puglNewWorld(PUGL_PROGRAM, 0)
-    puglSetWorldString(world, PUGL_CLASS_NAME, "GuiWindow")
+    worldId += 1
+    let className = cstring("NimguiWindowThread" & $worldId)
+    puglSetWorldString(world, PUGL_CLASS_NAME, className)
 
   if window.isOpen:
     return false
@@ -401,6 +410,7 @@ proc open*(window: OsWindow): bool =
   if status != PUGL_SUCCESS:
     puglFreeView(view)
     debugEcho puglStrerror(status)
+    worldIdLock.release()
     return false
 
   puglSetPosition(view, cint(window.lastPosition.x), cint(window.lastPosition.y))
@@ -415,6 +425,8 @@ proc open*(window: OsWindow): bool =
     opengl.loadExtensions()
 
   windowCount += 1
+
+  worldIdLock.release()
 
   return true
 

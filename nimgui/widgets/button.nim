@@ -1,36 +1,36 @@
 import ../gui
 
 type
-  Button* = ref object
+  Button* = ref object of Widget
     position*: Vec2
-    size*: Vec2
+    size* = vec2(96, 32)
     isDown*: bool
     pressed*: bool
     released*: bool
     clicked*: bool
 
-proc new*(_: typedesc[Button]): Button =
-  result = Button()
-  result.size = vec2(96, 32)
+proc draw*(button: Button) =
+  let window = gui.currentWindow
 
-proc draw*(gui: Gui, button: Button) =
   let path = Path.new()
   path.roundedRect(button.position, button.size, 3)
 
-  gui.fillPath(path, rgb(31, 32, 34))
+  window.fillPath(path, rgb(31, 32, 34))
 
   if button.isDown:
-    gui.fillPath(path, rgba(0, 0, 0, 8))
+    window.fillPath(path, rgba(0, 0, 0, 8))
 
-  elif gui.isHovered(button):
-    gui.fillPath(path, rgba(255, 255, 255, 8))
+  elif window.isHovered(button):
+    window.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(gui: Gui, button: Button, hover, press, release: bool) =
+proc update*(button: Button, hover, press, release: bool) =
+  let window = gui.currentWindow
+
   button.pressed = false
   button.released = false
   button.clicked = false
 
-  if gui.isHovered(button) and not button.isDown and press:
+  if window.isHovered(button) and not button.isDown and press:
     button.isDown = true
     button.pressed = true
 
@@ -38,21 +38,22 @@ proc update*(gui: Gui, button: Button, hover, press, release: bool) =
     button.isDown = false
     button.released = true
 
-    if gui.mouseIsOver(button):
+    if window.mouseIsOver(button):
       button.clicked = true
 
   if button.pressed:
-    gui.captureHover(button)
+    window.captureHover(button)
 
   if button.released:
-    gui.releaseHover(button)
+    window.releaseHover(button)
 
   if hover:
-    gui.requestHover(button)
+    window.requestHover(button)
 
-proc update*(gui: Gui, button: Button, mouseButton = MouseButton.Left) =
-  gui.update(button,
-    hover = gui.mouseHitTest(button.position, button.size),
-    press = gui.mousePressed(mouseButton),
-    release = gui.mouseReleased(mouseButton),
+proc update*(button: Button, mouseButton = MouseButton.Left) =
+  let window = gui.currentWindow
+  button.update(
+    hover = window.mouseHitTest(button.position, button.size),
+    press = window.mousePressed(mouseButton),
+    release = window.mouseReleased(mouseButton),
   )

@@ -1,1 +1,1 @@
-import ./nimgui/gui; export gui
+import nimgui/gui; export gui

@@ -1,70 +1,58 @@
-{.experimental: "overloadableEnums".}
-
-import std/strutils
 import nimgui
 import nimgui/widgets
-import nimgui/backends
 
 const fontData = readFile("consola.ttf")
 
-let gui = Gui.new()
-gui.backgroundColor = rgb(49, 51, 56)
+let consola = Font.new()
+consola.name = "Consola"
+consola.data = fontData
 
-gui.setupBackend()
-gui.addFont(fontData)
-gui.show()
+let window1 = Window.new()
+window1.title = "Window 1"
+window1.position = vec2(50, 50)
+window1.backgroundColor = rgb(16, 16, 16)
+
+window1.defaultFont = consola
+
+window1.onFrame = proc(window: Window) =
+  let path = Path.new()
+  path.roundedRect(vec2(50, 50), vec2(100, 100), 5)
+  path.close()
+  window.fillPath(path, rgb(255, 0, 0))
+
+let window2 = Window.new()
+window2.title = "Window 2"
+window2.position = vec2(500, 50)
+window2.backgroundColor = rgb(16, 16, 16)
+
+window2.defaultFont = consola
+
+let button = Button.new()
+button.position = vec2(10, 50)
+
+let slider = Slider.new()
+slider.position = vec2(100, 100)
 
 let performance = Performance.new()
 
-let slider = Slider.new()
+window2.onFrame = proc(window: Window) =
+  button.update()
+  button.draw()
 
-let text = Text.new()
-text.position = slider.position + vec2(0, slider.size.y + 5.0)
-text.data = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+  slider.update()
+  slider.draw()
 
-let title = Text.new()
-title.data = "Window"
+  if button.clicked:
+    if window1.isOpen:
+      window1.close()
+    else:
+      window1.open()
 
-let window = Window.new()
+  performance.update()
+  performance.draw()
 
-gui.onFrame = proc(gui: Gui) =
-  gui.beginFrame()
+window1.open()
+window2.open()
 
-  gui.beginUpdate(window)
-  gui.draw(window)
-
-  block: # Header
-    let header = window.header
-    gui.beginClipRegion(header)
-    gui.beginOffset(header.position)
-
-    title.position.x = (header.size.x - title.size.x) * 0.5
-    title.position.y = (header.size.y - title.lineHeight) * 0.5
-    gui.update(title)
-    gui.draw(title)
-
-    gui.endOffset()
-    gui.endClipRegion()
-
-  block: # Body
-    let body = window.body(vec2(5, 5))
-    gui.beginClipRegion(body)
-    gui.beginOffset(body.position)
-
-    gui.update(slider)
-    gui.draw(slider)
-
-    gui.update(text)
-    gui.draw(text)
-
-    gui.endOffset()
-    gui.endClipRegion()
-
-  gui.endUpdate(window)
-
-  gui.update(performance)
-  gui.fillTextLine("Fps: " & performance.fps.formatFloat(ffDecimal, 4), vec2(0, 0))
-
-  gui.endFrame()
-
-gui.run()
+while window1.isOpen or window2.isOpen:
+  gui.update()

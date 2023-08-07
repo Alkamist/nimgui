@@ -9,7 +9,4 @@ backend = "c"
 
 # Dependencies
 
-requires "nim >= 1.6.0"
-
-# If using glfw backend.
-# requires "staticglfw"
+requires "nim >= 2.0.0"

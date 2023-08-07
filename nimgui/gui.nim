@@ -1,104 +1,95 @@
-{.experimental: "overloadableEnums".}
-
 import std/math
+import std/times
 import std/algorithm
-import ./vectorgraphics; export vectorgraphics
+import std/strformat
 import opengl
+import nanovg
+import oswindow; export oswindow
+import rect
+import vec2; export vec2
+import color; export color
+import paint; export paint
+import path; export path
+
+proc toNvgColor(color: Color): NVGcolor =
+  NVGcolor(r: color.r, g: color.g, b: color.b, a: color.a)
+
+proc toNvgPaint(paint: Paint): NVGpaint =
+  for i, value in paint.transform: result.xform[i] = value
+  for i, value in paint.extent: result.extent[i] = value
+  result.radius = paint.radius
+  result.feather = paint.feather
+  result.innerColor = paint.innerColor.toNvgColor
+  result.outerColor = paint.outerColor.toNvgColor
+  result.image = cint(paint.image)
 
 type
-  Region* = object
-    position*: Vec2
-    size*: Vec2
-
-proc region*(position, size: Vec2): Region =
-  result.position = position
-  result.size = size
-
-proc expand*(region: Region, amount: Vec2): Region =
-  result.position = vec2(
-    min(region.position.x + region.size.x * 0.5, region.position.x - amount.x),
-    min(region.position.y + region.size.y * 0.5, region.position.y - amount.y),
-  )
-  result.size = vec2(
-    max(0, region.size.x + amount.x * 2),
-    max(0, region.size.y + amount.y * 2),
-  )
-
-proc intersect*(a, b: Region): Region =
-  let x1 = max(a.position.x, b.position.x)
-  let y1 = max(a.position.y, b.position.y)
-  var x2 = min(a.position.x + a.size.x, b.position.x + b.size.x)
-  var y2 = min(a.position.y + a.size.y, b.position.y + b.size.y)
-  if x2 < x1: x2 = x1
-  if y2 < y1: y2 = y1
-  Region(position: vec2(x1, y1), size: vec2(x2 - x1, y2 - y1))
-
-proc contains*(a: Region, b: Vec2): bool =
-  b.x >= a.position.x and b.x <= a.position.x + a.size.x and
-  b.y >= a.position.y and b.y <= a.position.y + a.size.y
-
-type
-  CursorStyle* = enum
-    Arrow
-    IBeam
-    Crosshair
-    PointingHand
-    ResizeLeftRight
-    ResizeTopBottom
-    ResizeTopLeftBottomRight
-    ResizeTopRightBottomLeft
-
-  MouseButton* = enum
-    Unknown,
-    Left, Middle, Right,
-    Extra1, Extra2, Extra3,
-    Extra4, Extra5,
-
-  KeyboardKey* = enum
-    Unknown,
-    A, B, C, D, E, F, G, H, I,
-    J, K, L, M, N, O, P, Q, R,
-    S, T, U, V, W, X, Y, Z,
-    Key1, Key2, Key3, Key4, Key5,
-    Key6, Key7, Key8, Key9, Key0,
-    Pad1, Pad2, Pad3, Pad4, Pad5,
-    Pad6, Pad7, Pad8, Pad9, Pad0,
-    F1, F2, F3, F4, F5, F6, F7,
-    F8, F9, F10, F11, F12,
-    Backtick, Minus, Equal, Backspace,
-    Tab, CapsLock, Enter, LeftShift,
-    RightShift, LeftControl, RightControl,
-    LeftAlt, RightAlt, LeftMeta, RightMeta,
-    LeftBracket, RightBracket, Space,
-    Escape, Backslash, Semicolon, Quote,
-    Comma, Period, Slash, ScrollLock,
-    Pause, Insert, End, PageUp, Delete,
-    Home, PageDown, LeftArrow, RightArrow,
-    DownArrow, UpArrow, NumLock, PadDivide,
-    PadMultiply, PadSubtract, PadAdd, PadEnter,
-    PadPeriod, PrintScreen,
+  Widget* = ref object of RootObj
 
   Layer = object
     zIndex: int
     drawCommands: seq[DrawCommand]
-    finalHoverRequest: pointer
+    finalHoverRequest: Widget
 
   InteractionTracker* = object
     detectedHover*: bool
     detectedMouseOver*: bool
 
-  Gui* = ref object
-    backgroundColor*: Color
-    cursorStyle*: CursorStyle
-    highestZIndex*: int
-    backendData*: pointer
-    onFrame*: proc(gui: Gui)
+  Glyph* = object
+    firstByte*: int
+    lastByte*: int
+    left*, right*: float
+    drawOffsetX*: float
 
-    # Input
-    time*: float
-    contentScale*: float
+  Font* = ref object
+    name*: string
+    data*: string
+
+  DrawCommandKind* = enum
+    FillPath
+    StrokePath
+    FillText
+    Clip
+
+  FillPathCommand* = object
+    path*: type Path()[]
+    position*: Vec2
+    paint*: Paint
+
+  StrokePathCommand* = object
+    path*: type Path()[]
+    position*: Vec2
+    paint*: Paint
+    strokeWidth*: float
+
+  FillTextCommand* = object
+    font*: Font
+    fontSize*: float
+    position*: Vec2
+    text*: string
+    color*: Color
+
+  ClipCommand* = object
+    position*: Vec2
     size*: Vec2
+
+  DrawCommand* = object
+    case kind*: DrawCommandKind
+    of FillPath: fillPath*: FillPathCommand
+    of StrokePath: strokePath*: StrokePathCommand
+    of FillText: fillText*: FillTextCommand
+    of Clip: clip*: ClipCommand
+
+  Window* = ref object of OsWindow
+    onFrame*: proc(window: Window)
+    backgroundColor*: Color
+
+    time*: float
+    previousTime*: float
+    clientAreaHovered*: bool
     globalMousePosition*: Vec2
+    previousGlobalMousePosition*: Vec2
+    rootMousePosition*: Vec2
     mouseWheelState*: Vec2
     mousePresses*: seq[MouseButton]
     mouseReleases*: seq[MouseButton]
@@ -107,320 +98,460 @@ type
     keyReleases*: seq[KeyboardKey]
     keyDownStates*: array[KeyboardKey, bool]
     textInput*: string
-    currentlyIsHovered: bool
 
-    # Hover
-    hover*: pointer
-    mouseOver*: pointer
-    hoverCapture*: pointer
+    hover*: Widget
+    mouseOver*: Widget
+    hoverCapture*: Widget
 
-    # Stacks
+    highestZIndex*: int
+
     offsetStack: seq[Vec2]
-    clipRegionStack: seq[Region]
+    clipStack: seq[Rect]
     layerStack: seq[Layer]
     interactionTrackerStack: seq[InteractionTracker]
-
-    # Layer
     layers: seq[Layer]
 
-    # Vector graphics
-    vgCtx: VectorGraphicsContext
+    defaultFont*: Font
 
-    # Previous frame state
-    previousTime: float
-    previousGlobalMousePosition: Vec2
+    currentFont: Font
+    currentFontSize: float = 16.0
+    nvgCtx: NVGcontext
 
-proc inputTime*(gui: Gui, time: float) =
-  gui.time = time
+    cachedContentScale: float = 1.0
 
-proc inputContentScale*(gui: Gui, scale: float) =
-  gui.contentScale = scale
+    loadedFonts: seq[Font]
 
-proc inputSize*(gui: Gui, x, y: float) =
-  gui.size = vec2(x, y)
+var currentWindow* {.threadvar.}: Window
 
-proc inputMouseMove*(gui: Gui, x, y: float) =
-  gui.globalMousePosition = vec2(x, y)
+proc mouseDelta*(window: Window): Vec2 = window.globalMousePosition - window.previousGlobalMousePosition
+proc deltaTime*(window: Window): float = window.time - window.previousTime
+proc mouseDown*(window: Window, button: MouseButton): bool = window.mouseDownStates[button]
+proc keyDown*(window: Window, key: KeyboardKey): bool = window.keyDownStates[key]
+proc mouseWheel*(window: Window): Vec2 = window.mouseWheelState
+proc mouseMoved*(window: Window): bool = window.mouseDelta != vec2(0, 0)
+proc mouseWheelMoved*(window: Window): bool = window.mouseWheelState != vec2(0, 0)
+proc mousePressed*(window: Window, button: MouseButton): bool = button in window.mousePresses
+proc mouseReleased*(window: Window, button: MouseButton): bool = button in window.mouseReleases
+proc anyMousePressed*(window: Window): bool = window.mousePresses.len > 0
+proc anyMouseReleased*(window: Window): bool = window.mouseReleases.len > 0
+proc keyPressed*(window: Window, key: KeyboardKey): bool = key in window.keyPresses
+proc keyReleased*(window: Window, key: KeyboardKey): bool = key in window.keyReleases
+proc anyKeyPressed*(window: Window): bool = window.keyPresses.len > 0
+proc anyKeyReleased*(window: Window): bool = window.keyReleases.len > 0
 
-proc inputMouseEnter*(gui: Gui) =
-  gui.currentlyIsHovered = true
+proc currentLayer(window: Window): var Layer =
+  window.layerStack[^1]
 
-proc inputMouseExit*(gui: Gui) =
-  gui.currentlyIsHovered = false
+proc isHovered*(window: Window, widget: Widget): bool =
+  window.hover == widget
 
-proc inputMouseWheel*(gui: Gui, x, y: float) =
-  gui.mouseWheelState = vec2(x, y)
+proc mouseIsOver*(window: Window, widget: Widget): bool =
+  window.mouseOver == widget
 
-proc inputMousePress*(gui: Gui, button: MouseButton) =
-  gui.mouseDownStates[button] = true
-  gui.mousePresses.add(button)
+proc requestHover*(window: Window, widget: Widget) =
+  window.currentLayer.finalHoverRequest = widget
 
-proc inputMouseRelease*(gui: Gui, button: MouseButton) =
-  gui.mouseDownStates[button] = false
-  gui.mouseReleases.add(button)
+  if window.hover == widget:
+    window.interactionTrackerStack[^1].detectedHover = true
 
-proc inputKeyPress*(gui: Gui, key: KeyboardKey) =
-  gui.keyDownStates[key] = true
-  gui.keyPresses.add(key)
+  if window.mouseOver == widget:
+    window.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc inputKeyRelease*(gui: Gui, key: KeyboardKey) =
-  gui.keyDownStates[key] = false
-  gui.keyReleases.add(key)
+proc captureHover*(window: Window, widget: Widget) =
+  if window.hoverCapture == nil:
+    window.hoverCapture = widget
 
-proc inputText*(gui: Gui, text: string) =
-  gui.textInput &= text
+proc releaseHover*(window: Window, widget: Widget) =
+  if window.hoverCapture == widget:
+    window.hoverCapture = nil
 
-proc isHovered*(gui: Gui): bool = gui.currentlyIsHovered
-proc mouseDelta*(gui: Gui): Vec2 = gui.globalMousePosition - gui.previousGlobalMousePosition
-proc deltaTime*(gui: Gui): float = gui.time - gui.previousTime
-proc mouseDown*(gui: Gui, button: MouseButton): bool = gui.mouseDownStates[button]
-proc keyDown*(gui: Gui, key: KeyboardKey): bool = gui.keyDownStates[key]
-proc mouseWheel*(gui: Gui): Vec2 = gui.mouseWheelState
-proc mouseMoved*(gui: Gui): bool = gui.mouseDelta != vec2(0, 0)
-proc mouseWheelMoved*(gui: Gui): bool = gui.mouseWheelState != vec2(0, 0)
-proc mousePressed*(gui: Gui, button: MouseButton): bool = button in gui.mousePresses
-proc mouseReleased*(gui: Gui, button: MouseButton): bool = button in gui.mouseReleases
-proc anyMousePressed*(gui: Gui): bool = gui.mousePresses.len > 0
-proc anyMouseReleased*(gui: Gui): bool = gui.mouseReleases.len > 0
-proc keyPressed*(gui: Gui, key: KeyboardKey): bool = key in gui.keyPresses
-proc keyReleased*(gui: Gui, key: KeyboardKey): bool = key in gui.keyReleases
-proc anyKeyPressed*(gui: Gui): bool = gui.keyPresses.len > 0
-proc anyKeyReleased*(gui: Gui): bool = gui.keyReleases.len > 0
+proc currentZIndex*(window: Window): int =
+  window.currentLayer.zIndex
 
-proc currentLayer(gui: Gui): var Layer =
-  gui.layerStack[^1]
+proc currentOffset*(window: Window): Vec2 =
+  window.offsetStack[^1]
 
-proc toWidgetPtr(widget: ref): pointer =
-  cast[pointer](widget)
-
-proc isHovered*(gui: Gui, widget: ref): bool =
-  gui.hover == widget.toWidgetPtr
-
-proc mouseIsOver*(gui: Gui, widget: ref): bool =
-  gui.mouseOver == widget.toWidgetPtr
-
-proc requestHover*(gui: Gui, widget: ref) =
-  let widgetPtr = widget.toWidgetPtr
-  gui.currentLayer.finalHoverRequest = widgetPtr
-
-  if gui.hover == widgetPtr:
-    gui.interactionTrackerStack[^1].detectedHover = true
-
-  if gui.mouseOver == widgetPtr:
-    gui.interactionTrackerStack[^1].detectedMouseOver = true
-
-proc captureHover*(gui: Gui, widget: ref) =
-  if gui.hoverCapture == nil:
-    gui.hoverCapture = widget.toWidgetPtr
-
-proc releaseHover*(gui: Gui, widget: ref) =
-  if gui.hoverCapture == widget.toWidgetPtr:
-    gui.hoverCapture = nil
-
-proc zIndex*(gui: Gui): int =
-  gui.currentLayer.zIndex
-
-proc offset*(gui: Gui): Vec2 =
-  gui.offsetStack[^1]
-
-proc clipRegion*(gui: Gui, global = false): Region =
-  result = gui.clipRegionStack[^1]
+proc currentClip*(window: Window, global = false): Rect =
+  result = window.clipStack[^1]
   if not global:
-    result.position -= gui.offset
+    result.position -= window.currentOffset
 
-proc interactionTracker*(gui: Gui): InteractionTracker =
-  gui.interactionTrackerStack[^1]
+proc interactionTracker*(window: Window): InteractionTracker =
+  window.interactionTrackerStack[^1]
 
-proc mousePosition*(gui: Gui): Vec2 =
-  gui.globalMousePosition - gui.offset
+proc mousePosition*(window: Window): Vec2 =
+  window.globalMousePosition - window.currentOffset
 
-proc beginInteractionTracker*(gui: Gui) =
-  gui.interactionTrackerStack.add(InteractionTracker())
+proc beginInteractionTracker*(window: Window) =
+  window.interactionTrackerStack.add(InteractionTracker())
 
-proc endInteractionTracker*(gui: Gui): InteractionTracker {.discardable.} =
-  result = gui.interactionTrackerStack.pop()
+proc endInteractionTracker*(window: Window): InteractionTracker {.discardable.} =
+  result = window.interactionTrackerStack.pop()
   if result.detectedHover:
-    gui.interactionTrackerStack[^1].detectedHover = true
+    window.interactionTrackerStack[^1].detectedHover = true
   if result.detectedMouseOver:
-    gui.interactionTrackerStack[^1].detectedMouseOver = true
+    window.interactionTrackerStack[^1].detectedMouseOver = true
 
-proc beginOffset*(gui: Gui, offset: Vec2, global = false) =
+proc beginOffset*(window: Window, offset: Vec2, global = false) =
   if global:
-    gui.offsetStack.add(offset)
+    window.offsetStack.add(offset)
   else:
-    gui.offsetStack.add(gui.offset + offset)
+    window.offsetStack.add(window.currentOffset + offset)
 
-proc endOffset*(gui: Gui): Vec2 {.discardable.} =
-  gui.offsetStack.pop()
+proc endOffset*(window: Window): Vec2 {.discardable.} =
+  window.offsetStack.pop()
 
-proc beginClipRegion*(gui: Gui, region: Region, global = false, intersect = true) =
-  var region = region
+proc beginClip*(window: Window, position, size: Vec2, global = false, intersect = true) =
+  var rect = (position: position, size: size)
 
   if not global:
-    region.position += gui.offset
+    rect.position += window.currentOffset
 
   if intersect:
-    region = region.intersect(gui.clipRegionStack[^1])
+    rect = rect.intersect(window.clipStack[^1])
 
-  gui.clipRegionStack.add(region)
-
-  gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
-    position: region.position,
-    size: region.size,
+  window.clipStack.add(rect)
+  window.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
+    position: rect.position,
+    size: rect.size,
   )))
 
-proc endClipRegion*(gui: Gui): Region {.discardable.} =
-  result = gui.clipRegionStack.pop()
+proc endClip*(window: Window): Rect {.discardable.} =
+  result = window.clipStack.pop()
 
-  if gui.clipRegionStack.len == 0:
+  if window.clipStack.len == 0:
     return
 
-  let clipRect = gui.clipRegionStack[^1]
-  gui.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
+  let clipRect = window.clipStack[^1]
+  window.currentLayer.drawCommands.add(DrawCommand(kind: Clip, clip: ClipCommand(
     position: clipRect.position,
     size: clipRect.size,
   )))
 
-proc beginZIndex*(gui: Gui, zIndex: int, global = false) =
+proc beginZIndex*(window: Window, zIndex: int, global = false) =
   if global:
-    gui.layerStack.add(Layer(zIndex: zIndex))
+    window.layerStack.add(Layer(zIndex: zIndex))
   else:
-    gui.layerStack.add(Layer(zIndex: gui.zIndex + zIndex))
+    window.layerStack.add(Layer(zIndex: window.currentZIndex + zIndex))
 
-proc endZIndex*(gui: Gui): int {.discardable.} =
-  let layer = gui.layerStack.pop()
-  gui.layers.add(layer)
+proc endZIndex*(window: Window): int {.discardable.} =
+  let layer = window.layerStack.pop()
+  window.layers.add(layer)
   layer.zIndex
 
-proc mouseHitTest*(gui: Gui, position, size: Vec2): bool =
-  let m = gui.mousePosition
+proc mouseHitTest*(window: Window, position, size: Vec2): bool =
+  let m = window.mousePosition
   m.x >= position.x and m.x <= position.x + size.x and
   m.y >= position.y and m.y <= position.y + size.y and
-  gui.clipRegion.contains(gui.mousePosition)
+  window.currentClip.contains(window.mousePosition)
 
-proc setupVectorGraphics*(gui: Gui) =
-  gui.vgCtx = VectorGraphicsContext.new()
+proc width*(glyph: Glyph): float =
+  glyph.right - glyph.left
 
-proc new*(_: typedesc[Gui]): Gui =
-  Gui(contentScale: 1.0)
+proc setFont(window: Window, font: Font) =
+  if not (font in window.loadedFonts):
+    let id = nvgCreateFontMem(window.nvgCtx, cstring(font.name), cstring(font.data), cint(font.data.len), 0)
+    if id == -1:
+      debugEcho &"Failed to load font: {font.name}"
+      return
+    window.loadedFonts.add(font)
 
-proc beginFrame*(gui: Gui) =
-  glViewport(0, 0, GLsizei(gui.size.x), GLsizei(gui.size.y))
-  gui.vgCtx.beginFrame(gui.size, gui.contentScale)
-  gui.cursorStyle = Arrow
+  if font == window.currentFont:
+    return
 
-  gui.beginZIndex(0, global = true)
-  gui.beginOffset(vec2(0, 0), global = true)
-  gui.beginClipRegion(region(vec2(0, 0), gui.size), global = true, intersect = false)
-  gui.interactionTrackerStack.add(InteractionTracker())
+  nvgFontFace(window.nvgCtx, cstring(font.name))
+  window.currentFont = font
 
-proc endFrame*(gui: Gui) =
-  discard gui.interactionTrackerStack.pop()
-  gui.endClipRegion()
-  gui.endOffset()
-  gui.endZIndex()
+proc setFontSize(window: Window, fontSize: float) =
+  if fontSize == window.currentFontSize:
+    return
+  nvgFontSize(window.nvgCtx, fontSize)
+  window.currentFontSize = fontSize
 
-  assert(gui.offsetStack.len == 0)
-  assert(gui.layerStack.len == 0)
-  assert(gui.clipRegionStack.len == 0)
-  assert(gui.interactionTrackerStack.len == 0)
+proc textMetrics*(window: Window, font: Font, fontSize: float): tuple[ascender, descender, lineHeight: float] =
+  window.setFont(font)
+  window.setFontSize(fontSize)
+  var ascender, descender, lineHeight: cfloat
+  nvgTextMetrics(window.nvgCtx, addr(ascender), addr(descender), addr(lineHeight))
+  (float(ascender), float(descender), float(lineHeight))
+
+proc measureGlyphs*(window: Window, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
+  if text.len == 0:
+    return
+
+  window.setFont(font)
+  window.setFontSize(fontSize)
+
+  var nvgPositions = newSeq[NVGglyphPosition](text.len)
+  let positionCount = nvgTextGlyphPositions(
+    window.nvgCtx, 0, 0,
+    cast[cstring](unsafeAddr(text[0])),
+    cast[cstring](cast[uint64](unsafeAddr(text[text.len - 1])) + 1),
+    addr(nvgPositions[0]),
+    cint(text.len),
+  )
+
+  result = newSeq[Glyph](positionCount)
+
+  for i in 0 ..< positionCount:
+    let byteOffset = cast[uint64](unsafeAddr(text[0]))
+
+    let lastByte =
+      if i == positionCount - 1:
+        text.len - 1
+      else:
+        int(cast[uint64](nvgPositions[i + 1].str) - byteOffset - 1)
+
+    result[i] = Glyph(
+      firstByte: int(cast[uint64](nvgPositions[i].str) - byteOffset),
+      lastByte: lastByte,
+      left: nvgPositions[i].minx,
+      right: nvgPositions[i].maxx,
+      drawOffsetX: nvgPositions[i].x - nvgPositions[i].minx,
+    )
+
+proc renderTextRaw(nvgCtx: NVGcontext, x, y: float, data: openArray[char]) =
+  if data.len == 0:
+    return
+  discard nvgText(
+    nvgCtx,
+    x, y,
+    cast[cstring](unsafeAddr(data[0])),
+    cast[cstring](cast[uint64](unsafeAddr(data[data.len - 1])) + 1),
+  )
+
+proc processPath(nvgCtx: NVGcontext, path: type Path()[]) =
+  nvgBeginPath(nvgCtx)
+  for command in path.commands:
+    case command.kind:
+    of Close:
+      nvgClosePath(nvgCtx)
+    of Rect:
+      let c = command.rect
+      nvgRect(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
+    of RoundedRect:
+      let c = command.roundedRect
+      nvgRoundedRectVarying(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y, c.rTopLeft, c.rTopRight, c.rBottomRight, c.rBottomLeft)
+    of MoveTo:
+      let c = command.moveTo
+      nvgMoveTo(nvgCtx, c.position.x, c.position.y)
+    of LineTo:
+      let c = command.lineTo
+      nvgLineTo(nvgCtx, c.position.x, c.position.y)
+    of ArcTo:
+      let c = command.arcTo
+      nvgArcTo(nvgCtx, c.p0.x, c.p0.y, c.p1.x, c.p1.y, c.radius)
+    of Winding:
+      let c = command.winding
+      let value = case c.winding:
+        of PathWinding.Positive: cint(1)
+        of PathWinding.Negative: cint(2)
+      nvgPathWinding(nvgCtx, value)
+
+proc renderDrawCommands*(window: Window, commands: openArray[DrawCommand]) =
+  let nvgCtx = window.nvgCtx
+  for command in commands:
+    case command.kind:
+    of FillPath:
+      let c = command.fillPath
+      nvgSave(nvgCtx)
+      nvgTranslate(nvgCtx, c.position.x, c.position.y)
+      processPath(nvgCtx, c.path)
+      nvgFillPaint(nvgCtx, c.paint.toNvgPaint)
+      nvgFill(nvgCtx)
+      nvgRestore(nvgCtx)
+    of StrokePath:
+      let c = command.strokePath
+      nvgSave(nvgCtx)
+      nvgTranslate(nvgCtx, c.position.x, c.position.y)
+      processPath(nvgCtx, c.path)
+      nvgStrokeWidth(nvgCtx, c.strokeWidth)
+      nvgStrokePaint(nvgCtx, c.paint.toNvgPaint)
+      nvgStroke(nvgCtx)
+      nvgRestore(nvgCtx)
+    of FillText:
+      var c = command.fillText
+      window.setFont(c.font)
+      window.setFontSize(c.fontSize)
+      nvgFillColor(nvgCtx, c.color.toNvgColor)
+      renderTextRaw(nvgCtx, c.position.x, c.position.y, c.text)
+    of Clip:
+      let c = command.clip
+      nvgScissor(nvgCtx, c.position.x, c.position.y, c.size.x, c.size.y)
+
+proc pixelAlign*(window: Window, value: float): float =
+  let contentScale = window.cachedContentScale
+  round(value * contentScale) / contentScale
+
+proc pixelAlign*(window: Window, position: Vec2): Vec2 =
+  vec2(window.pixelAlign(position.x), window.pixelAlign(position.y))
+
+proc fillPath*(window: Window, path: Path, paint: Paint) =
+  window.currentLayer.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
+    path: path[],
+    paint: paint,
+    position: window.pixelAlign(window.currentOffset),
+  )))
+
+proc fillPath*(window: Window, path: Path, color: Color) =
+  window.fillPath(path, solidColorPaint(color))
+
+proc strokePath*(window: Window, path: Path, paint: Paint, strokeWidth = 1.0) =
+  window.currentLayer.drawCommands.add(DrawCommand(kind: StrokePath, strokePath: StrokePathCommand(
+    path: path[],
+    paint: paint,
+    strokeWidth: strokeWidth,
+    position: window.pixelAlign(window.currentOffset),
+  )))
+
+proc strokePath*(window: Window, path: Path, color: Color, strokeWidth = 1.0) =
+  window.strokePath(path, solidColorPaint(color), strokeWidth)
+
+proc fillTextLine*(window: Window,
+  text: string,
+  position: Vec2,
+  color = rgb(255, 255, 255),
+  font = window.defaultFont,
+  fontSize = 13.0,
+) =
+  window.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
+    font: font,
+    fontSize: fontSize,
+    position: window.pixelAlign(window.currentOffset + position),
+    text: text,
+    color: color,
+  )))
+
+proc beginFrame(window: Window) =
+  currentWindow = window
+
+  let bg = window.backgroundColor
+  glClearColor(bg.r, bg.g, bg.b, bg.a)
+  glClear(GL_COLOR_BUFFER_BIT)
+
+  let size = window.size
+  glViewport(0, 0, GLsizei(size.x), GLsizei(size.y))
+
+  nvgBeginFrame(window.nvgCtx, window.size.x, window.size.y, window.contentScale)
+  nvgTextAlign(window.nvgCtx, NVG_ALIGN_LEFT or NVG_ALIGN_TOP)
+  window.currentFont = window.defaultFont
+  window.currentFontSize = 16.0
+
+  window.time = cpuTime()
+  window.cachedContentScale = window.contentScale
+
+  window.beginZIndex(0, global = true)
+  window.beginOffset(vec2(0, 0), global = true)
+  window.beginClip(vec2(0, 0), size, global = true, intersect = false)
+  window.interactionTrackerStack.add(InteractionTracker())
+
+proc endFrame(window: Window) =
+  discard window.interactionTrackerStack.pop()
+  window.endClip()
+  window.endOffset()
+  window.endZIndex()
+
+  nvgEndFrame(window.nvgCtx)
+
+  assert(window.offsetStack.len == 0)
+  assert(window.layerStack.len == 0)
+  assert(window.clipStack.len == 0)
+  assert(window.interactionTrackerStack.len == 0)
 
   # The layers are in reverse order because they were added in popZIndex.
   # Sort preserves the order of layers with the same z index, so they
   # must first be reversed and then sorted to keep that ordering in tact.
-  gui.layers.reverse()
-  gui.layers.sort(proc(x, y: Layer): int =
+  window.layers.reverse()
+  window.layers.sort(proc(x, y: Layer): int =
     cmp(x.zIndex, y.zIndex)
   )
 
-  gui.hover = nil
-  gui.mouseOver = nil
-  gui.highestZIndex = low(int)
+  window.hover = nil
+  window.mouseOver = nil
+  window.highestZIndex = low(int)
 
-  for layer in gui.layers:
-    if layer.zIndex > gui.highestZIndex:
-      gui.highestZIndex = layer.zIndex
+  for layer in window.layers:
+    if layer.zIndex > window.highestZIndex:
+      window.highestZIndex = layer.zIndex
 
-    gui.vgCtx.renderDrawCommands(layer.drawCommands)
+    window.renderDrawCommands(layer.drawCommands)
     let hoverRequest = layer.finalHoverRequest
     if hoverRequest != nil:
-      gui.hover = hoverRequest
-      gui.mouseOver = hoverRequest
+      window.hover = hoverRequest
+      window.mouseOver = hoverRequest
 
-  if gui.hoverCapture != nil:
-    gui.hover = gui.hoverCapture
+  if window.hoverCapture != nil:
+    window.hover = window.hoverCapture
 
-  gui.layers.setLen(0)
-  gui.mousePresses.setLen(0)
-  gui.mouseReleases.setLen(0)
-  gui.keyPresses.setLen(0)
-  gui.keyReleases.setLen(0)
-  gui.textInput.setLen(0)
-  gui.mouseWheelState = vec2(0, 0)
-  gui.previousGlobalMousePosition = gui.globalMousePosition
-  gui.previousTime = gui.time
+  window.layers.setLen(0)
 
-  gui.vgCtx.endFrame()
+  window.mousePresses.setLen(0)
+  window.mouseReleases.setLen(0)
+  window.keyPresses.setLen(0)
+  window.keyReleases.setLen(0)
+  window.textInput.setLen(0)
+  window.mouseWheelState = vec2(0, 0)
+  window.previousGlobalMousePosition = window.globalMousePosition
+  window.previousTime = window.time
 
+proc open*(window: Window): bool {.discardable.} =
+  if not oswindow.open(window):
+    return false
 
-# ======================================================================
-# Vector graphics
-# ======================================================================
+  window.loadedFonts.setLen(0)
+  window.userData = cast[pointer](window)
 
+  window.activateContext()
+  window.nvgCtx = nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES)
 
-proc clear*(gui: Gui) =
-  let bg = gui.backgroundColor
-  glClearColor(bg.r, bg.g, bg.b, 1.0)
-  glClear(GL_COLOR_BUFFER_BIT)
+  window.backendCallbacks.onClose = proc(oswindow: OsWindow) =
+    let window = cast[Window](oswindow.userData)
+    nvgDelete(window.nvgCtx)
 
-proc pixelAlign*(gui: Gui, value: float): float =
-  let contentScale = gui.contentScale
-  round(value * contentScale) / contentScale
+  window.backendCallbacks.onMouseMove = proc(oswindow: OsWindow, position, rootPosition: Vec2) =
+    let window = cast[Window](oswindow.userData)
+    window.globalMousePosition = position
+    window.rootMousePosition = rootPosition
 
-proc pixelAlign*(gui: Gui, position: Vec2): Vec2 =
-  vec2(gui.pixelAlign(position.x), gui.pixelAlign(position.y))
+  window.backendCallbacks.onMouseEnter = proc(oswindow: OsWindow) =
+    let window = cast[Window](oswindow.userData)
+    window.clientAreaHovered = true
 
-proc fillPath*(gui: Gui, path: Path, paint: Paint) =
-  gui.currentLayer.drawCommands.add(DrawCommand(kind: FillPath, fillPath: FillPathCommand(
-    path: path[],
-    paint: paint,
-    position: gui.pixelAlign(gui.offset),
-  )))
+  window.backendCallbacks.onMouseExit = proc(oswindow: OsWindow) =
+    let window = cast[Window](oswindow.userData)
+    window.clientAreaHovered = false
 
-proc fillPath*(gui: Gui, path: Path, color: Color) =
-  gui.fillPath(path, solidColorPaint(color))
+  window.backendCallbacks.onMouseWheel = proc(oswindow: OsWindow, amount: Vec2) =
+    let window = cast[Window](oswindow.userData)
+    window.mouseWheelState = amount
 
-proc strokePath*(gui: Gui, path: Path, paint: Paint, strokeWidth = 1.0) =
-  gui.currentLayer.drawCommands.add(DrawCommand(kind: StrokePath, strokePath: StrokePathCommand(
-    path: path[],
-    paint: paint,
-    strokeWidth: strokeWidth,
-    position: gui.pixelAlign(gui.offset),
-  )))
+  window.backendCallbacks.onMousePress = proc(oswindow: OsWindow, button: MouseButton) =
+    let window = cast[Window](oswindow.userData)
+    window.mouseDownStates[button] = true
+    window.mousePresses.add(button)
 
-proc strokePath*(gui: Gui, path: Path, color: Color, strokeWidth = 1.0) =
-  gui.strokePath(path, solidColorPaint(color), strokeWidth)
+  window.backendCallbacks.onMouseRelease = proc(oswindow: OsWindow, button: MouseButton) =
+    let window = cast[Window](oswindow.userData)
+    window.mouseDownStates[button] = false
+    window.mouseReleases.add(button)
 
-proc addFont*(gui: Gui, data: string): Font {.discardable.} =
-  gui.vgCtx.addFont(data)
+  window.backendCallbacks.onKeyPress = proc(oswindow: OsWindow, key: KeyboardKey) =
+    let window = cast[Window](oswindow.userData)
+    window.keyDownStates[key] = true
+    window.keyPresses.add(key)
 
-proc measureGlyphs*(gui: Gui, text: openArray[char], font: Font, fontSize: float): seq[Glyph] =
-  gui.vgCtx.measureGlyphs(text, font, fontSize)
+  window.backendCallbacks.onKeyRelease = proc(oswindow: OsWindow, key: KeyboardKey) =
+    let window = cast[Window](oswindow.userData)
+    window.keyDownStates[key] = false
+    window.keyReleases.add(key)
 
-proc textMetrics*(gui: Gui, font: Font, fontSize: float): TextMetrics =
-  gui.vgCtx.textMetrics(font, fontSize)
+  window.backendCallbacks.onText = proc(oswindow: OsWindow, text: string) =
+    let window = cast[Window](oswindow.userData)
+    window.textInput &= text
 
-proc fillTextLine*(gui: Gui,
-  text: string,
-  position: Vec2,
-  color = rgb(255, 255, 255),
-  font = Font(0),
-  fontSize = 13.0,
-) =
-  gui.currentLayer.drawCommands.add(DrawCommand(kind: FillText, fillText: FillTextCommand(
-    font: font,
-    fontSize: fontSize,
-    position: gui.pixelAlign(gui.offset + position),
-    text: text,
-    color: color,
-  )))
+  window.backendCallbacks.onDraw = proc(oswindow: OsWindow) =
+    let window = cast[Window](oswindow.userData)
+    window.beginFrame()
+    if window.onFrame != nil:
+      window.onFrame(window)
+    window.endFrame()

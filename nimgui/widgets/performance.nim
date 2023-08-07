@@ -1,7 +1,8 @@
+import std/strutils
 import ../gui
 
 type
-  Performance* = ref object
+  Performance* = ref object of Widget
     frameTime*: float
     averageWindow*: int
     index: int
@@ -16,7 +17,13 @@ proc new*(_: typedesc[Performance]): Performance =
 proc fps*(perf: Performance): float =
   1.0 / perf.frameTime
 
-proc update*(gui: Gui, perf: Performance) =
+proc draw*(perf: Performance) =
+  let window = gui.currentWindow
+  window.fillTextLine("Fps: " & perf.fps.formatFloat(ffDecimal, 4), vec2(0, 0))
+
+proc update*(perf: Performance) =
+  let window = gui.currentWindow
+
   let averageWindow = perf.averageWindow
 
   if averageWindow != perf.previousAverageWindow:
@@ -24,7 +31,7 @@ proc update*(gui: Gui, perf: Performance) =
     perf.deltaTimes = newSeq[float](averageWindow)
 
   if perf.index < perf.deltaTimes.len:
-    perf.deltaTimes[perf.index] = gui.deltaTime
+    perf.deltaTimes[perf.index] = window.deltaTime
 
   perf.index += 1
   if perf.index >= perf.deltaTimes.len:

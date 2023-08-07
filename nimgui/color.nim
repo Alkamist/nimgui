@@ -1,17 +1,17 @@
 type
-  Color* = object
-    r*, g*, b*, a*: float
+  Color* = tuple
+    r, g, b, a: float
 
 {.push inline.}
 
-func color*(r, g, b, a = 0.0): Color =
-  Color(r: r, g: g, b: b, a: a)
+func color*(r, g, b, a: float): Color =
+  (r: r, g: g, b: b, a: a)
 
-func rgba*(r, g, b, a: uint8 = 0): Color =
-  color(r.float / 255, g.float / 255, b.float / 255, a.float / 255)
+func rgba*(r, g, b, a: uint8): Color =
+  (float(r) / 255, float(g) / 255, float(b) / 255, float(a) / 255)
 
-func rgb*(r, g, b: uint8 = 0): Color =
-  color(r.float / 255, g.float / 255, b.float / 255, 1.0)
+func rgb*(r, g, b: uint8): Color =
+  (float(r) / 255, float(g) / 255, float(b) / 255, 1.0)
 
 func lerp*(a, b: Color, weight: float): Color =
   result = a

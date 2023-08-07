@@ -2,40 +2,40 @@ import ../gui
 import ./button
 
 type
-  Slider* = ref object
+  Slider* = ref object of Widget
     position*: Vec2
-    size*: Vec2
+    size* = vec2(300, 24)
     value*: float
-    minValue*: float
-    maxValue*: float
-    handleLength*: float
+    minValue* = 0.0
+    maxValue* = 1.0
+    handleLength* = 16.0
     handle*: Button
     valueWhenHandleGrabbed: float
     globalMousePositionWhenHandleGrabbed: Vec2
 
 proc new*(_: typedesc[Slider]): Slider =
   result = Slider()
-  result.handle = Button.new()
-  result.size = vec2(300, 24)
-  result.minValue = 0.0
-  result.maxValue = 1.0
-  result.handleLength = 16.0
+  result.handle = Button()
 
-proc draw*(gui: Gui, slider: Slider) =
+proc draw*(slider: Slider) =
+  let window = gui.currentWindow
+
   let path = Path.new()
   path.roundedRect(slider.position, slider.size, 3)
-  gui.fillPath(path, rgb(31, 32, 34))
+  window.fillPath(path, rgb(31, 32, 34))
   path.clear()
 
   let handle = slider.handle
-  path.roundedRect(gui.pixelAlign(handle.position), gui.pixelAlign(handle.size), 3)
-  gui.fillPath(path, rgb(49, 51, 56).lighten(0.3))
+  path.roundedRect(window.pixelAlign(handle.position), window.pixelAlign(handle.size), 3)
+  window.fillPath(path, rgb(49, 51, 56).lighten(0.3))
   if handle.isDown:
-    gui.fillPath(path, rgba(0, 0, 0, 8))
-  elif gui.isHovered(handle):
-    gui.fillPath(path, rgba(255, 255, 255, 8))
+    window.fillPath(path, rgba(0, 0, 0, 8))
+  elif window.isHovered(handle):
+    window.fillPath(path, rgba(255, 255, 255, 8))
 
-proc update*(gui: Gui, slider: Slider) =
+proc update*(slider: Slider) =
+  let window = gui.currentWindow
+
   let position = slider.position
   let size = slider.size
   let handleLength = slider.handleLength
@@ -47,17 +47,17 @@ proc update*(gui: Gui, slider: Slider) =
   handle.position = position + vec2((size.x - handleLength) * (value - minValue) / (maxValue - minValue), 0.0)
   handle.size = vec2(handleLength, size.y)
 
-  gui.update(handle)
+  handle.update()
 
-  if handle.pressed or gui.keyPressed(LeftControl) or gui.keyReleased(LeftControl):
+  if handle.pressed or window.keyPressed(LeftControl) or window.keyReleased(LeftControl):
     slider.valueWhenHandleGrabbed = value
-    slider.globalMousePositionWhenHandleGrabbed = gui.globalMousePosition
+    slider.globalMousePositionWhenHandleGrabbed = window.globalMousePosition
 
   let sensitivity =
-    if gui.keyDown(LeftControl): 0.15
+    if window.keyDown(LeftControl): 0.15
     else: 1.0
 
   if handle.isDown:
-    let grabDelta = gui.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
+    let grabDelta = window.globalMousePosition.x - slider.globalMousePositionWhenHandleGrabbed.x
     value = slider.valueWhenHandleGrabbed + sensitivity * grabDelta * (maxValue - minValue) / (size.x - handleLength)
     slider.value = value.clamp(minValue, maxValue)
